@@ -3,273 +3,346 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gutenberg Book Reader</title>
+  <title>Gutenberg Reader (Solari Style)</title>
   <style>
-    /* 簡易レイアウト整形 */
+    /* ==========================================
+       ベースデザイン & ソラリ風読書UI
+       ========================================== */
+    :root {
+      --bg-color: #f4f1ea;
+      --text-color: #2b2b2b;
+      --accent-color: #8c6d46;
+      --card-bg: #ffffff;
+      --border-color: #e0dacb;
+    }
+
     body {
-      font-family: sans-serif;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
-      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: "Georgia", "Hiragino Mincho ProN", "Yu Mincho", serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
     }
-    #status {
-      font-weight: bold;
-      color: #333;
-      margin: 10px 0;
-    }
-    #reader {
-      border: 1px solid #ccc;
-      padding: 15px;
-      min-height: 300px;
-      max-height: 600px;
-      overflow-y: auto;
-      background: #fafafa;
-      margin-top: 15px;
-    }
-    .search-box {
+
+    /* ヘッダー・検索エリア */
+    header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 20px;
       display: flex;
       gap: 10px;
-      margin-bottom: 10px;
+      align-items: center;
+      z-index: 10;
     }
+
     input[type="text"] {
       flex: 1;
-      padding: 8px;
+      padding: 8px 12px;
+      font-size: 14px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--bg-color);
+      font-family: sans-serif;
     }
+
     button {
       padding: 8px 16px;
+      background: var(--accent-color);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-family: sans-serif;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    #status {
+      font-size: 12px;
+      color: #666;
+      margin-left: 10px;
+      font-family: sans-serif;
+    }
+
+    /* メインレイアウト */
+    main {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 60px);
+      overflow: hidden;
+    }
+
+    /* 左側：検索結果テーブル & キャッシュ一覧 */
+    #sidebar {
+      width: 350px;
+      border-right: 1px solid var(--border-color);
+      background: var(--card-bg);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: bold;
+      padding: 8px 12px;
+      background: #eae5d9;
+      color: #555;
+      font-family: sans-serif;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      font-family: sans-serif;
+    }
+
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    th {
+      background: #faf8f5;
+    }
+
+    tr.book-row {
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    tr.book-row:hover {
+      background: #f0ebe1;
+    }
+
+    /* 右側：ソラリ風リーダー表示エリア */
+    #reader-container {
+      flex: 1;
+      padding: 40px;
+      overflow-y: auto;
+      display: flex;
+      justify-content: center;
+    }
+
+    #reader {
+      max-width: 680px;
+      width: 100%;
+      line-height: 1.8;
+      font-size: 18px;
+      word-wrap: break-word;
+    }
+
+    #reader h1, #reader h2, #reader h3 {
+      text-align: center;
+      color: var(--accent-color);
+      margin-top: 2em;
+    }
+
+    #reader p {
+      text-indent: 1em;
+      margin-bottom: 1.5em;
+      text-align: justify;
+    }
+
+    /* ローディングオーバーレイ */
+    .loading {
+      opacity: 0.5;
+      pointer-events: none;
     }
   </style>
 </head>
 <body>
 
-  <h1>Gutenberg Book Reader</h1>
-
-  <div class="search-box">
-    <input type="text" id="search_input" placeholder="書名や著者名を入力 (例: Alice in Wonderland)">
+  <header>
+    <input type="text" id="search_input" placeholder="日本語・英語のタイトル/著者名 (例: 白衣の騎士団, Alice)">
     <button id="search_btn">検索</button>
-  </div>
+    <span id="status">準備完了 ( 'ω' )</span>
+  </header>
 
-  <div id="status">検索キーワードを入力してください ( 'ω' )</div>
-  
-  <div>
-    <a id="download_link" href="#" style="display: none;">[ HTML版を別タブで開く ]</a>
-  </div>
+  <main>
+    <!-- サイドバー：検索結果 ＆ IndexedDB保存済み書籍 -->
+    <div id="sidebar">
+      <div class="section-title">ローカル保存済み作品 (IndexedDB)</div>
+      <table id="saved_table">
+        <thead>
+          <tr><th>タイトル</th><th>操作</th></tr>
+        </thead>
+        <tbody id="saved_list"></tbody>
+      </table>
 
-  <!-- 1. 本文表示エリア -->
-  <div id="reader"></div>
+      <div class="section-title">検索結果</div>
+      <table id="results_table">
+        <thead>
+          <tr><th>タイトル</th><th>著者</th></tr>
+        </thead>
+        <tbody id="results_list"></tbody>
+      </table>
+    </div>
+
+    <!-- 本文解体・テキスト再構築表示エリア -->
+    <div id="reader-container">
+      <div id="reader">
+        <p style="text-align: center; color: #888; margin-top: 100px;">
+          左側のリストから作品を選択するか、検索を実行してください ( `•̀ω•́` )b
+        </p>
+      </div>
+    </div>
+  </main>
 
   <script>
     // ==========================================
-    // キャッシュ（6. 直列API・パフォーマンス対策）
+    // 1. IndexedDB 制御モジュール
     // ==========================================
-    const author_cache = new Map();
+    const DB_NAME = "GutenbergReaderDB";
+    const DB_VERSION = 1;
+    const STORE_NAME = "books";
+    let db_instance = null;
 
-    // UI要素の参照取得
-    const status_el = document.getElementById("status");
-    const reader_el = document.getElementById("reader");
-    const download_link = document.getElementById("download_link");
-    const search_input = document.getElementById("search_input");
-    const search_btn = document.getElementById("search_btn");
-
-    // 3. セキュリティ対策：外部リンクのタブナッピング対策
-    if (download_link) {
-      download_link.setAttribute("target", "_blank");
-      download_link.setAttribute("rel", "noopener noreferrer");
-    }
-
-    // イベントリスナーの登録
-    search_btn.addEventListener("click", () => {
-      const q = search_input.value.trim();
-      if (q) search_books(q);
-    });
-
-    search_input.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") {
-        const q = search_input.value.trim();
-        if (q) search_books(q);
-      }
-    });
-
-    /**
-     * メインの検索・処理エントリーポイント
-     * @param {string} search_query - 検索キーワード
-     */
-    async function search_books(search_query) {
-      // UIリセット＆初期化
-      status_el.innerText = "検索中...";
-      if (reader_el) reader_el.innerHTML = "";
-      if (download_link) download_link.style.display = "none";
-
-      // 2. エラーハンドリング：全体を try-catch で囲みUIへ反映
-      try {
-        const meta_data = await search_open_library(search_query);
-
-        if (!meta_data) {
-          status_el.innerText = "該当する書籍が見つかりませんでした (;´･ω･)";
-          return;
-        }
-
-        // Gutendexから本データを取得
-        const gutenberg_data = await fetch_from_gutendex(meta_data);
-
-        if (!gutenberg_data) {
-          status_el.innerText = "Gutenbergで該当するテキストが見つかりませんでした。";
-          return;
-        }
-
-        status_el.innerText = `「${gutenberg_data.title}」のデータ取得完了！`;
-
-        // 1. #reader への本文レンダリング処理の呼び出し
-        await render_book_content(gutenberg_data);
-
-      } catch (err_maji_damedawa) {
-        // 後で修正ログ見る用
-        console.error("Fatal search error:", err_maji_damedawa);
-        status_el.innerText = "通信エラーが発生しました... 再度お試しください (;_ acoustics )";
-      }
-    }
-
-    /**
-     * Open Library 検索 API
-     */
-    async function search_open_library(query) {
-      const res = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}`);
-      if (!res.ok) throw new Error("Open Library search network error");
-
-      const data = await res.json();
-      if (!data.docs || data.docs.length === 0) return null;
-
-      // 4. あいまい性対策：Gutenberg IDを持っている候補を優先探索
-      let selected_doc = data.docs.find(doc => doc.gutenberg_id && doc.gutenberg_id.length > 0);
-      
-      if (!selected_doc) {
-        selected_doc = data.docs[0];
-      }
-
-      const author_key = (selected_doc.author_key && selected_doc.author_key[0]) 
-        ? selected_doc.author_key[0] 
-        : null;
-
-      // 6. 著者没年取得（キャッシュ適用）
-      let death_year = null;
-      if (author_key) {
-        death_year = await fetch_author_death_year_cached(author_key);
-      }
-
-      const gutenberg_id = (selected_doc.gutenberg_id && selected_doc.gutenberg_id[0]) 
-        ? selected_doc.gutenberg_id[0] 
-        : null;
-
-      return {
-        title: selected_doc.title,
-        author_name: selected_doc.author_name ? selected_doc.author_name[0] : "Unknown",
-        author_key: author_key,
-        death_year: death_year,
-        gutenberg_id: gutenberg_id
-      };
-    }
-
-    /**
-     * 6. キャッシュ付き著者没年取得関数
-     */
-    async function fetch_author_death_year_cached(author_key) {
-      if (author_cache.has(author_key)) {
-        return author_cache.get(author_key);
-      }
-
-      try {
-        const res = await fetch(`https://openlibrary.org/authors/${author_key}.json`);
-        if (!res.ok) return null;
-
-        const author_data = await res.json();
-        const death_date_str = author_data.death_date;
-
-        let death_year = null;
-        if (death_date_str) {
-          // 5. 正規表現抽出
-          const match_year = death_date_str.match(/\b\d{4}\b/);
-          if (match_year) {
-            death_year = parseInt(match_year[0], 10);
+    async function init_db() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: "id" });
           }
-        }
-
-        author_cache.set(author_key, death_year);
-        return death_year;
-
-      } catch (err_author_api) {
-        console.warn("Author API error:", err_author_api);
-        return null;
-      }
+        };
+        req.onsuccess = (e) => {
+          db_instance = e.target.result;
+          resolve(db_instance);
+        };
+        req.onerror = (e) => reject(e);
+      });
     }
 
-    /**
-     * Gutendex API からデータ取得
-     */
-    async function fetch_from_gutendex(meta_data) {
-      let url = "";
-      if (meta_data.gutenberg_id) {
-        url = `https://gutendex.com/books/?ids=${meta_data.gutenberg_id}`;
-      } else {
-        url = `https://gutendex.com/books/?search=${encodeURIComponent(meta_data.author_name + " " + meta_data.title)}`;
-      }
-
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Gutendex API network error");
-
-      const data = await res.json();
-      return (data.results && data.results.length > 0) ? data.results[0] : null;
+    async function save_book_to_db(book_data) {
+      return new Promise((resolve, reject) => {
+        const tx = db_instance.transaction(STORE_NAME, "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        store.put(book_data);
+        tx.oncomplete = () => resolve();
+        tx.onerror = (e) => reject(e);
+      });
     }
 
-    /**
-     * 1. 本文フェッチ＆#readerへのレンダリング
-     */
-    async function render_book_content(gutenberg_book) {
-      if (!reader_el) return;
+    async function get_book_from_db(id) {
+      return new Promise((resolve, reject) => {
+        const tx = db_instance.transaction(STORE_NAME, "readonly");
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.get(id);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = (e) => reject(e);
+      });
+    }
 
-      const formats = gutenberg_book.formats || {};
-      
-      const content_url = formats["text/html"] || 
-                          formats["text/html; charset=utf-8"] || 
-                          formats["text/plain; charset=utf-8"] || 
-                          formats["text/plain"];
+    async function get_all_saved_books() {
+      return new Promise((resolve, reject) => {
+        const tx = db_instance.transaction(STORE_NAME, "readonly");
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = (e) => reject(e);
+      });
+    }
 
-      if (!content_url) {
-        reader_el.innerText = "表示可能なテキストフォーマットが見つかりませんでした。";
-        return;
+    // ==========================================
+    // 2. 日本語クエリ -> 英語原題 翻訳検索モジュール (Wikipedia API)
+    // ==========================================
+    async function translate_japanese_to_english_title(query_str) {
+      // 全角英数字などの判定および日本語チェック
+      if (!/[一-龠ぁ-ゔァ-ヴー]/.test(query_str)) {
+        return query_str; // 日本語が含まれていなければそのまま使用
       }
-
-      // 外部リンクの更新表示
-      if (download_link && formats["text/html"]) {
-        download_link.href = formats["text/html"];
-        download_link.style.display = "inline";
-      }
-
-      status_el.innerText = "本文を取得中...";
 
       try {
-        const text_res = await fetch(content_url);
-        if (!text_res.ok) throw new Error("Failed to fetch book content text");
+        // Wikipedia APIで日本語記事を検索
+        const wiki_search_url = `https://ja.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query_str)}&format=json&origin=*`;
+        const res = await fetch(wiki_search_url);
+        const data = await res.json();
 
-        const raw_text = await text_res.text();
+        if (!data.query.search || data.query.search.length === 0) return query_str;
 
-        if (content_url.includes("text/html")) {
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(raw_text, "text/html");
-          reader_el.innerHTML = doc.body ? doc.body.innerHTML : raw_text;
-        } else {
-          reader_el.innerHTML = `<pre style="white-space: pre-wrap; word-break: break-all; font-family: inherit;">${escape_html(raw_text)}</pre>`;
+        const page_title = data.query.search[0].title;
+
+        // 言語間リンク (langlinks) から英語版のタイトルを取得
+        const lang_url = `https://ja.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(page_title)}&prop=langlinks&lllang=en&format=json&origin=*`;
+        const lang_res = await fetch(lang_url);
+        const lang_data = await lang_res.json();
+
+        const pages = lang_data.query.pages;
+        const page_id = Object.keys(pages)[0];
+
+        if (pages[page_id].langlinks && pages[page_id].langlinks.length > 0) {
+          const en_title = pages[page_id].langlinks[0]["*"];
+          console.log(`[翻訳成功] ${query_str} -> ${en_title}`);
+          return en_title;
         }
-
-        status_el.innerText = "読み込み完了！ ( `•̀ω•́` )b";
-
-      } catch (err_text_fetch) {
-        console.error("Text fetch error:", err_text_fetch);
-        reader_el.innerText = "本文の取得中にエラーが発生しました（CORS制限等の可能性があります）。";
+      } catch (err_trans) {
+        console.warn("Translation API failed, fallback to raw query:", err_trans);
       }
+      return query_str;
     }
 
-    // XSS対策用
+    // ==========================================
+    // 3. Gutenberg (Gutendex) 検索 ＆ フェッチ
+    // ==========================================
+    async function search_gutendex(query_str) {
+      // 1. 必要に応じて日本語を英語へ自動変換
+      const target_query = await translate_japanese_to_english_title(query_str);
+      
+      const url = `https://gutendex.com/books/?search=${encodeURIComponent(target_query)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Gutendex API Network Error");
+
+      const data = await res.json();
+      return data.results || [];
+    }
+
+    // ==========================================
+    // 4. HTML解体 & テキスト再構築（ソラリ風リーダー整形）
+    // ==========================================
+    function parse_and_reconstruct_html(raw_html_str) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(raw_html_str, "text/html");
+
+      // スクリプトやスタイルなどの不要タグを完全除去
+      const scripts_and_styles = doc.querySelectorAll("script, style, noscript, iframe, header, footer, nav");
+      scripts_and_styles.forEach(el => el.remove());
+
+      // 本文構成要素 (h1~h6, p) の抽出
+      const elements = doc.body.querySelectorAll("h1, h2, h3, h4, h5, h6, p");
+      let reconstructed_html = "";
+
+      if (elements.length > 0) {
+        elements.forEach(el => {
+          const clean_text = el.textContent.trim();
+          if (clean_text.length > 0) {
+            const tag = el.tagName.toLowerCase();
+            reconstructed_html += `<${tag}>${escape_html(clean_text)}</${tag}>\n`;
+          }
+        });
+      } else {
+        // 万が一構造タグがない場合はプレーンテキストとして分解処理
+        const paragraphs = doc.body.textContent.split(/\n\s*\n/);
+        paragraphs.forEach(p_text => {
+          if (p_text.trim()) {
+            reconstructed_html += `<p>${escape_html(p_text.trim())}</p>\n`;
+          }
+        });
+      }
+
+      return reconstructed_html;
+    }
+
     function escape_html(str) {
       return str
         .replace(/&/g, "&amp;")
@@ -277,6 +350,142 @@
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+    }
+
+    // ==========================================
+    // 5. UI イベント＆描画制御
+    // ==========================================
+    const status_el = document.getElementById("status");
+    const reader_el = document.getElementById("reader");
+    const search_input = document.getElementById("search_input");
+    const search_btn = document.getElementById("search_btn");
+    const results_list = document.getElementById("results_list");
+    const saved_list = document.getElementById("saved_list");
+
+    window.addEventListener("DOMContentLoaded", async () => {
+      try {
+        await init_db();
+        await render_saved_books();
+      } catch (err_db) {
+        console.error("IndexedDB initialization error:", err_db);
+        status_el.innerText = "DBエラーが発生しました (;_ acoustics )";
+      }
+    });
+
+    search_btn.addEventListener("click", execute_search);
+    search_input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") execute_search();
+    });
+
+    async function execute_search() {
+      const q = search_input.value.trim();
+      if (!q) return;
+
+      status_el.innerText = "検索中（英訳補完処理中...）";
+      results_list.innerHTML = "";
+
+      try {
+        const books = await search_gutendex(q);
+
+        if (books.length === 0) {
+          status_el.innerText = "該当する書籍が見つかりませんでした (;´･ω･)";
+          return;
+        }
+
+        status_el.innerText = `${books.length} 件見つかりました！`;
+
+        books.forEach(book => {
+          const tr = document.createElement("tr");
+          tr.className = "book-row";
+          const author_name = book.authors && book.authors.length > 0 ? book.authors[0].name : "Unknown";
+          
+          tr.innerHTML = `<td><strong>${escape_html(book.title)}</strong></td><td>${escape_html(author_name)}</td>`;
+          tr.addEventListener("click", () => handle_book_select(book));
+          results_list.appendChild(tr);
+        });
+
+      } catch (err_search) {
+        console.error("Search failure:", err_search);
+        status_el.innerText = "検索中にエラーが発生しました...";
+      }
+    }
+
+    async function handle_book_select(book) {
+      status_el.innerText = `「${book.title}」のデータ確認中...`;
+
+      // 1. IndexedDBにすでに保存されているかチェック
+      const cached = await get_book_from_db(book.id);
+      if (cached) {
+        status_el.innerText = "IndexedDB からロード完了！ ( `•̀ω•́` )b";
+        render_reader(cached.title, cached.content);
+        return;
+      }
+
+      // 2. なければGutendexからHTML取得＆ダウンロード処理
+      const formats = book.formats || {};
+      const html_url = formats["text/html"] || formats["text/html; charset=utf-8"];
+
+      if (!html_url) {
+        status_el.innerText = "HTMLフォーマットが存在しません (;_ acoustics )";
+        return;
+      }
+
+      status_el.innerText = "HTMLダウンロード中...";
+
+      try {
+        const res = await fetch(html_url);
+        if (!res.ok) throw new Error("HTML fetch error");
+
+        const raw_html = await res.text();
+
+        status_el.innerText = "HTML分解・テキスト構築中...";
+        const clean_content = parse_and_reconstruct_html(raw_html);
+
+        // IndexedDB に保存
+        const book_record = {
+          id: book.id,
+          title: book.title,
+          author: book.authors && book.authors[0] ? book.authors[0].name : "Unknown",
+          content: clean_content,
+          updated_at: new Date().getTime()
+        };
+
+        await save_book_to_db(book_record);
+        await render_saved_books();
+
+        status_el.innerText = "保存＆表示完了！";
+        render_reader(book_record.title, book_record.content);
+
+      } catch (err_fetch) {
+        console.error("Fetch/Parse Error:", err_fetch);
+        status_el.innerText = "ダウンロード・解析エラーが発生しました。";
+      }
+    }
+
+    function render_reader(title, content_html) {
+      reader_el.innerHTML = `<h1>${escape_html(title)}</h1><hr style="border:0; border-top:1px solid #ccc; margin: 30px 0;">` + content_html;
+      document.getElementById("reader-container").scrollTop = 0;
+    }
+
+    async function render_saved_books() {
+      const saved_books = await get_all_saved_books();
+      saved_list.innerHTML = "";
+
+      if (saved_books.length === 0) {
+        saved_list.innerHTML = `<tr><td colspan="2" style="color:#888; text-align:center;">保存済み作品なし</td></tr>`;
+        return;
+      }
+
+      saved_books.forEach(b => {
+        const tr = document.createElement("tr");
+        tr.className = "book-row";
+        tr.innerHTML = `<td>${escape_html(b.title)}</td><td><button style="padding:2px 6px; font-size:10px;">読む</button></td>`;
+        tr.addEventListener("click", () => {
+          status_el.innerText = "ローカルから読み込み完了！";
+          render_reader(b.title, b.content);
+        });
+        saved_list.appendChild(tr);
+      });
     }
   </script>
 </body>
