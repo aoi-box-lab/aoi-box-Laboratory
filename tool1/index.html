@@ -257,14 +257,14 @@
     </div>
 
 <script>
-// 今回一番やらかした戦犯。?url= をしっかり入れたぜ！これでCORSの結界は破れる
+// 今度こそ完璧なプロキシ設定。urlパラメータがないとマジでCORSの結界に弾かれる
 const maji_de_proxy_base = "https://aoi-box-lab.idosenpai.workers.dev/?url=";
 
 let maji_de_db = null;
 let current_font_size = 18;
 let is_vertical_mode = false;
 
-// 検索結果を一時保存する連邦のモビルスーツ的変数（ボタンからURL直渡しはキツいからな）
+// 検索結果のURLとかを一時保存するV作戦の機体データ（キャッシュ）
 let v_project_cache = {}; 
 
 // データベースの初期化処理
@@ -272,7 +272,7 @@ function initDB()
 {
     return new Promise((resolve, reject) => 
     {
-        // IndexedDB起動！頼むからエラー吐かないでくれよ…
+        // IndexedDBとかいう非同期の悪魔。何度ここで発狂したか…
         const req = indexedDB.open("SolariGutenbergDB", 1);
         
         req.onupgradeneeded = (e) => 
@@ -292,7 +292,7 @@ function initDB()
 
         req.onerror = (e) => 
         {
-            console.error("IndexedDB開くの失敗したんだけど何事？", e);
+            console.error("DB開けねぇよクソが！", e);
             reject(e);
         };
     });
@@ -303,20 +303,19 @@ function checkChosakukenSafe(authorDeathYear)
 {
     if (!authorDeathYear)
     {
-        // 没年不明とか一番困るやつ。安全側に倒して弾いておく
+        // 没年不明。こういうのが一番厄介だから安全側に倒して弾く
         return false;
     }
-    const genzaiNen = 2026; // 現在の年
-    const maji_de_elapsed = genzaiNen - authorDeathYear;
+    const genzaiNen = 2026; 
+    const nen_no_sa = genzaiNen - authorDeathYear;
     
-    // 現在の年 - 著者の没年 >= 80
-    return maji_de_elapsed >= 80;
+    return nen_no_sa >= 80;
 }
 
-// 日本語から英語への簡易変換
+// 日本語から英語への簡易変換（Google翻訳APIに変更！）
 async function translateToEnglish(jpText)
 {
-    // 英数字のみなら翻訳をスキップ
+    // 英数字のみなら翻訳をスキップする無駄回避
     if (/^[a-zA-Z0-9\s]+$/.test(jpText)) 
     {
         return jpText;
@@ -324,232 +323,235 @@ async function translateToEnglish(jpText)
 
     try 
     {
-        const transApi = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(jpText)}&langpair=ja|en`;
-        // プロキシベースにはすでに url= が付いてるから、そのままエンコードして繋げる
-        const res = await fetch(maji_de_proxy_base + encodeURIComponent(transApi));
+        // MyMemoryでIP制限食らったからGoogleの裏API（gtx）に変更。マジでGoogle神。
+        const nen_ryou = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=en&dt=t&q=${encodeURIComponent(jpText)}`;
+        
+        const res = await fetch(maji_de_proxy_base + encodeURIComponent(nen_ryou));
         const data = await res.json();
         
-        if (data && data.responseData && data.responseData.translatedText) 
+        // Google翻訳のレスポンス構造（多重配列）から翻訳結果を引っ張り出す念能力
+        if (data && data[0] && data[0][0] && data[0][0][0]) 
         {
-            return data.responseData.translatedText;
+            return data[0][0][0];
         }
     } 
     catch (err) 
     {
-        console.warn("英訳失敗したわ…仕方ないからそのまま突撃する", err);
+        // 翻訳死んだわ。もういいそのまま突っ込む
+        console.warn("翻訳APIでエラー吐いたわ…仕方ないから原文で突撃する", err);
     }
     return jpText;
 }
 
 // グーテンベルク検索処理
+// この辺から処理が高度になってきて変数名考えるの面倒になってきた
 async function execSearch()
 {
-    const inputEre = document.getElementById("search-input");
-    const queryVal = inputEre.value.trim();
-    const statusEre = document.getElementById("search-status");
-    const tableEre = document.getElementById("results-table");
-    const tbodyEre = document.getElementById("results-tbody");
+    const in_e = document.getElementById("search-input");
+    const q_v = in_e.value.trim();
+    const s_e = document.getElementById("search-status");
+    const t_e = document.getElementById("results-table");
+    const tb_e = document.getElementById("results-tbody");
 
-    if (!queryVal) return;
+    if (!q_v) return;
 
-    statusEre.textContent = "翻訳＆検索中...少々お待ちを ( ｀・ω・´)";
-    tbodyEre.innerHTML = "";
-    tableEre.style.display = "none";
+    s_e.textContent = "翻訳＆検索中... ( ｀・ω・´)";
+    tb_e.innerHTML = "";
+    t_e.style.display = "none";
     
-    // キャッシュをクリアする
+    // キャッシュをクリア
     v_project_cache = {};
 
     try 
     {
-        const englishQuery = await translateToEnglish(queryVal);
-        statusEre.textContent = `「${englishQuery}」でGutendexを索敵中...`;
+        const eng_q = await translateToEnglish(q_v);
+        s_e.textContent = `「${eng_q}」でGutendexを索敵中...`;
 
-        const gutendexApi = `https://gutendex.com/books/?search=${encodeURIComponent(englishQuery)}`;
-        const res = await fetch(maji_de_proxy_base + encodeURIComponent(gutendexApi));
+        const g_api = `https://gutendex.com/books/?search=${encodeURIComponent(eng_q)}`;
+        const res = await fetch(maji_de_proxy_base + encodeURIComponent(g_api));
         const data = await res.json();
 
         if (!data.results || data.results.length === 0) 
         {
-            statusEre.textContent = "該当する作品が見つからなかったお… ＼(^o^)／";
+            s_e.textContent = "該当する作品が見つからんかった＼(^o^)／";
             return;
         }
 
-        statusEre.textContent = "";
-        tableEre.style.display = "table";
+        s_e.textContent = "";
+        t_e.style.display = "table";
 
-        data.results.forEach((book) => 
+        data.results.forEach((b) => 
         {
-            // 後でダウンロードURLを掘り返すためにオブジェクト丸ごとV作戦キャッシュに格納
-            v_project_cache[book.id] = book;
+            // ダウンロードURL掘り返すためにキャッシュに格納
+            v_project_cache[b.id] = b;
 
-            const author = book.authors[0] || { name: "不明", death_year: null };
-            const deathYear = author.death_year;
+            const a_a = b.authors[0] || { name: "不明", death_year: null };
+            const d_y = a_a.death_year;
             
-            // 著作権判定
-            const isSafe = checkChosakukenSafe(deathYear);
+            const is_s = checkChosakukenSafe(d_y);
 
             const tr = document.createElement("tr");
+            
+            // 本当はもっと綺麗に書くべきだけど面倒だからテンプレートリテラルでごまかす
             tr.innerHTML = `
-                <td>${book.id}</td>
-                <td>${book.title}</td>
-                <td>${author.name}</td>
-                <td>${deathYear ? deathYear : "不明"}</td>
+                <td>${b.id}</td>
+                <td>${b.title}</td>
+                <td>${a_a.name}</td>
+                <td>${d_y ? d_y : "不明"}</td>
                 <td>
-                    ${isSafe 
-                        ? `<button onclick="downloadAndSaveBook(${book.id})">保存・読む</button>`
+                    ${is_s 
+                        ? `<button onclick="downloadAndSaveBook(${b.id})">保存・読む</button>`
                         : `<span style="color:red; font-size:0.8rem;">保護期間内(不可)</span>`
                     }
                 </td>
             `;
-            tbodyEre.appendChild(tr);
+            tb_e.appendChild(tr);
         });
 
     } 
     catch (err) 
     {
-        console.error("検索中にエラー吐いたわマジキレそう:", err);
-        statusEre.textContent = "エラーが発生しました。プロキシのURLとかコンソール確認してね";
+        console.error("検索エラー。マジで通信環境どうなってんの", err);
+        s_e.textContent = "エラーが発生しました。コンソール見てみて";
     }
 }
 
 // 作品HTMLのダウンロード・分解・テキスト再構築・IndexedDB保存
-// 引数をIDだけにして、URLはキャッシュから探すように変更。これならURL変動にも耐えられるはず！
 async function downloadAndSaveBook(bookId)
 {
-    const statusEre = document.getElementById("search-status");
+    const s_e = document.getElementById("search-status");
     
     // V作戦キャッシュから機体を呼び出す
-    const target_gundam = v_project_cache[bookId];
-    if (!target_gundam)
+    const gundam = v_project_cache[bookId];
+    if (!gundam)
     {
-        statusEre.textContent = "あれ、データがキャッシュにないぞ…もう一回検索してみてくれ";
+        s_e.textContent = "キャッシュがないぞ…バグってんじゃねーか！";
         return;
     }
 
-    statusEre.textContent = `作品ID:${bookId} をダウンロード＆分解構築中... (｀・ω・´)`;
+    s_e.textContent = `作品ID:${bookId} をダウンロード＆分解構築中... (｀・ω・´)`;
 
     try 
     {
-        // Gutendexが教えてくれるURLの中からHTMLかプレーンテキストを探す
-        // formatsキーの中身は結構カオスなので何個か候補を挙げておく
-        let amuro_ikimasu_url = target_gundam.formats["text/html"] || target_gundam.formats["text/html; charset=utf-8"];
+        // URLガチャ。フォーマットが安定しないからマジでキレそう
+        let a_url = gundam.formats["text/html"] || gundam.formats["text/html; charset=utf-8"];
         
-        // HTMLが無ければテキストファイルで妥協する
-        if (!amuro_ikimasu_url)
+        // HTMLが無ければプレーンテキストで妥協する
+        if (!a_url)
         {
-            amuro_ikimasu_url = target_gundam.formats["text/plain"] || target_gundam.formats["text/plain; charset=utf-8"];
+            a_url = gundam.formats["text/plain"] || gundam.formats["text/plain; charset=utf-8"];
         }
 
-        if (!amuro_ikimasu_url)
+        if (!a_url)
         {
-            statusEre.textContent = "この作品、読める形式のデータが提供されてねぇ…orz";
+            s_e.textContent = "この作品、読める形式のデータが提供されてねぇ…orz";
             return;
         }
 
-        const res = await fetch(maji_de_proxy_base + encodeURIComponent(amuro_ikimasu_url));
-        if (!res.ok) throw new Error("Gutenbergからの取得でHTTPエラーだボケが！");
+        const r = await fetch(maji_de_proxy_base + encodeURIComponent(a_url));
+        if (!r.ok) throw new Error("Gutenbergからの取得でHTTPエラーだボケが！");
         
-        const raw_text = await res.text();
-        let maji_clean_html = "";
+        const r_t = await r.text();
+        let c_h = "";
 
         // もし拾ってきたURLがHTML形式だったらDOMParserで解体する
-        if (amuro_ikimasu_url.includes("html") || amuro_ikimasu_url.includes("htm"))
+        if (a_url.includes("html") || a_url.includes("htm"))
         {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(raw_text, "text/html");
+            const p = new DOMParser();
+            const d = p.parseFromString(r_t, "text/html");
 
             // 邪魔な装飾や画像をデストロイ
-            doc.querySelectorAll("script, style, header, footer, img").forEach(el => el.remove());
+            d.querySelectorAll("script, style, header, footer, img").forEach(el => el.remove());
 
-            const pElements = doc.querySelectorAll("p, h1, h2, h3");
-            if (pElements.length > 0) 
+            const pe = d.querySelectorAll("p, h1, h2, h3");
+            if (pe.length > 0) 
             {
-                pElements.forEach(p => 
+                pe.forEach(px => 
                 {
-                    const txt = p.textContent.trim();
-                    if (txt.length > 0) 
+                    const tx = px.textContent.trim();
+                    if (tx.length > 0) 
                     {
-                        const tagName = p.tagName.toLowerCase();
-                        maji_clean_html += `<${tagName}>${escapeHtml(txt)}</${tagName}>`;
+                        const tn = px.tagName.toLowerCase();
+                        c_h += `<${tn}>${escapeHtml(tx)}</${tn}>`;
                     }
                 });
             } 
             else 
             {
-                maji_clean_html = `<p>${escapeHtml(doc.body.textContent)}</p>`;
+                c_h = `<p>${escapeHtml(d.body.textContent)}</p>`;
             }
         }
         else
         {
             // プレーンテキストだった場合の処理。改行をpタグに置換するだけの脳筋仕様
-            const lines = raw_text.split("\n");
-            lines.forEach(line => 
+            const lns = r_t.split("\n");
+            lns.forEach(l => 
             {
-                if(line.trim().length > 0) 
+                if(l.trim().length > 0) 
                 {
-                    maji_clean_html += `<p>${escapeHtml(line.trim())}</p>`;
+                    c_h += `<p>${escapeHtml(l.trim())}</p>`;
                 }
             });
         }
 
         // IndexedDBに保存
-        const transaction = maji_de_db.transaction(["books"], "readwrite");
-        const store = transaction.objectStore("books");
+        const tx_db = maji_de_db.transaction(["books"], "readwrite");
+        const st = tx_db.objectStore("books");
         
-        const author_name = target_gundam.authors[0] ? target_gundam.authors[0].name : "不明";
+        const a_n = gundam.authors[0] ? gundam.authors[0].name : "不明";
 
-        const bookData = {
+        const bd = {
             id: bookId,
-            title: target_gundam.title,
-            author: author_name,
-            content: maji_clean_html,
+            title: gundam.title,
+            author: a_n,
+            content: c_h,
             savedAt: new Date().toISOString()
         };
 
-        store.put(bookData);
+        st.put(bd);
 
-        transaction.oncomplete = () => 
+        tx_db.oncomplete = () => 
         {
-            statusEre.textContent = "保存完了！読書画面へ移行します ( ﾟ∀ﾟ)o彡";
-            openReader(bookData);
+            s_e.textContent = "保存完了！読書画面へ移行します ( ﾟ∀ﾟ)o彡";
+            openReader(bd);
         };
 
     } 
     catch (err) 
     {
         console.error("ダウンロード分解中にクラッシュ:", err);
-        statusEre.textContent = "ダウンロード・解析に失敗しちゃった…コンソールのエラー見てみて";
+        s_e.textContent = "ダウンロード・解析で死んだわ…コンソール見て";
     }
 }
 
 // 本棚の表示更新
 function loadBookshelf()
 {
-    const statusEre = document.getElementById("bookshelf-status");
-    const tableEre = document.getElementById("bookshelf-table");
-    const tbodyEre = document.getElementById("bookshelf-tbody");
+    const s_e = document.getElementById("bookshelf-status");
+    const t_e = document.getElementById("bookshelf-table");
+    const tb_e = document.getElementById("bookshelf-tbody");
 
-    tbodyEre.innerHTML = "";
-    statusEre.textContent = "読み込み中...";
+    tb_e.innerHTML = "";
+    s_e.textContent = "読み込み中...";
 
     const tx = maji_de_db.transaction(["books"], "readonly");
-    const store = tx.objectStore("books");
-    const req = store.getAll();
+    const st = tx.objectStore("books");
+    const rq = st.getAll();
 
-    req.onsuccess = () => 
+    rq.onsuccess = () => 
     {
-        const books = req.result;
-        if (books.length === 0) 
+        const bks = rq.result;
+        if (bks.length === 0) 
         {
-            statusEre.textContent = "本棚は空っぽだよ ( ˘ω˘ ) 作品を検索して保存してね";
-            tableEre.style.display = "none";
+            s_e.textContent = "本棚は空っぽだよ ( ˘ω˘ )";
+            t_e.style.display = "none";
             return;
         }
 
-        statusEre.textContent = "";
-        tableEre.style.display = "table";
+        s_e.textContent = "";
+        t_e.style.display = "table";
 
-        books.forEach(b => 
+        bks.forEach(b => 
         {
             const tr = document.createElement("tr");
             tr.innerHTML = `
@@ -561,7 +563,7 @@ function loadBookshelf()
                     <button onclick='deleteBook(${b.id})' style='color:red;'>削除</button>
                 </td>
             `;
-            tbodyEre.appendChild(tr);
+            tb_e.appendChild(tr);
         });
     };
 }
@@ -570,14 +572,14 @@ function loadBookshelf()
 function readSavedBook(bookId)
 {
     const tx = maji_de_db.transaction(["books"], "readonly");
-    const store = tx.objectStore("books");
-    const req = store.get(bookId);
+    const st = tx.objectStore("books");
+    const rq = st.get(bookId);
 
-    req.onsuccess = () => 
+    rq.onsuccess = () => 
     {
-        if (req.result) 
+        if (rq.result) 
         {
-            openReader(req.result);
+            openReader(rq.result);
         }
     };
 }
@@ -586,25 +588,25 @@ function readSavedBook(bookId)
 function deleteBook(bookId)
 {
     const tx = maji_de_db.transaction(["books"], "readwrite");
-    const store = tx.objectStore("books");
-    store.delete(bookId);
+    const st = tx.objectStore("books");
+    st.delete(bookId);
     tx.oncomplete = () => 
     {
         loadBookshelf();
     };
 }
 
-// 読書画面を開く（ソラリ風）
+// 読書画面を開く
 function openReader(bookObj)
 {
     document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
-    const readerView = document.getElementById("reader-view");
-    readerView.classList.add("active");
+    const rv = document.getElementById("reader-view");
+    rv.classList.add("active");
 
     document.getElementById("reading-title").textContent = bookObj.title;
-    const readerBody = document.getElementById("reader-body");
-    readerBody.innerHTML = bookObj.content;
-    readerBody.scrollTop = 0;
+    const rb = document.getElementById("reader-body");
+    rb.innerHTML = bookObj.content;
+    rb.scrollTop = 0;
 }
 
 // タブ切り替え
@@ -624,18 +626,18 @@ function switchTab(tabName)
     }
 }
 
-// 縦横切替とかの機能は後でリファクタリングしてもうちょい綺麗に書き直す（多分やらない）
+// この辺のUI機能はもう動けばいいやの精神
 function toggleWritingMode()
 {
-    const readerBody = document.getElementById("reader-body");
+    const rb = document.getElementById("reader-body");
     is_vertical_mode = !is_vertical_mode;
     if (is_vertical_mode) 
     {
-        readerBody.classList.add("vertical");
+        rb.classList.add("vertical");
     } 
     else 
     {
-        readerBody.classList.remove("vertical");
+        rb.classList.remove("vertical");
     }
 }
 
