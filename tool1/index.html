@@ -81,7 +81,6 @@
             position: relative;
         }
 
-        /* 検索・一覧画面 */
         .view-panel {
             flex: 1;
             padding: 20px;
@@ -119,7 +118,6 @@
             cursor: pointer;
         }
 
-        /* テーブル装飾 */
         .results-table {
             width: 100%;
             border-collapse: collapse;
@@ -145,7 +143,6 @@
             cursor: pointer;
         }
 
-        /* 読書画面（ソラリ風） */
         #reader-view {
             flex: 1;
             display: none;
@@ -179,7 +176,6 @@
             width: 100%;
         }
 
-        /* 縦書きモード設定 */
         .reader-content.vertical {
             writing-mode: vertical-rl;
             text-orientation: mixed;
@@ -201,8 +197,8 @@
     <header>
         <h1>Solari Gutenberg Reader</h1>
         <div class="nav-buttons">
-            <button onclick="switchTab('search')">検索 ( ﾟдpx)</button>
-            <button onclick="switchTab('bookshelf')">本棚 ( ˘ω˘ )</button>
+            <button onclick="switchTab('search')">検索</button>
+            <button onclick="switchTab('bookshelf')">本棚</button>
         </div>
     </header>
 
@@ -261,12 +257,15 @@
     </div>
 
 <script>
-// 自作プロキシURL（これマジで神。CORSエラーぶち壊すやつ）
-const maji_de_proxy_base = "https://aoi-box-lab.idosenpai.workers.dev/?";
+// 今回一番やらかした戦犯。?url= をしっかり入れたぜ！これでCORSの結界は破れる
+const maji_de_proxy_base = "https://aoi-box-lab.idosenpai.workers.dev/?url=";
 
 let maji_de_db = null;
 let current_font_size = 18;
 let is_vertical_mode = false;
+
+// 検索結果を一時保存する連邦のモビルスーツ的変数（ボタンからURL直渡しはキツいからな）
+let v_project_cache = {}; 
 
 // データベースの初期化処理
 function initDB()
@@ -314,10 +313,10 @@ function checkChosakukenSafe(authorDeathYear)
     return maji_de_elapsed >= 80;
 }
 
-// 日本語から英語への簡易変換（MyMemory翻訳APIを使用）
+// 日本語から英語への簡易変換
 async function translateToEnglish(jpText)
 {
-    // 英数字のみなら翻訳をスキップする無駄回避ロジック
+    // 英数字のみなら翻訳をスキップ
     if (/^[a-zA-Z0-9\s]+$/.test(jpText)) 
     {
         return jpText;
@@ -326,6 +325,7 @@ async function translateToEnglish(jpText)
     try 
     {
         const transApi = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(jpText)}&langpair=ja|en`;
+        // プロキシベースにはすでに url= が付いてるから、そのままエンコードして繋げる
         const res = await fetch(maji_de_proxy_base + encodeURIComponent(transApi));
         const data = await res.json();
         
@@ -336,8 +336,7 @@ async function translateToEnglish(jpText)
     } 
     catch (err) 
     {
-        // 翻訳失敗したらそのままの検索語で突撃する覚悟( ﾟдpx)
-        console.warn("英訳失敗したからそのまま行くわ:", err);
+        console.warn("英訳失敗したわ…仕方ないからそのまま突撃する", err);
     }
     return jpText;
 }
@@ -356,14 +355,15 @@ async function execSearch()
     statusEre.textContent = "翻訳＆検索中...少々お待ちを ( ｀・ω・´)";
     tbodyEre.innerHTML = "";
     tableEre.style.display = "none";
+    
+    // キャッシュをクリアする
+    v_project_cache = {};
 
     try 
     {
-        // まずHTML側で日本語を英語名に変換
         const englishQuery = await translateToEnglish(queryVal);
-        statusEre.textContent = `「${englishQuery}」でGutendexを検索中...`;
+        statusEre.textContent = `「${englishQuery}」でGutendexを索敵中...`;
 
-        // Gutendex API叩く（プロキシ経由）
         const gutendexApi = `https://gutendex.com/books/?search=${encodeURIComponent(englishQuery)}`;
         const res = await fetch(maji_de_proxy_base + encodeURIComponent(gutendexApi));
         const data = await res.json();
@@ -379,6 +379,9 @@ async function execSearch()
 
         data.results.forEach((book) => 
         {
+            // 後でダウンロードURLを掘り返すためにオブジェクト丸ごとV作戦キャッシュに格納
+            v_project_cache[book.id] = book;
+
             const author = book.authors[0] || { name: "不明", death_year: null };
             const deathYear = author.death_year;
             
@@ -393,7 +396,7 @@ async function execSearch()
                 <td>${deathYear ? deathYear : "不明"}</td>
                 <td>
                     ${isSafe 
-                        ? `<button onclick="downloadAndSaveBook(${book.id}, '${escapeHtml(book.title)}', '${escapeHtml(author.name)}')">保存・読む</button>`
+                        ? `<button onclick="downloadAndSaveBook(${book.id})">保存・読む</button>`
                         : `<span style="color:red; font-size:0.8rem;">保護期間内(不可)</span>`
                     }
                 </td>
@@ -405,73 +408,100 @@ async function execSearch()
     catch (err) 
     {
         console.error("検索中にエラー吐いたわマジキレそう:", err);
-        statusEre.textContent = "エラーが発生しました。プロキシか通信環境を確認してね";
+        statusEre.textContent = "エラーが発生しました。プロキシのURLとかコンソール確認してね";
     }
 }
 
 // 作品HTMLのダウンロード・分解・テキスト再構築・IndexedDB保存
-async function downloadAndSaveBook(bookId, title, author)
+// 引数をIDだけにして、URLはキャッシュから探すように変更。これならURL変動にも耐えられるはず！
+async function downloadAndSaveBook(bookId)
 {
     const statusEre = document.getElementById("search-status");
+    
+    // V作戦キャッシュから機体を呼び出す
+    const target_gundam = v_project_cache[bookId];
+    if (!target_gundam)
+    {
+        statusEre.textContent = "あれ、データがキャッシュにないぞ…もう一回検索してみてくれ";
+        return;
+    }
+
     statusEre.textContent = `作品ID:${bookId} をダウンロード＆分解構築中... (｀・ω・´)`;
 
     try 
     {
-        // GutenbergのHTML取得（プロキシ経由）
-        const bookHtmlUrl = `https://www.gutenberg.org/files/${bookId}/${bookId}-h/${bookId}-h.htm`;
-        let htmlText = "";
-
-        try 
+        // Gutendexが教えてくれるURLの中からHTMLかプレーンテキストを探す
+        // formatsキーの中身は結構カオスなので何個か候補を挙げておく
+        let amuro_ikimasu_url = target_gundam.formats["text/html"] || target_gundam.formats["text/html; charset=utf-8"];
+        
+        // HTMLが無ければテキストファイルで妥協する
+        if (!amuro_ikimasu_url)
         {
-            const res = await fetch(maji_de_proxy_base + encodeURIComponent(bookHtmlUrl));
-            if (!res.ok) throw new Error("1st HTML url failed");
-            htmlText = await res.text();
-        } 
-        catch (e) 
-        {
-            // パターン2: 新しめのURL構造を試す
-            const fallbackUrl = `https://www.gutenberg.org/cache/epub/${bookId}/pg${bookId}.html`;
-            const res2 = await fetch(maji_de_proxy_base + encodeURIComponent(fallbackUrl));
-            htmlText = await res2.text();
+            amuro_ikimasu_url = target_gundam.formats["text/plain"] || target_gundam.formats["text/plain; charset=utf-8"];
         }
 
-        // HTMLを分解して純粋なテキスト/段落構造だけに打ち直す処理
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlText, "text/html");
+        if (!amuro_ikimasu_url)
+        {
+            statusEre.textContent = "この作品、読める形式のデータが提供されてねぇ…orz";
+            return;
+        }
 
-        // 余計なCSSやスクリプトを削除するデストロイ処理
-        doc.querySelectorAll("script, style, header, footer").forEach(el => el.remove());
-
-        // 段落要素(<p>)を中心にテキスト抽出し再構築
-        const pElements = doc.querySelectorAll("p, h1, h2, h3");
+        const res = await fetch(maji_de_proxy_base + encodeURIComponent(amuro_ikimasu_url));
+        if (!res.ok) throw new Error("Gutenbergからの取得でHTTPエラーだボケが！");
+        
+        const raw_text = await res.text();
         let maji_clean_html = "";
 
-        if (pElements.length > 0) 
+        // もし拾ってきたURLがHTML形式だったらDOMParserで解体する
+        if (amuro_ikimasu_url.includes("html") || amuro_ikimasu_url.includes("htm"))
         {
-            pElements.forEach(p => 
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(raw_text, "text/html");
+
+            // 邪魔な装飾や画像をデストロイ
+            doc.querySelectorAll("script, style, header, footer, img").forEach(el => el.remove());
+
+            const pElements = doc.querySelectorAll("p, h1, h2, h3");
+            if (pElements.length > 0) 
             {
-                const txt = p.textContent.trim();
-                if (txt.length > 0) 
+                pElements.forEach(p => 
                 {
-                    const tagName = p.tagName.toLowerCase();
-                    maji_clean_html += `<${tagName}>${escapeHtml(txt)}</${tagName}>`;
+                    const txt = p.textContent.trim();
+                    if (txt.length > 0) 
+                    {
+                        const tagName = p.tagName.toLowerCase();
+                        maji_clean_html += `<${tagName}>${escapeHtml(txt)}</${tagName}>`;
+                    }
+                });
+            } 
+            else 
+            {
+                maji_clean_html = `<p>${escapeHtml(doc.body.textContent)}</p>`;
+            }
+        }
+        else
+        {
+            // プレーンテキストだった場合の処理。改行をpタグに置換するだけの脳筋仕様
+            const lines = raw_text.split("\n");
+            lines.forEach(line => 
+            {
+                if(line.trim().length > 0) 
+                {
+                    maji_clean_html += `<p>${escapeHtml(line.trim())}</p>`;
                 }
             });
-        } 
-        else 
-        {
-            // <p>が無ければbody直下からぶっこ抜く
-            maji_clean_html = `<p>${escapeHtml(doc.body.textContent)}</p>`;
         }
 
         // IndexedDBに保存
         const transaction = maji_de_db.transaction(["books"], "readwrite");
         const store = transaction.objectStore("books");
         
+        const author_name = target_gundam.authors[0] ? target_gundam.authors[0].name : "不明";
+
         const bookData = {
             id: bookId,
-            title: title,
-            author: author,
+            title: target_gundam.title,
+            author: author_name,
             content: maji_clean_html,
             savedAt: new Date().toISOString()
         };
@@ -488,7 +518,7 @@ async function downloadAndSaveBook(bookId, title, author)
     catch (err) 
     {
         console.error("ダウンロード分解中にクラッシュ:", err);
-        statusEre.textContent = "ダウンロード・解析に失敗しちゃった…ごめんね";
+        statusEre.textContent = "ダウンロード・解析に失敗しちゃった…コンソールのエラー見てみて";
     }
 }
 
@@ -594,7 +624,7 @@ function switchTab(tabName)
     }
 }
 
-// ソラリ風読書カスタマイズ機能
+// 縦横切替とかの機能は後でリファクタリングしてもうちょい綺麗に書き直す（多分やらない）
 function toggleWritingMode()
 {
     const readerBody = document.getElementById("reader-body");
@@ -636,7 +666,6 @@ function escapeHtml(str)
 window.onload = async () => 
 {
     await initDB();
-    // 後でリファクタリングする（絶対しないやつ）
 };
 </script>
 </body>
