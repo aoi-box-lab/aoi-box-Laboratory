@@ -1,492 +1,643 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gutenberg Reader (Solari Style)</title>
-  <style>
-    /* ==========================================
-       ベースデザイン & ソラリ風読書UI
-       ========================================== */
-    :root {
-      --bg-color: #f4f1ea;
-      --text-color: #2b2b2b;
-      --accent-color: #8c6d46;
-      --card-bg: #ffffff;
-      --border-color: #e0dacb;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gutenberg Solari Reader</title>
+    <style>
+        :root {
+            --bg-color: #f7f6f2;
+            --text-color: #2b2b2b;
+            --accent-color: #4a6fa5;
+            --card-bg: #ffffff;
+            --border-color: #e0e0e0;
+            --font-family: 'Georgia', 'Yu Mincho', 'Hiragino Mincho ProN', serif;
+        }
 
-    body {
-      margin: 0;
-      padding: 0;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      font-family: "Georgia", "Hiragino Mincho ProN", "Yu Mincho", serif;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
-    }
+        body.dark-mode {
+            --bg-color: #1a1a1a;
+            --text-color: #d1d1d1;
+            --accent-color: #6b8cce;
+            --card-bg: #282828;
+            --border-color: #404040;
+        }
 
-    /* ヘッダー・検索エリア */
-    header {
-      background: var(--card-bg);
-      border-bottom: 1px solid var(--border-color);
-      padding: 12px 20px;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      z-index: 10;
-    }
+        body.sepia-mode {
+            --bg-color: #f4ecd8;
+            --text-color: #5b4636;
+            --accent-color: #8c6d53;
+            --card-bg: #fbf0d9;
+            --border-color: #e2d7c0;
+        }
 
-    input[type="text"] {
-      flex: 1;
-      padding: 8px 12px;
-      font-size: 14px;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      background: var(--bg-color);
-      font-family: sans-serif;
-    }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-    button {
-      padding: 8px 16px;
-      background: var(--accent-color);
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      font-family: sans-serif;
-    }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-family);
+            transition: background-color 0.3s, color 0.3s;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
 
-    button:hover {
-      opacity: 0.9;
-    }
+        header {
+            padding: 12px 20px;
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
 
-    #status {
-      font-size: 12px;
-      color: #666;
-      margin-left: 10px;
-      font-family: sans-serif;
-    }
+        h1 {
+            font-size: 1.2rem;
+            font-weight: normal;
+            letter-spacing: 1px;
+        }
 
-    /* メインレイアウト */
-    main {
-      display: flex;
-      flex: 1;
-      height: calc(100vh - 60px);
-      overflow: hidden;
-    }
+        .nav-buttons button {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 6px 12px;
+            margin-left: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
 
-    /* 左側：検索結果テーブル & キャッシュ一覧 */
-    #sidebar {
-      width: 350px;
-      border-right: 1px solid var(--border-color);
-      background: var(--card-bg);
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-    }
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
 
-    .section-title {
-      font-size: 12px;
-      font-weight: bold;
-      padding: 8px 12px;
-      background: #eae5d9;
-      color: #555;
-      font-family: sans-serif;
-    }
+        /* 検索・一覧画面 */
+        .view-panel {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: none;
+        }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-      font-family: sans-serif;
-    }
+        .view-panel.active {
+            display: block;
+        }
 
-    th, td {
-      padding: 10px;
-      text-align: left;
-      border-bottom: 1px solid var(--border-color);
-    }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            max-width: 600px;
+            margin: 0 auto 20px auto;
+        }
 
-    th {
-      background: #faf8f5;
-    }
+        .search-box input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            font-size: 1rem;
+        }
 
-    tr.book-row {
-      cursor: pointer;
-      transition: background 0.2s;
-    }
+        .search-box button {
+            padding: 10px 20px;
+            background: var(--accent-color);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
 
-    tr.book-row:hover {
-      background: #f0ebe1;
-    }
+        /* テーブル装飾 */
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card-bg);
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
 
-    /* 右側：ソラリ風リーダー表示エリア */
-    #reader-container {
-      flex: 1;
-      padding: 40px;
-      overflow-y: auto;
-      display: flex;
-      justify-content: center;
-    }
+        .results-table th, .results-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
 
-    #reader {
-      max-width: 680px;
-      width: 100%;
-      line-height: 1.8;
-      font-size: 18px;
-      word-wrap: break-word;
-    }
+        .results-table th {
+            background-color: rgba(0,0,0,0.03);
+            font-weight: bold;
+        }
 
-    #reader h1, #reader h2, #reader h3 {
-      text-align: center;
-      color: var(--accent-color);
-      margin-top: 2em;
-    }
+        .results-table tr:hover {
+            background-color: rgba(0,0,0,0.02);
+            cursor: pointer;
+        }
 
-    #reader p {
-      text-indent: 1em;
-      margin-bottom: 1.5em;
-      text-align: justify;
-    }
+        /* 読書画面（ソラリ風） */
+        #reader-view {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            position: relative;
+        }
 
-    /* ローディングオーバーレイ */
-    .loading {
-      opacity: 0.5;
-      pointer-events: none;
-    }
-  </style>
+        #reader-view.active {
+            display: flex;
+        }
+
+        .reader-toolbar {
+            padding: 8px 20px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .reader-content {
+            flex: 1;
+            padding: 40px;
+            overflow: auto;
+            line-height: 1.8;
+            font-size: 1.1rem;
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* 縦書きモード設定 */
+        .reader-content.vertical {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            max-width: none;
+            height: 100%;
+            padding: 40px 60px;
+        }
+
+        .status-msg {
+            text-align: center;
+            padding: 20px;
+            font-size: 0.95rem;
+            opacity: 0.8;
+        }
+    </style>
 </head>
 <body>
 
-  <header>
-    <input type="text" id="search_input" placeholder="日本語・英語のタイトル/著者名 (例: 白衣の騎士団, Alice)">
-    <button id="search_btn">検索</button>
-    <span id="status">準備完了 ( 'ω' )</span>
-  </header>
+    <header>
+        <h1>Solari Gutenberg Reader</h1>
+        <div class="nav-buttons">
+            <button onclick="switchTab('search')">検索 ( ﾟдpx)</button>
+            <button onclick="switchTab('bookshelf')">本棚 ( ˘ω˘ )</button>
+        </div>
+    </header>
 
-  <main>
-    <!-- サイドバー：検索結果 ＆ IndexedDB保存済み書籍 -->
-    <div id="sidebar">
-      <div class="section-title">ローカル保存済み作品 (IndexedDB)</div>
-      <table id="saved_table">
-        <thead>
-          <tr><th>タイトル</th><th>操作</th></tr>
-        </thead>
-        <tbody id="saved_list"></tbody>
-      </table>
+    <div class="container">
+        <!-- 検索タブ -->
+        <div id="search-view" class="view-panel active">
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="作品名や著者名（日本語OK）">
+                <button onclick="execSearch()">検索実行</button>
+            </div>
+            <div id="search-status" class="status-msg"></div>
+            <table class="results-table" id="results-table" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>タイトル</th>
+                        <th>著者</th>
+                        <th>没年</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="results-tbody"></tbody>
+            </table>
+        </div>
 
-      <div class="section-title">検索結果</div>
-      <table id="results_table">
-        <thead>
-          <tr><th>タイトル</th><th>著者</th></tr>
-        </thead>
-        <tbody id="results_list"></tbody>
-      </table>
+        <!-- 本棚タブ -->
+        <div id="bookshelf-view" class="view-panel">
+            <h2>保存済み作品</h2>
+            <div id="bookshelf-status" class="status-msg"></div>
+            <table class="results-table" id="bookshelf-table" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>タイトル</th>
+                        <th>著者</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="bookshelf-tbody"></tbody>
+            </table>
+        </div>
+
+        <!-- 読書画面 -->
+        <div id="reader-view">
+            <div class="reader-toolbar">
+                <button onclick="toggleWritingMode()">縦横切替</button>
+                <button onclick="changeFontSize(1)">拡大</button>
+                <button onclick="changeFontSize(-1)">縮小</button>
+                <button onclick="setTheme('light')">Light</button>
+                <button onclick="setTheme('sepia')">Sepia</button>
+                <button onclick="setTheme('dark')">Dark</button>
+                <span id="reading-title" style="margin-left:auto; font-weight:bold;"></span>
+            </div>
+            <div id="reader-body" class="reader-content"></div>
+        </div>
     </div>
 
-    <!-- 本文解体・テキスト再構築表示エリア -->
-    <div id="reader-container">
-      <div id="reader">
-        <p style="text-align: center; color: #888; margin-top: 100px;">
-          左側のリストから作品を選択するか、検索を実行してください ( `•̀ω•́` )b
-        </p>
-      </div>
-    </div>
-  </main>
+<script>
+// 自作プロキシURL（これマジで神。CORSエラーぶち壊すやつ）
+const maji_de_proxy_base = "https://aoi-box-lab.idosenpai.workers.dev/?";
 
-  <script>
-    // ==========================================
-    // 1. IndexedDB 制御モジュール
-    // ==========================================
-    const DB_NAME = "GutenbergReaderDB";
-    const DB_VERSION = 1;
-    const STORE_NAME = "books";
-    let db_instance = null;
+let maji_de_db = null;
+let current_font_size = 18;
+let is_vertical_mode = false;
 
-    async function init_db() {
-      return new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, DB_VERSION);
-        req.onupgradeneeded = (e) => {
-          const db = e.target.result;
-          if (!db.objectStoreNames.contains(STORE_NAME)) {
-            db.createObjectStore(STORE_NAME, { keyPath: "id" });
-          }
+// データベースの初期化処理
+function initDB()
+{
+    return new Promise((resolve, reject) => 
+    {
+        // IndexedDB起動！頼むからエラー吐かないでくれよ…
+        const req = indexedDB.open("SolariGutenbergDB", 1);
+        
+        req.onupgradeneeded = (e) => 
+        {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains("books")) 
+            {
+                db.createObjectStore("books", { keyPath: "id" });
+            }
         };
-        req.onsuccess = (e) => {
-          db_instance = e.target.result;
-          resolve(db_instance);
+
+        req.onsuccess = (e) => 
+        {
+            maji_de_db = e.target.result;
+            resolve(maji_de_db);
         };
-        req.onerror = (e) => reject(e);
-      });
+
+        req.onerror = (e) => 
+        {
+            console.error("IndexedDB開くの失敗したんだけど何事？", e);
+            reject(e);
+        };
+    });
+}
+
+// 著作権チェック（没後80年ルール）
+function checkChosakukenSafe(authorDeathYear)
+{
+    if (!authorDeathYear)
+    {
+        // 没年不明とか一番困るやつ。安全側に倒して弾いておく
+        return false;
+    }
+    const genzaiNen = 2026; // 現在の年
+    const maji_de_elapsed = genzaiNen - authorDeathYear;
+    
+    // 現在の年 - 著者の没年 >= 80
+    return maji_de_elapsed >= 80;
+}
+
+// 日本語から英語への簡易変換（MyMemory翻訳APIを使用）
+async function translateToEnglish(jpText)
+{
+    // 英数字のみなら翻訳をスキップする無駄回避ロジック
+    if (/^[a-zA-Z0-9\s]+$/.test(jpText)) 
+    {
+        return jpText;
     }
 
-    async function save_book_to_db(book_data) {
-      return new Promise((resolve, reject) => {
-        const tx = db_instance.transaction(STORE_NAME, "readwrite");
-        const store = tx.objectStore(STORE_NAME);
-        store.put(book_data);
-        tx.oncomplete = () => resolve();
-        tx.onerror = (e) => reject(e);
-      });
+    try 
+    {
+        const transApi = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(jpText)}&langpair=ja|en`;
+        const res = await fetch(maji_de_proxy_base + encodeURIComponent(transApi));
+        const data = await res.json();
+        
+        if (data && data.responseData && data.responseData.translatedText) 
+        {
+            return data.responseData.translatedText;
+        }
+    } 
+    catch (err) 
+    {
+        // 翻訳失敗したらそのままの検索語で突撃する覚悟( ﾟдpx)
+        console.warn("英訳失敗したからそのまま行くわ:", err);
     }
+    return jpText;
+}
 
-    async function get_book_from_db(id) {
-      return new Promise((resolve, reject) => {
-        const tx = db_instance.transaction(STORE_NAME, "readonly");
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.get(id);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = (e) => reject(e);
-      });
-    }
+// グーテンベルク検索処理
+async function execSearch()
+{
+    const inputEre = document.getElementById("search-input");
+    const queryVal = inputEre.value.trim();
+    const statusEre = document.getElementById("search-status");
+    const tableEre = document.getElementById("results-table");
+    const tbodyEre = document.getElementById("results-tbody");
 
-    async function get_all_saved_books() {
-      return new Promise((resolve, reject) => {
-        const tx = db_instance.transaction(STORE_NAME, "readonly");
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.getAll();
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = (e) => reject(e);
-      });
-    }
+    if (!queryVal) return;
 
-    // ==========================================
-    // 2. 日本語クエリ -> 英語原題 翻訳検索モジュール (Wikipedia API)
-    // ==========================================
-    async function translate_japanese_to_english_title(query_str) {
-      // 全角英数字などの判定および日本語チェック
-      if (!/[一-龠ぁ-ゔァ-ヴー]/.test(query_str)) {
-        return query_str; // 日本語が含まれていなければそのまま使用
-      }
+    statusEre.textContent = "翻訳＆検索中...少々お待ちを ( ｀・ω・´)";
+    tbodyEre.innerHTML = "";
+    tableEre.style.display = "none";
 
-      try {
-        // Wikipedia APIで日本語記事を検索
-        const wiki_search_url = `https://ja.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query_str)}&format=json&origin=*`;
-        const res = await fetch(wiki_search_url);
+    try 
+    {
+        // まずHTML側で日本語を英語名に変換
+        const englishQuery = await translateToEnglish(queryVal);
+        statusEre.textContent = `「${englishQuery}」でGutendexを検索中...`;
+
+        // Gutendex API叩く（プロキシ経由）
+        const gutendexApi = `https://gutendex.com/books/?search=${encodeURIComponent(englishQuery)}`;
+        const res = await fetch(maji_de_proxy_base + encodeURIComponent(gutendexApi));
         const data = await res.json();
 
-        if (!data.query.search || data.query.search.length === 0) return query_str;
-
-        const page_title = data.query.search[0].title;
-
-        // 言語間リンク (langlinks) から英語版のタイトルを取得
-        const lang_url = `https://ja.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(page_title)}&prop=langlinks&lllang=en&format=json&origin=*`;
-        const lang_res = await fetch(lang_url);
-        const lang_data = await lang_res.json();
-
-        const pages = lang_data.query.pages;
-        const page_id = Object.keys(pages)[0];
-
-        if (pages[page_id].langlinks && pages[page_id].langlinks.length > 0) {
-          const en_title = pages[page_id].langlinks[0]["*"];
-          console.log(`[翻訳成功] ${query_str} -> ${en_title}`);
-          return en_title;
-        }
-      } catch (err_trans) {
-        console.warn("Translation API failed, fallback to raw query:", err_trans);
-      }
-      return query_str;
-    }
-
-    // ==========================================
-    // 3. Gutenberg (Gutendex) 検索 ＆ フェッチ
-    // ==========================================
-    async function search_gutendex(query_str) {
-      // 1. 必要に応じて日本語を英語へ自動変換
-      const target_query = await translate_japanese_to_english_title(query_str);
-      
-      const url = `https://gutendex.com/books/?search=${encodeURIComponent(target_query)}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Gutendex API Network Error");
-
-      const data = await res.json();
-      return data.results || [];
-    }
-
-    // ==========================================
-    // 4. HTML解体 & テキスト再構築（ソラリ風リーダー整形）
-    // ==========================================
-    function parse_and_reconstruct_html(raw_html_str) {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(raw_html_str, "text/html");
-
-      // スクリプトやスタイルなどの不要タグを完全除去
-      const scripts_and_styles = doc.querySelectorAll("script, style, noscript, iframe, header, footer, nav");
-      scripts_and_styles.forEach(el => el.remove());
-
-      // 本文構成要素 (h1~h6, p) の抽出
-      const elements = doc.body.querySelectorAll("h1, h2, h3, h4, h5, h6, p");
-      let reconstructed_html = "";
-
-      if (elements.length > 0) {
-        elements.forEach(el => {
-          const clean_text = el.textContent.trim();
-          if (clean_text.length > 0) {
-            const tag = el.tagName.toLowerCase();
-            reconstructed_html += `<${tag}>${escape_html(clean_text)}</${tag}>\n`;
-          }
-        });
-      } else {
-        // 万が一構造タグがない場合はプレーンテキストとして分解処理
-        const paragraphs = doc.body.textContent.split(/\n\s*\n/);
-        paragraphs.forEach(p_text => {
-          if (p_text.trim()) {
-            reconstructed_html += `<p>${escape_html(p_text.trim())}</p>\n`;
-          }
-        });
-      }
-
-      return reconstructed_html;
-    }
-
-    function escape_html(str) {
-      return str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
-
-    // ==========================================
-    // 5. UI イベント＆描画制御
-    // ==========================================
-    const status_el = document.getElementById("status");
-    const reader_el = document.getElementById("reader");
-    const search_input = document.getElementById("search_input");
-    const search_btn = document.getElementById("search_btn");
-    const results_list = document.getElementById("results_list");
-    const saved_list = document.getElementById("saved_list");
-
-    window.addEventListener("DOMContentLoaded", async () => {
-      try {
-        await init_db();
-        await render_saved_books();
-      } catch (err_db) {
-        console.error("IndexedDB initialization error:", err_db);
-        status_el.innerText = "DBエラーが発生しました (;_ acoustics )";
-      }
-    });
-
-    search_btn.addEventListener("click", execute_search);
-    search_input.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") execute_search();
-    });
-
-    async function execute_search() {
-      const q = search_input.value.trim();
-      if (!q) return;
-
-      status_el.innerText = "検索中（英訳補完処理中...）";
-      results_list.innerHTML = "";
-
-      try {
-        const books = await search_gutendex(q);
-
-        if (books.length === 0) {
-          status_el.innerText = "該当する書籍が見つかりませんでした (;´･ω･)";
-          return;
+        if (!data.results || data.results.length === 0) 
+        {
+            statusEre.textContent = "該当する作品が見つからなかったお… ＼(^o^)／";
+            return;
         }
 
-        status_el.innerText = `${books.length} 件見つかりました！`;
+        statusEre.textContent = "";
+        tableEre.style.display = "table";
 
-        books.forEach(book => {
-          const tr = document.createElement("tr");
-          tr.className = "book-row";
-          const author_name = book.authors && book.authors.length > 0 ? book.authors[0].name : "Unknown";
-          
-          tr.innerHTML = `<td><strong>${escape_html(book.title)}</strong></td><td>${escape_html(author_name)}</td>`;
-          tr.addEventListener("click", () => handle_book_select(book));
-          results_list.appendChild(tr);
+        data.results.forEach((book) => 
+        {
+            const author = book.authors[0] || { name: "不明", death_year: null };
+            const deathYear = author.death_year;
+            
+            // 著作権判定
+            const isSafe = checkChosakukenSafe(deathYear);
+
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${book.id}</td>
+                <td>${book.title}</td>
+                <td>${author.name}</td>
+                <td>${deathYear ? deathYear : "不明"}</td>
+                <td>
+                    ${isSafe 
+                        ? `<button onclick="downloadAndSaveBook(${book.id}, '${escapeHtml(book.title)}', '${escapeHtml(author.name)}')">保存・読む</button>`
+                        : `<span style="color:red; font-size:0.8rem;">保護期間内(不可)</span>`
+                    }
+                </td>
+            `;
+            tbodyEre.appendChild(tr);
         });
 
-      } catch (err_search) {
-        console.error("Search failure:", err_search);
-        status_el.innerText = "検索中にエラーが発生しました...";
-      }
+    } 
+    catch (err) 
+    {
+        console.error("検索中にエラー吐いたわマジキレそう:", err);
+        statusEre.textContent = "エラーが発生しました。プロキシか通信環境を確認してね";
     }
+}
 
-    async function handle_book_select(book) {
-      status_el.innerText = `「${book.title}」のデータ確認中...`;
+// 作品HTMLのダウンロード・分解・テキスト再構築・IndexedDB保存
+async function downloadAndSaveBook(bookId, title, author)
+{
+    const statusEre = document.getElementById("search-status");
+    statusEre.textContent = `作品ID:${bookId} をダウンロード＆分解構築中... (｀・ω・´)`;
 
-      // 1. IndexedDBにすでに保存されているかチェック
-      const cached = await get_book_from_db(book.id);
-      if (cached) {
-        status_el.innerText = "IndexedDB からロード完了！ ( `•̀ω•́` )b";
-        render_reader(cached.title, cached.content);
-        return;
-      }
+    try 
+    {
+        // GutenbergのHTML取得（プロキシ経由）
+        const bookHtmlUrl = `https://www.gutenberg.org/files/${bookId}/${bookId}-h/${bookId}-h.htm`;
+        let htmlText = "";
 
-      // 2. なければGutendexからHTML取得＆ダウンロード処理
-      const formats = book.formats || {};
-      const html_url = formats["text/html"] || formats["text/html; charset=utf-8"];
+        try 
+        {
+            const res = await fetch(maji_de_proxy_base + encodeURIComponent(bookHtmlUrl));
+            if (!res.ok) throw new Error("1st HTML url failed");
+            htmlText = await res.text();
+        } 
+        catch (e) 
+        {
+            // パターン2: 新しめのURL構造を試す
+            const fallbackUrl = `https://www.gutenberg.org/cache/epub/${bookId}/pg${bookId}.html`;
+            const res2 = await fetch(maji_de_proxy_base + encodeURIComponent(fallbackUrl));
+            htmlText = await res2.text();
+        }
 
-      if (!html_url) {
-        status_el.innerText = "HTMLフォーマットが存在しません (;_ acoustics )";
-        return;
-      }
+        // HTMLを分解して純粋なテキスト/段落構造だけに打ち直す処理
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlText, "text/html");
 
-      status_el.innerText = "HTMLダウンロード中...";
+        // 余計なCSSやスクリプトを削除するデストロイ処理
+        doc.querySelectorAll("script, style, header, footer").forEach(el => el.remove());
 
-      try {
-        const res = await fetch(html_url);
-        if (!res.ok) throw new Error("HTML fetch error");
+        // 段落要素(<p>)を中心にテキスト抽出し再構築
+        const pElements = doc.querySelectorAll("p, h1, h2, h3");
+        let maji_clean_html = "";
 
-        const raw_html = await res.text();
+        if (pElements.length > 0) 
+        {
+            pElements.forEach(p => 
+            {
+                const txt = p.textContent.trim();
+                if (txt.length > 0) 
+                {
+                    const tagName = p.tagName.toLowerCase();
+                    maji_clean_html += `<${tagName}>${escapeHtml(txt)}</${tagName}>`;
+                }
+            });
+        } 
+        else 
+        {
+            // <p>が無ければbody直下からぶっこ抜く
+            maji_clean_html = `<p>${escapeHtml(doc.body.textContent)}</p>`;
+        }
 
-        status_el.innerText = "HTML分解・テキスト構築中...";
-        const clean_content = parse_and_reconstruct_html(raw_html);
-
-        // IndexedDB に保存
-        const book_record = {
-          id: book.id,
-          title: book.title,
-          author: book.authors && book.authors[0] ? book.authors[0].name : "Unknown",
-          content: clean_content,
-          updated_at: new Date().getTime()
+        // IndexedDBに保存
+        const transaction = maji_de_db.transaction(["books"], "readwrite");
+        const store = transaction.objectStore("books");
+        
+        const bookData = {
+            id: bookId,
+            title: title,
+            author: author,
+            content: maji_clean_html,
+            savedAt: new Date().toISOString()
         };
 
-        await save_book_to_db(book_record);
-        await render_saved_books();
+        store.put(bookData);
 
-        status_el.innerText = "保存＆表示完了！";
-        render_reader(book_record.title, book_record.content);
+        transaction.oncomplete = () => 
+        {
+            statusEre.textContent = "保存完了！読書画面へ移行します ( ﾟ∀ﾟ)o彡";
+            openReader(bookData);
+        };
 
-      } catch (err_fetch) {
-        console.error("Fetch/Parse Error:", err_fetch);
-        status_el.innerText = "ダウンロード・解析エラーが発生しました。";
-      }
+    } 
+    catch (err) 
+    {
+        console.error("ダウンロード分解中にクラッシュ:", err);
+        statusEre.textContent = "ダウンロード・解析に失敗しちゃった…ごめんね";
     }
+}
 
-    function render_reader(title, content_html) {
-      reader_el.innerHTML = `<h1>${escape_html(title)}</h1><hr style="border:0; border-top:1px solid #ccc; margin: 30px 0;">` + content_html;
-      document.getElementById("reader-container").scrollTop = 0;
-    }
+// 本棚の表示更新
+function loadBookshelf()
+{
+    const statusEre = document.getElementById("bookshelf-status");
+    const tableEre = document.getElementById("bookshelf-table");
+    const tbodyEre = document.getElementById("bookshelf-tbody");
 
-    async function render_saved_books() {
-      const saved_books = await get_all_saved_books();
-      saved_list.innerHTML = "";
+    tbodyEre.innerHTML = "";
+    statusEre.textContent = "読み込み中...";
 
-      if (saved_books.length === 0) {
-        saved_list.innerHTML = `<tr><td colspan="2" style="color:#888; text-align:center;">保存済み作品なし</td></tr>`;
-        return;
-      }
+    const tx = maji_de_db.transaction(["books"], "readonly");
+    const store = tx.objectStore("books");
+    const req = store.getAll();
 
-      saved_books.forEach(b => {
-        const tr = document.createElement("tr");
-        tr.className = "book-row";
-        tr.innerHTML = `<td>${escape_html(b.title)}</td><td><button style="padding:2px 6px; font-size:10px;">読む</button></td>`;
-        tr.addEventListener("click", () => {
-          status_el.innerText = "ローカルから読み込み完了！";
-          render_reader(b.title, b.content);
+    req.onsuccess = () => 
+    {
+        const books = req.result;
+        if (books.length === 0) 
+        {
+            statusEre.textContent = "本棚は空っぽだよ ( ˘ω˘ ) 作品を検索して保存してね";
+            tableEre.style.display = "none";
+            return;
+        }
+
+        statusEre.textContent = "";
+        tableEre.style.display = "table";
+
+        books.forEach(b => 
+        {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${b.id}</td>
+                <td>${b.title}</td>
+                <td>${b.author}</td>
+                <td>
+                    <button onclick='readSavedBook(${b.id})'>読む</button>
+                    <button onclick='deleteBook(${b.id})' style='color:red;'>削除</button>
+                </td>
+            `;
+            tbodyEre.appendChild(tr);
         });
-        saved_list.appendChild(tr);
-      });
+    };
+}
+
+// 保存済み本を読む
+function readSavedBook(bookId)
+{
+    const tx = maji_de_db.transaction(["books"], "readonly");
+    const store = tx.objectStore("books");
+    const req = store.get(bookId);
+
+    req.onsuccess = () => 
+    {
+        if (req.result) 
+        {
+            openReader(req.result);
+        }
+    };
+}
+
+// 作品削除
+function deleteBook(bookId)
+{
+    const tx = maji_de_db.transaction(["books"], "readwrite");
+    const store = tx.objectStore("books");
+    store.delete(bookId);
+    tx.oncomplete = () => 
+    {
+        loadBookshelf();
+    };
+}
+
+// 読書画面を開く（ソラリ風）
+function openReader(bookObj)
+{
+    document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
+    const readerView = document.getElementById("reader-view");
+    readerView.classList.add("active");
+
+    document.getElementById("reading-title").textContent = bookObj.title;
+    const readerBody = document.getElementById("reader-body");
+    readerBody.innerHTML = bookObj.content;
+    readerBody.scrollTop = 0;
+}
+
+// タブ切り替え
+function switchTab(tabName)
+{
+    document.getElementById("reader-view").classList.remove("active");
+    document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
+
+    if (tabName === "search") 
+    {
+        document.getElementById("search-view").classList.add("active");
+    } 
+    else if (tabName === "bookshelf") 
+    {
+        document.getElementById("bookshelf-view").classList.add("active");
+        loadBookshelf();
     }
-  </script>
+}
+
+// ソラリ風読書カスタマイズ機能
+function toggleWritingMode()
+{
+    const readerBody = document.getElementById("reader-body");
+    is_vertical_mode = !is_vertical_mode;
+    if (is_vertical_mode) 
+    {
+        readerBody.classList.add("vertical");
+    } 
+    else 
+    {
+        readerBody.classList.remove("vertical");
+    }
+}
+
+function changeFontSize(delta)
+{
+    current_font_size = Math.max(12, Math.min(36, current_font_size + delta));
+    document.getElementById("reader-body").style.fontSize = `${current_font_size}px`;
+}
+
+function setTheme(theme)
+{
+    document.body.classList.remove("dark-mode", "sepia-mode");
+    if (theme === "dark") document.body.classList.add("dark-mode");
+    if (theme === "sepia") document.body.classList.add("sepia-mode");
+}
+
+function escapeHtml(str)
+{
+    if (!str) return "";
+    return str.replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;")
+              .replace(/'/g, "&#039;");
+}
+
+// アプリ初期起動
+window.onload = async () => 
+{
+    await initDB();
+    // 後でリファクタリングする（絶対しないやつ）
+};
+</script>
 </body>
 </html>
