@@ -189,7 +189,6 @@
             padding: 20px;
             font-size: 0.95rem;
             opacity: 0.8;
-            color: #d9534f; /* エラーが見やすいように少し色付け */
             font-weight: bold;
         }
     </style>
@@ -208,7 +207,7 @@
         <!-- 検索タブ -->
         <div id="search-view" class="view-panel active">
             <div class="search-box">
-                <input type="text" id="search-input" placeholder="作品名や著者名（邦題を入力してね）">
+                <input type="text" id="search-input" placeholder="作品名や著者名（・がなくてもいけるようにした！）">
                 <button onclick="execSearch()">検索実行</button>
             </div>
             <div id="search-status" class="status-msg"></div>
@@ -260,14 +259,14 @@
     </div>
 
 <script>
-// マジで最強のプロキシ（CORSエラー回避の要）
+// マジで最強のプロキシ
 const maji_de_proxy_base = "https://aoi-box-lab.idosenpai.workers.dev/?url=";
 
 let maji_de_db = null;
 let current_font_size = 18;
 let is_vertical_mode = false;
 
-// キャッシュ格納庫。V作戦と名付けよう
+// キャッシュ格納庫。V作戦
 let v_project_cache = {}; 
 
 // DB初期化
@@ -311,12 +310,10 @@ function checkChosakukenSafe(authorDeathYear)
 // 君の天才的コードを移植した「NDL原題抽出システム」
 async function getOriginalTitleFromNDL(jpTitle)
 {
-    // 英数字のみならNDL通す意味ないからスキップ
     if (/^[a-zA-Z0-9\s]+$/.test(jpTitle)) return null;
 
     try 
     {
-        // プロキシ経由で国会図書館APIを叩き割る
         const ndl_api_yobidashi = `https://ndlsearch.ndl.go.jp/api/opensearch?title=${encodeURIComponent(jpTitle)}&cnt=10`;
         const res = await fetch(maji_de_proxy_base + encodeURIComponent(ndl_api_yobidashi));
         const xml = await res.text();
@@ -331,7 +328,6 @@ async function getOriginalTitleFromNDL(jpTitle)
         {
             const text = item.textContent;
             
-            // 完璧な正規表現パターン
             const pats = [
                 /原タイトル\s*[:：]\s*([^\n\r]+)/,
                 /原題\s*[:：]\s*([^\n\r]+)/,
@@ -345,11 +341,10 @@ async function getOriginalTitleFromNDL(jpTitle)
                 if (m) 
                 {
                     const cand = m[1].trim().replace(/[。．.\s]+$/, '');
-                    if (cand && cand !== jpTitle) return cand;
+                    if (cand && !cand.includes(jpTitle)) return cand; // 完全一致回避
                 }
             }
             
-            // ラテン文字抽出
             const latin = text.match(/[A-Z][A-Za-z'’\-]+(?:\s+(?:of|the|and|in|a|an|to|[A-Z][A-Za-z'’\-]+)){2,}/g);
             if (latin && latin.length) 
             {
@@ -360,14 +355,13 @@ async function getOriginalTitleFromNDL(jpTitle)
     } 
     catch (err) 
     {
-        // ここは裏の処理なのでコンソールに出すだけにしておく
         console.warn("NDLサーチ失敗したわ…", err);
     }
     
     return null;
 }
 
-// NDLで見つからなかった時のためのGoogle翻訳（gtx）
+// NDLで見つからなかった時のためのGoogle翻訳
 async function translateToEnglish(jpText)
 {
     if (/^[a-zA-Z0-9\s]+$/.test(jpText)) return jpText;
@@ -404,12 +398,13 @@ async function execSearch()
     tb_e.innerHTML = "";
     t_e.style.display = "none";
     v_project_cache = {};
+    s_e.style.color = "#2b2b2b";
 
-    s_e.style.color = "#2b2b2b"; // エラーじゃない時は色を戻す
+    // 検索の幅を広げる！・や＝、全角スペースを半角スペースにしてAND検索になりやすくする
+    const loose_jp_q = q_v.replace(/[・＝ _]/g, " ").replace(/\s+/g, " ").trim();
 
-    // 1. まず国会図書館に原題を聞く
-    s_e.textContent = "国会図書館(NDL)のデータから原題を探り中... ( ｀・ω・´)";
-    let eng_q = await getOriginalTitleFromNDL(q_v);
+    s_e.textContent = `NDLで「${loose_jp_q}」の原題を探り中... ( ｀・ω・´)`;
+    let eng_q = await getOriginalTitleFromNDL(loose_jp_q);
     
     if(eng_q) 
     {
@@ -417,16 +412,17 @@ async function execSearch()
     } 
     else 
     {
-        // 2. NDLで見つからなかったらGoogle翻訳で力技
         s_e.textContent = "NDLにないからGoogle翻訳で英語化中... ( ˘ω˘ )";
-        eng_q = await translateToEnglish(q_v);
+        eng_q = await translateToEnglish(loose_jp_q);
         s_e.textContent = `翻訳結果「${eng_q}」でGutendexを索敵中...`;
     }
 
+    // Gutendexは記号にクソ弱いので、アルファベットと数字以外をスペースにしてクリーンにする
+    let clean_eng_q = eng_q.replace(/[^\w\s]/gi, ' ').replace(/\s+/g, ' ').trim();
+
     try 
     {
-        // Gutendex API叩く
-        const g_api = `https://gutendex.com/books/?search=${encodeURIComponent(eng_q)}`;
+        const g_api = `https://gutendex.com/books/?search=${encodeURIComponent(clean_eng_q)}`;
         const res = await fetch(maji_de_proxy_base + encodeURIComponent(g_api));
         const data = await res.json();
 
@@ -458,7 +454,7 @@ async function execSearch()
                 <td>
                     ${is_s 
                         ? `<button onclick="downloadAndSaveBook(${b.id})">保存・読む</button>`
-                        : `<span style="color:red; font-size:0.8rem;">保護期間内(不可)</span>`
+                        : `<span style="color:red; font-size:0.8rem;">保護期間内</span>`
                     }
                 </td>
             `;
@@ -473,11 +469,11 @@ async function execSearch()
     }
 }
 
-// 作品ダウンロード＆DB保存処理（エラー画面直出力版）
+// 作品ダウンロード＆DB保存処理（404回避ファンネル搭載版）
 async function downloadAndSaveBook(bookId)
 {
     const s_e = document.getElementById("search-status");
-    const rx_78 = v_project_cache[bookId]; // キャッシュから機体(本)データを取得
+    const rx_78 = v_project_cache[bookId];
 
     s_e.style.color = "#2b2b2b";
 
@@ -492,35 +488,61 @@ async function downloadAndSaveBook(bookId)
 
     try 
     {
-        // 読める形式のURLを探す。後で直すとか言ってこの辺り若干力技だけど許してｗ
-        let a_url = rx_78.formats["text/html"] || rx_78.formats["text/html; charset=utf-8"];
-        if (!a_url)
-        {
-            a_url = rx_78.formats["text/plain"] || rx_78.formats["text/plain; charset=utf-8"];
-        }
+        // 404対策。Gutenbergのサーバー構造を予測して、複数のURL候補をファンネルみたいに飛ばす
+        const funnel_urls = [
+            rx_78.formats["text/html; charset=utf-8"],
+            rx_78.formats["text/html"],
+            `https://www.gutenberg.org/cache/epub/${bookId}/pg${bookId}-images.html`,
+            rx_78.formats["text/plain; charset=utf-8"],
+            rx_78.formats["text/plain"],
+            `https://www.gutenberg.org/cache/epub/${bookId}/pg${bookId}.txt.utf8`
+        ].filter(Boolean); // undefinedとかnullを消し飛ばす
 
-        if (!a_url)
+        if (funnel_urls.length === 0)
         {
             s_e.style.color = "#d9534f";
-            s_e.textContent = "エラー: この作品、読める形式(HTMLかテキスト)のデータが存在しないわorz";
+            s_e.textContent = "エラー: この作品、読める形式(HTMLかテキスト)のURLが全く存在しないわorz";
             return;
         }
 
-        const r = await fetch(maji_de_proxy_base + encodeURIComponent(a_url));
-        if (!r.ok) 
+        let res_ok = null;
+        let r_t = "";
+        let final_url = "";
+
+        // 行け、ファンネル！どれか一つでも200 OKを返せば勝ちだ
+        for (const u of funnel_urls) 
         {
-            throw new Error(`HTTPステータス ${r.status} - Gutenbergからの取得に失敗したぜ`);
+            try 
+            {
+                const tmp_r = await fetch(maji_de_proxy_base + encodeURIComponent(u));
+                if (tmp_r.ok) 
+                {
+                    res_ok = tmp_r;
+                    r_t = await tmp_r.text();
+                    final_url = u;
+                    break; // 生きてるURLを見つけたらループを抜ける
+                }
+            } 
+            catch(e) 
+            {
+                // エラーが出ても次のURLを試すためにスルーするぜ( ˘ω˘ )
+            }
+        }
+
+        if (!res_ok) 
+        {
+            // ここに落ちたなら全部404だったってことだ
+            throw new Error(`全URL試したけどHTTP 404等で全滅したわ…Gutenbergのサーバーから消えてるかも`);
         }
         
-        const r_t = await r.text();
-        let c_h = ""; // content_htmlの略。どんどん適当になっていくｗ
+        let c_h = "";
 
-        if (a_url.includes("html") || a_url.includes("htm"))
+        // HTMLかプレーンテキストかで処理を分ける
+        if (final_url.includes("html") || final_url.includes("htm"))
         {
             const p = new DOMParser();
             const d = p.parseFromString(r_t, "text/html");
 
-            // 邪魔な装飾を全部消し飛ばす
             d.querySelectorAll("script, style, header, footer, img").forEach(el => el.remove());
 
             const pe = d.querySelectorAll("p, h1, h2, h3");
@@ -543,7 +565,6 @@ async function downloadAndSaveBook(bookId)
         }
         else
         {
-            // プレーンテキスト用
             const lns = r_t.split("\n");
             lns.forEach(l => 
             {
@@ -554,7 +575,6 @@ async function downloadAndSaveBook(bookId)
             });
         }
 
-        // DBにぶち込む
         const tx_db = maji_de_db.transaction(["books"], "readwrite");
         const st = tx_db.objectStore("books");
         const a_n = rx_78.authors[0] ? rx_78.authors[0].name : "不明";
@@ -584,7 +604,6 @@ async function downloadAndSaveBook(bookId)
     } 
     catch (err) 
     {
-        // 画面に直接エラーメッセージを叩き出す！！
         s_e.style.color = "#d9534f";
         s_e.textContent = `クラッシュしたわ… 原因: ${err.message}`;
     }
