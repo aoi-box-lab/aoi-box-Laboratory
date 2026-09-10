@@ -1672,7 +1672,8 @@ window.downloadAndSaveGutenberg = downloadAndSaveGutenberg;
 
 /* ============================================================
    青空文庫 本文ダウンロード
-   GitHub Raw を第一候補、失敗時のみ公式サイトをプロキシ経由
+   GitHub Raw を第一候補。personId をゼロ埋めし、
+   GitHub API でファイル一覧を取得して正確な本文パスを特定。
    ============================================================ */
 async function downloadAndSaveAozora(workId, personId, title, personName){
     const key = 'aozora_' + workId;
@@ -1702,27 +1703,60 @@ async function downloadAndSaveAozora(workId, personId, title, personName){
     }
 
     try{
-        /* --- ステップ1: 図書カードを取得 --- */
-        const cardHtml = await fetchHtml([
-            `${AOZORA_GH_BASE}/${personId}/card${workId}.html`,
-            CORS_PROXIES.aoi(`${AOZORA_AZ_BASE}/${personId}/card${workId}.html`)
-        ]);
+        /* --- ステップ1: personId を6桁ゼロ埋め --- */
+        const paddedPersonId = String(personId).padStart(6, '0');
+        const paddedWorkId = String(workId).padStart(6, '0');
 
-        /* --- ステップ2: 本文HTMLのパスを抽出 --- */
-        const htmlUrlMatch = cardHtml.match(/href="(\.\/files\/[^"]+\.html?)"/i)
-                          || cardHtml.match(/href="(files\/[^"]+\.html?)"/i)
-                          || cardHtml.match(/href="([^"]*\/files\/[^"]+\.html?)"/i);
-        if(!htmlUrlMatch) throw new Error('本文HTMLのURLが図書カードから見つかりませんでした');
-        const relPath = htmlUrlMatch[1].replace(/^\.\//, '');
-        console.log('[青空文庫] 本文パス:', relPath);
+        /* --- ステップ2: GitHub API で cards/{paddedPersonId}/files の一覧を取得 --- */
+        const apiUrl = `https://api.github.com/repos/aozorabunko/aozorabunko/contents/cards/${paddedPersonId}/files?ref=master`;
+        console.log('[青空文庫] ファイル一覧取得:', apiUrl);
+        let files = [];
+        try{
+            const apiRes = await fetchWithTimeout(apiUrl, {}, FETCH_TIMEOUT_API);
+            if(apiRes.ok){
+                files = await apiRes.json();
+            } else {
+                console.warn('[青空文庫] GitHub API 失敗:', apiRes.status);
+            }
+        }catch(e){
+            console.warn('[青空文庫] GitHub API 例外:', e.message);
+        }
 
-        /* --- ステップ3: 本文HTMLを取得 --- */
+        /* --- ステップ3: workId で始まる HTML ファイルを探す --- */
+        let bodyRelPath = null;
+        if(Array.isArray(files) && files.length){
+            const target = files.find(f => f.name.startsWith(String(workId) + '_') && (f.name.endsWith('.html') || f.name.endsWith('.xhtml')));
+            if(target){
+                bodyRelPath = `files/${target.name}`;
+                console.log('[青空文庫] 本文パス特定:', bodyRelPath);
+            }
+        }
+
+        /* --- ステップ4: 特定できなければ図書カードから抽出を試みる --- */
+        if(!bodyRelPath){
+            console.log('[青空文庫] APIで特定できず、図書カードから抽出を試行...');
+            const cardHtml = await fetchHtml([
+                `${AOZORA_GH_BASE}/${paddedPersonId}/card${paddedWorkId}.html`,
+                `${AOZORA_GH_BASE}/${paddedPersonId}/card${workId}.html`,
+                CORS_PROXIES.aoi(`${AOZORA_AZ_BASE}/${paddedPersonId}/card${paddedWorkId}.html`),
+                CORS_PROXIES.aoi(`${AOZORA_AZ_BASE}/${personId}/card${workId}.html`)
+            ]);
+            const htmlUrlMatch = cardHtml.match(/href="(\.\/files\/[^"]+\.html?)"/i)
+                              || cardHtml.match(/href="(files\/[^"]+\.html?)"/i)
+                              || cardHtml.match(/href="([^"]*\/files\/[^"]+\.html?)"/i);
+            if(!htmlUrlMatch) throw new Error('本文HTMLのURLが図書カードから見つかりませんでした');
+            bodyRelPath = htmlUrlMatch[1].replace(/^\.\//, '');
+            console.log('[青空文庫] 図書カードから本文パス:', bodyRelPath);
+        }
+
+        /* --- ステップ5: 本文HTMLを取得 --- */
         const bodyHtml = await fetchHtml([
-            `${AOZORA_GH_BASE}/${personId}/${relPath}`,
-            CORS_PROXIES.aoi(`${AOZORA_AZ_BASE}/${personId}/${relPath}`)
+            `${AOZORA_GH_BASE}/${paddedPersonId}/${bodyRelPath}`,
+            CORS_PROXIES.aoi(`${AOZORA_AZ_BASE}/${paddedPersonId}/${bodyRelPath}`),
+            CORS_PROXIES.aoi(`${AOZORA_AZ_BASE}/${personId}/${bodyRelPath}`)
         ]);
 
-        /* --- ステップ4: main_text から段落を抽出 --- */
+        /* --- ステップ6: main_text から段落を抽出 --- */
         const d = new DOMParser().parseFromString(bodyHtml, "text/html");
         d.querySelectorAll("script, style, header, footer, img, .bibliographical_information, .notation_notes, .after_text").forEach(el=>el.remove());
         const main = d.querySelector("div.main_text");
