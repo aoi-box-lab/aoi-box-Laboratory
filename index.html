@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ヤマビコ</title>
+<!-- ZIP解凍用ライブラリ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 :root {
     --bg-color: #f7f6f2;
@@ -28,9 +30,7 @@ body.sepia-mode {
     --border-color: #e2d7c0;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body {
-    height: 100%;
-}
+html, body { height: 100%; }
 body {
     background-color: var(--bg-color);
     color: var(--text-color);
@@ -533,7 +533,10 @@ const LIBRETRANSLATE_INSTANCES = [
     'https://translate.cutie.dating'
 ];
 
-const AOZORA_CSV_URL = "https://raw.githubusercontent.com/aozorabunko/aozorabunko/master/index_pages/list_person_all_extended_utf8.csv";
+// 青空文庫CSV（ZIP圧縮）のURL
+// 公式サイトからダウンロードする。GitHub RawのCSVは存在しないためZIPを使用
+const AOZORA_CSV_ZIP_URL = "https://www.aozora.gr.jp/index_pages/list_person_all_extended_utf8.zip";
+const AOZORA_CSV_FILENAME = "list_person_all_extended_utf8.csv";
 const AOZORA_HTML_BASE = "https://raw.githubusercontent.com/aozorabunko/aozorabunko/master/cards";
 
 const LANGUAGE_NAMES = {
@@ -552,7 +555,7 @@ const BOOKMARK_SAVE_DEBOUNCE_MS = 500;
 
 const FETCH_TIMEOUT_TRANSLATE = 4000;
 const FETCH_TIMEOUT_API = 8000;
-const FETCH_TIMEOUT_BOOK = 25000;
+const FETCH_TIMEOUT_BOOK = 30000;  // ZIPダウンロード用に長め
 
 let maji_de_db = null;
 let current_font_size = 18;
@@ -584,7 +587,7 @@ let pending_page_restore = null;
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 /* ============================================================
-   タイムアウト付きfetch。ハングするインスタンスを即座に切る
+   タイムアウト付きfetch
    ============================================================ */
 async function fetchWithTimeout(url, options, timeoutMs) {
     const controller = new AbortController();
@@ -698,17 +701,12 @@ function setSource(source) {
     current_source = source;
     document.getElementById("source-gutenberg-btn").classList.toggle("active", source === "gutenberg");
     document.getElementById("source-aozora-btn").classList.toggle("active", source === "aozora");
-    const mode_wrap = document.getElementById("mode-toggle-wrap");
+
+    // 青空文庫でも作品/著者モードは表示する（検索対象を切り替える）
     const in_e = document.getElementById("search-input");
-    if (source === "aozora") {
-        mode_wrap.style.display = "none";
-        in_e.placeholder = "作品名・著者名で検索（青空文庫）";
-    } else {
-        mode_wrap.style.display = "flex";
-        in_e.placeholder = search_mode_v === "title"
-            ? "作品名（・がなくてもいけるようにした！）"
-            : "著者名（フルネームじゃなくても多分いける）";
-    }
+    in_e.placeholder = search_mode_v === "title"
+        ? (source === "aozora" ? "作品名で検索（青空文庫）" : "作品名（・がなくてもいけるようにした！）")
+        : (source === "aozora" ? "著者名で検索（青空文庫）" : "著者名（フルネームじゃなくても多分いける）");
 }
 window.setSource = setSource;
 
@@ -717,11 +715,9 @@ function setSearchMode(mode) {
     document.getElementById("mode-title-btn").classList.toggle("active", mode === "title");
     document.getElementById("mode-author-btn").classList.toggle("active", mode === "author");
     const in_e = document.getElementById("search-input");
-    if (current_source === "gutenberg") {
-        in_e.placeholder = mode === "title"
-            ? "作品名（・がなくてもいけるようにした！）"
-            : "著者名（フルネームじゃなくても多分いける）";
-    }
+    in_e.placeholder = mode === "title"
+        ? (current_source === "aozora" ? "作品名で検索（青空文庫）" : "作品名（・がなくてもいけるようにした！）")
+        : (current_source === "aozora" ? "著者名で検索（青空文庫）" : "著者名（フルネームじゃなくても多分いける）");
 }
 window.setSearchMode = setSearchMode;
 
@@ -796,21 +792,58 @@ async function translateText(text, source, target) {
 }
 
 /* ===================== 青空文庫検索 ===================== */
+
+// ZIPをダウンロードしてJSZipで解凍し、CSVテキストを取得する
 async function loadAozoraCatalog() {
     if (aozora_csv_cache) return aozora_csv_cache;
+
+    // IndexedDBキャッシュを確認
     try {
         const cached = await getCacheFromDB('aozora_catalog');
         if (cached && cached.value) {
             aozora_csv_cache = cached.value;
+            console.log(`[青空文庫] キャッシュから読み込み (${aozora_csv_cache.length}件)`);
             return aozora_csv_cache;
         }
     } catch (e) {}
 
-    const res = await fetchWithTimeout(AOZORA_CSV_URL, {}, FETCH_TIMEOUT_BOOK);
-    if (!res.ok) throw new Error(`青空文庫CSV取得失敗: HTTP ${res.status}`);
-    const buf = await res.arrayBuffer();
-    const text = new TextDecoder('utf-8').decode(buf);
-    const lines = text.split('\n');
+    // ZIPをダウンロード（プロキシ経由でCORS回避）
+    console.log('[青空文庫] ZIPをダウンロード中...');
+    setStatus("search-status", "青空文庫の作品リストをダウンロード中...（初回のみ）", 'info');
+
+    let zip_buf;
+    try {
+        const res = await fetchWithTimeout(
+            maji_de_proxy_base + encodeURIComponent(AOZORA_CSV_ZIP_URL),
+            {},
+            FETCH_TIMEOUT_BOOK
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        zip_buf = await res.arrayBuffer();
+    } catch (e) {
+        throw new Error(`ZIP取得失敗: ${e.message}`);
+    }
+
+    // JSZipで解凍
+    let csv_text;
+    try {
+        const zip = await JSZip.loadAsync(zip_buf);
+        const csv_file = zip.file(AOZORA_CSV_FILENAME);
+        if (!csv_file) {
+            // ファイル名が違う場合は最初のCSVを探す
+            const names = Object.keys(zip.files);
+            const csv_name = names.find(n => n.endsWith('.csv'));
+            if (!csv_name) throw new Error('ZIP内にCSVが見つかりません');
+            csv_text = await zip.file(csv_name).async('string');
+        } else {
+            csv_text = await csv_file.async('string');
+        }
+    } catch (e) {
+        throw new Error(`ZIP解凍失敗: ${e.message}`);
+    }
+
+    // CSVパース
+    const lines = csv_text.split('\n');
     const catalog = [];
     for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -833,6 +866,8 @@ async function loadAozoraCatalog() {
         if (!workId || !title) continue;
         catalog.push({ workId, title, personId, personName, cardUrl, htmlUrl });
     }
+
+    console.log(`[青空文庫] カタログ読み込み完了 (${catalog.length}件)`);
     aozora_csv_cache = catalog;
     try { await saveCacheToDB('aozora_catalog', catalog); } catch (e) {}
     return catalog;
@@ -859,15 +894,21 @@ function parseCSVLine(line) {
     return result;
 }
 
+// 検索モード（作品/著者）に応じてフィルタ
 async function searchAozora(query) {
     const catalog = await loadAozoraCatalog();
     const q = query.toLowerCase();
-    const results = catalog.filter(item => {
-        const t = (item.title || '').toLowerCase();
-        const a = (item.personName || '').toLowerCase();
-        return t.includes(q) || a.includes(q);
-    });
-    return results.slice(0, 50);
+
+    let results;
+    if (search_mode_v === "author") {
+        // 著者名で検索
+        results = catalog.filter(item => (item.personName || '').toLowerCase().includes(q));
+    } else {
+        // 作品名で検索（デフォルト）
+        results = catalog.filter(item => (item.title || '').toLowerCase().includes(q));
+    }
+
+    return results.slice(0, 100);
 }
 
 /* ===================== 翻訳コア ===================== */
