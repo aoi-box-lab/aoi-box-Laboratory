@@ -651,9 +651,8 @@ const FETCH_TIMEOUT_TRANSLATE = 4000;
 const FETCH_TIMEOUT_API = 8000;
 const FETCH_TIMEOUT_BOOK = 90000;
 
-/* 青空文庫ミラー（GitHub Raw）と公式サイト */
-const AOZORA_GH_BASE = 'https://raw.githubusercontent.com/aozorabunko/aozorabunko/master/cards';
-const AOZORA_AZ_BASE = 'https://www.aozora.gr.jp/cards';
+/* 青空文庫テキストミラー（ZIP解凍済み・CORS対応） */
+const AOZORA_TEXT_MIRROR = 'https://raw.githubusercontent.com/aozorahack/aozorabunko_text/master/cards';
 
 let maji_de_db = null;
 let db_closing = false;
@@ -1043,11 +1042,17 @@ function parseAozoraCardJson(json){
             const personId = String(t.person_id || t.author_num || '').trim();
             const personName = String(t.person_name || '').trim();
             if(!workId || !title) continue;
+            let zipName = '';
+            const dl = card.download;
+            if(dl && dl.filename){
+                zipName = String(dl.filename).trim();
+            }
             catalog.push({
                 workId,
                 title,
                 personId,
                 personName,
+                zipName,
                 cardUrl: personId && workId ? `https://www.aozora.gr.jp/cards/${personId}/card${workId}.html` : '',
                 htmlUrl: ''
             });
@@ -1561,7 +1566,7 @@ async function execSearchAozora(q_v){
                 <td>${escapeHtml(item.workId)}</td>
                 <td>${escapeHtml(item.title)}</td>
                 <td>${escapeHtml(item.personName)}</td>
-                <td><button onclick="downloadAndSaveAozora('${escapeHtml(item.workId)}','${escapeHtml(item.personId)}','${escapeHtml(item.title)}','${escapeHtml(item.personName)}')">保存・読む</button></td>
+                <td><button onclick="downloadAndSaveAozora('${escapeHtml(item.workId)}','${escapeHtml(item.personId)}','${escapeHtml(item.title)}','${escapeHtml(item.personName)}','${escapeHtml(item.zipName||'')}')">保存・読む</button></td>
             `;
             tb.appendChild(tr);
         });
@@ -1672,110 +1677,70 @@ window.downloadAndSaveGutenberg = downloadAndSaveGutenberg;
 
 /* ============================================================
    青空文庫 本文ダウンロード
-   GitHub Raw を第一候補。personId をゼロ埋めし、
-   GitHub API でファイル一覧を取得して正確な本文パスを特定。
+   aozorahack/aozorabunko_text ミラーから直接テキストを取得
    ============================================================ */
-async function downloadAndSaveAozora(workId, personId, title, personName){
+async function downloadAndSaveAozora(workId, personId, title, personName, zipName){
     const key = 'aozora_' + workId;
     setStatus("search-status", `「${title}」をダウンロード中...`, 'info');
     showToast(`ダウンロード開始: ${title}`, 'info');
 
-    /* 共通のHTML取得ヘルパ（Shift_JIS/UTF-8 自動判別） */
-    async function fetchHtml(candidates){
-        let lastErr = '';
-        for(const url of candidates){
+    try{
+        const paddedPersonId = String(personId).padStart(6, '0');
+
+        /* --- zipName が無い場合は API で files 一覧を取得して補完 --- */
+        let finalZipName = zipName;
+        if(!finalZipName){
+            const apiUrl = `https://api.github.com/repos/aozorabunko/aozorabunko/contents/cards/${paddedPersonId}/files?ref=master`;
             try{
-                const r = await fetchWithTimeout(url, {}, FETCH_TIMEOUT_BOOK);
-                if(!r.ok){ lastErr = `HTTP ${r.status}`; continue; }
-                const buf = await r.arrayBuffer();
-                if(buf.byteLength < 100){ lastErr = 'データが空'; continue; }
-                const head = new TextDecoder('ascii').decode(buf.slice(0, 2000)).toLowerCase();
-                if(head.includes('shift_jis') || head.includes('shift-jis') || head.includes('sjis')){
-                    return new TextDecoder('shift_jis').decode(buf);
-                } else {
-                    return new TextDecoder('utf-8').decode(buf);
+                const apiRes = await fetchWithTimeout(apiUrl, {}, FETCH_TIMEOUT_API);
+                if(apiRes.ok){
+                    const files = await apiRes.json();
+                    const target = files.find(f => f.name.startsWith(String(workId) + '_') && f.name.endsWith('.zip'));
+                    if(target) finalZipName = target.name;
                 }
             }catch(e){
-                lastErr = e.message;
-            }
-        }
-        throw new Error(lastErr);
-    }
-
-    try{
-        /* --- ステップ1: personId を6桁ゼロ埋め --- */
-        const paddedPersonId = String(personId).padStart(6, '0');
-        const paddedWorkId = String(workId).padStart(6, '0');
-
-        /* --- ステップ2: GitHub API で cards/{paddedPersonId}/files の一覧を取得 --- */
-        const apiUrl = `https://api.github.com/repos/aozorabunko/aozorabunko/contents/cards/${paddedPersonId}/files?ref=master`;
-        console.log('[青空文庫] ファイル一覧取得:', apiUrl);
-        let files = [];
-        try{
-            const apiRes = await fetchWithTimeout(apiUrl, {}, FETCH_TIMEOUT_API);
-            if(apiRes.ok){
-                files = await apiRes.json();
-            } else {
-                console.warn('[青空文庫] GitHub API 失敗:', apiRes.status);
-            }
-        }catch(e){
-            console.warn('[青空文庫] GitHub API 例外:', e.message);
-        }
-
-        /* --- ステップ3: workId で始まる HTML ファイルを探す --- */
-        let bodyRelPath = null;
-        if(Array.isArray(files) && files.length){
-            const target = files.find(f => f.name.startsWith(String(workId) + '_') && (f.name.endsWith('.html') || f.name.endsWith('.xhtml')));
-            if(target){
-                bodyRelPath = `files/${target.name}`;
-                console.log('[青空文庫] 本文パス特定:', bodyRelPath);
+                console.warn('[青空文庫] API補完失敗:', e.message);
             }
         }
 
-        /* --- ステップ4: 特定できなければ図書カードから抽出を試みる --- */
-        if(!bodyRelPath){
-            console.log('[青空文庫] APIで特定できず、図書カードから抽出を試行...');
-            const cardHtml = await fetchHtml([
-                `${AOZORA_GH_BASE}/${paddedPersonId}/card${paddedWorkId}.html`,
-                `${AOZORA_GH_BASE}/${paddedPersonId}/card${workId}.html`,
-                CORS_PROXIES.aoi(`${AOZORA_AZ_BASE}/${paddedPersonId}/card${paddedWorkId}.html`),
-                CORS_PROXIES.aoi(`${AOZORA_AZ_BASE}/${personId}/card${workId}.html`)
-            ]);
-            const htmlUrlMatch = cardHtml.match(/href="(\.\/files\/[^"]+\.html?)"/i)
-                              || cardHtml.match(/href="(files\/[^"]+\.html?)"/i)
-                              || cardHtml.match(/href="([^"]*\/files\/[^"]+\.html?)"/i);
-            if(!htmlUrlMatch) throw new Error('本文HTMLのURLが図書カードから見つかりませんでした');
-            bodyRelPath = htmlUrlMatch[1].replace(/^\.\//, '');
-            console.log('[青空文庫] 図書カードから本文パス:', bodyRelPath);
-        }
+        if(!finalZipName) throw new Error('ZIPファイル名が特定できませんでした');
 
-        /* --- ステップ5: 本文HTMLを取得 --- */
-        const bodyHtml = await fetchHtml([
-            `${AOZORA_GH_BASE}/${paddedPersonId}/${bodyRelPath}`,
-            CORS_PROXIES.aoi(`${AOZORA_AZ_BASE}/${paddedPersonId}/${bodyRelPath}`),
-            CORS_PROXIES.aoi(`${AOZORA_AZ_BASE}/${personId}/${bodyRelPath}`)
-        ]);
+        const baseName = finalZipName.replace(/\.zip$/i, '');
+        const txtUrl = `${AOZORA_TEXT_MIRROR}/${paddedPersonId}/files/${baseName}/${baseName}.txt`;
+        console.log('[青空文庫] テキストURL:', txtUrl);
 
-        /* --- ステップ6: main_text から段落を抽出 --- */
-        const d = new DOMParser().parseFromString(bodyHtml, "text/html");
-        d.querySelectorAll("script, style, header, footer, img, .bibliographical_information, .notation_notes, .after_text").forEach(el=>el.remove());
-        const main = d.querySelector("div.main_text");
-        if(!main) throw new Error('本文（div.main_text）が見つかりませんでした');
-        main.querySelectorAll("rp").forEach(el=>el.remove());
+        /* --- テキストファイルを取得（Shift_JIS） --- */
+        const res = await fetchWithTimeout(txtUrl, {}, FETCH_TIMEOUT_BOOK);
+        if(!res.ok) throw new Error(`テキスト取得失敗: HTTP ${res.status}`);
+        const buf = await res.arrayBuffer();
+        if(buf.byteLength < 100) throw new Error('テキストが空です');
 
-        let paras = [];
-        const pe = main.querySelectorAll("p");
-        if(pe.length){
-            pe.forEach(px=>{
-                const tx = px.textContent.trim();
-                if(tx) paras.push({tag:"p", text: tx});
-            });
+        const head = new TextDecoder('ascii').decode(buf.slice(0, 2000)).toLowerCase();
+        let txt;
+        if(head.includes('shift_jis') || head.includes('shift-jis') || head.includes('sjis')){
+            txt = new TextDecoder('shift_jis').decode(buf);
         } else {
-            main.textContent.trim().split(/\n+/).forEach(l=>{
-                if(l.trim()) paras.push({tag:"p", text: l.trim()});
-            });
+            txt = new TextDecoder('utf-8').decode(buf);
         }
-        if(!paras.length) throw new Error('本文の段落が0個でした');
+
+        /* --- 青空文庫形式テキストから段落を抽出 --- */
+        /* ヘッダ（先頭の ---- 行から本文開始まで）を除去 */
+        let body = txt;
+        const sepMatch = body.match(/^-{5,}\s*$/m);
+        if(sepMatch){
+            const sepIdx = body.indexOf(sepMatch[0]);
+            body = body.slice(sepIdx + sepMatch[0].length).trim();
+        }
+        /* 末尾の ---- 以降（奥付）を除去 */
+        const tailMatch = body.match(/\n-{5,}\s*[\s\S]*$/);
+        if(tailMatch){
+            body = body.slice(0, body.indexOf(tailMatch[0])).trim();
+        }
+
+        const rawParas = body.split(/\n\n+/).map(s=>s.trim()).filter(s=>s.length > 0);
+        if(!rawParas.length) throw new Error('本文の段落が0個でした');
+
+        let paras = rawParas.map(text => ({tag:"p", text}));
 
         const ch = paras.map(p=>`<${p.tag}>${escapeHtml(p.text)}</${p.tag}>`).join("");
 
