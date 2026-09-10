@@ -88,16 +88,7 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
 .toast.warn{border-left-color:#f0ad4e}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 
-/* ============================================================
-   レスポンシブ対応
-   ============================================================ */
-#reading-title{
-    margin-left:auto;
-    font-weight:bold;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-}
+#reading-title{margin-left:auto;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .close-reader-btn{margin-left:15px}
 
 @media (max-width: 1024px){
@@ -107,7 +98,6 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
     .reader-toolbar .lang-group{padding:2px 6px;margin-left:0}
     #reading-title{font-size:.9rem;max-width:35%}
 }
-
 @media (max-width: 768px){
     header{padding:10px 14px}
     h1{font-size:1.05rem;letter-spacing:1px}
@@ -128,7 +118,6 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
     .bookshelf-filters{flex-direction:column;align-items:stretch;gap:8px;}
     .bookshelf-filters input[type="text"]{min-width:0}
 }
-
 @media (max-width: 480px){
     header{flex-direction:column;align-items:stretch;gap:8px;padding:10px 12px;}
     h1{text-align:center;font-size:1rem}
@@ -252,7 +241,6 @@ const LINGVA_INSTANCES = [
 const LIBRETRANSLATE_INSTANCES = ['https://libretranslate.com','https://translate.cutie.dating'];
 const AOZORA_CSV_ZIP_URL = "https://www.aozora.gr.jp/index_pages/list_person_all_extended_utf8.zip";
 const AOZORA_CSV_FILENAME = "list_person_all_extended_utf8.csv";
-const NDL_OPENSEARCH = 'https://ndlsearch.ndl.go.jp/api/opensearch';
 const LANGUAGE_NAMES = {'ja':'日本語','en':'英語','zh':'中国語','ko':'韓国語','fr':'フランス語','de':'ドイツ語','es':'スペイン語','it':'イタリア語','pt':'ポルトガル語','ru':'ロシア語'};
 const INITIAL_PARALLELISM = 32;
 const WORKER_DELAY_MS = 10;
@@ -444,31 +432,6 @@ function setSearchMode(mode){
 }
 window.setSearchMode = setSearchMode;
 
-async function getOriginalTitleFromNDL(jpTitle){
-    if(/^[a-zA-Z0-9\s]+$/.test(jpTitle)) return null;
-    try{
-        const api = `https://ndlsearch.ndl.go.jp/api/opensearch?title=${encodeURIComponent(jpTitle)}&cnt=10`;
-        const res = await fetchWithTimeout(maji_de_proxy_base+encodeURIComponent(api), {}, FETCH_TIMEOUT_API);
-        const xml = await res.text();
-        const doc = new DOMParser().parseFromString(xml,'application/xml');
-        const items = [...doc.getElementsByTagName('item')];
-        if(!items.length) return null;
-        for(const item of items){
-            const text = item.textContent;
-            const pats=[/原タイトル\s*[:：]\s*([^\n\r]+)/,/原題\s*[:：]\s*([^\n\r]+)/,/Original title\s*[:：]\s*([^\n\r]+)/i,/別書名\s*[:：]\s*([^\n\r]+)/];
-            for(const p of pats){
-                const m = text.match(p);
-                if(m){
-                    const cand = m[1].trim().replace(/[。．.\s]+$/,'');
-                    if(cand && !cand.includes(jpTitle)) return cand;
-                }
-            }
-            const latin = text.match(/[A-Z][A-Za-z'’\-]+(?:\s+(?:of|the|and|in|a|an|to|[A-Z][A-Za-z'’\-]+)){2,}/g);
-            if(latin && latin.length){ latin.sort((a,b)=>b.length-a.length); return latin[0].trim(); }
-        }
-    }catch(e){}
-    return null;
-}
 async function getAuthorEnglishNameFromWikipedia(jpName){
     if(/^[a-zA-Z0-9\s]+$/.test(jpName)) return null;
     try{
@@ -503,74 +466,8 @@ async function translateText(text, source, target){
 }
 
 /* ============================================================
-   青空文庫検索 — NDLサーチAPI（第1候補）
-   通常検索をかけて、結果から aozora.gr.jp/cards/ を含むitemだけ拾う
-   ============================================================ */
-async function searchAozoraViaNDL(query, mode){
-    const param = mode === 'author' ? 'creator' : 'title';
-    const api = `${NDL_OPENSEARCH}?${param}=${encodeURIComponent(query)}&cnt=200`;
-
-    const res = await fetchWithTimeout(maji_de_proxy_base + encodeURIComponent(api), {}, FETCH_TIMEOUT_API);
-    if(!res.ok) throw new Error(`NDLサーチ HTTP ${res.status}`);
-
-    const xml = await res.text();
-    const doc = new DOMParser().parseFromString(xml, 'application/xml');
-
-    if(doc.querySelector('parsererror')) throw new Error('NDLレスポンスのXMLパースに失敗');
-
-    const items = [...doc.getElementsByTagName('item')];
-    if(!items.length) throw new Error('NDLレスポンスにitemが0件');
-
-    const out = [];
-    const seen = new Set();
-
-    for(const it of items){
-        const titleEl = it.querySelector('title');
-        const linkEl = it.querySelector('link');
-        const authorEl = it.querySelector('author');
-        const descEl = it.querySelector('description');
-
-        const title = titleEl ? titleEl.textContent.trim() : '';
-        const link = linkEl ? linkEl.textContent.trim() : '';
-        const author = authorEl ? authorEl.textContent.trim() : '';
-        const desc = descEl ? descEl.textContent : '';
-
-        // linkでもdescriptionでも青空文庫のカードURLを探す
-        const searchStr = link + ' ' + desc;
-        const m = searchStr.match(/https?:\/\/www\.aozora\.gr\.jp\/cards\/(\d+)\/card(\d+)\.html/);
-        if(!m) continue;
-
-        const personId = m[1];
-        const workId = m[2];
-        if(seen.has(workId)) continue;
-        seen.add(workId);
-
-        // タイトルから「| 青空文庫」等のノイズを除去
-        const cleanTitle = title
-            .replace(/\s*[|｜]\s*青空文庫.*$/, '')
-            .replace(/\s*[|｜]\s*国立国会図書館.*$/, '')
-            .trim();
-
-        out.push({
-            workId,
-            personId,
-            title: cleanTitle || `作品ID: ${workId}`,
-            personName: author || '不明',
-            cardUrl: `https://www.aozora.gr.jp/cards/${personId}/card${workId}.html`,
-            htmlUrl: ''
-        });
-    }
-
-    if(!out.length) throw new Error('NDLレスポンスに青空文庫の作品が含まれていません');
-    return out;
-}
-
-/* ============================================================
-   青空文庫カタログ取得（フォールバック用）
-   3段フォールバック:
-   1. jsDelivr CDN
-   2. GitHub Raw
-   3. 公式ZIPをプロキシ経由
+   青空文庫カタログ取得
+   jsDelivr → GitHub Raw → 公式ZIP の3段フォールバック
    ============================================================ */
 async function fetchAozoraCatalog(){
     if(aozora_catalog_loading || aozora_catalog_ready) return;
@@ -592,6 +489,7 @@ async function fetchAozoraCatalog(){
     let csv_text = null;
     let lastErr = '';
 
+    /* --- 第1候補: jsDelivr --- */
     if(!csv_text){
         try{
             const url = 'https://cdn.jsdelivr.net/gh/aozorabunko/aozorabunko@master/index_pages/list_person_all_extended_utf8.csv';
@@ -605,6 +503,7 @@ async function fetchAozoraCatalog(){
         }catch(e){ lastErr = `jsDelivr: ${e.message}`; }
     }
 
+    /* --- 第2候補: GitHub Raw --- */
     if(!csv_text){
         try{
             const url = 'https://raw.githubusercontent.com/aozorabunko/aozorabunko/master/index_pages/list_person_all_extended_utf8.csv';
@@ -618,6 +517,7 @@ async function fetchAozoraCatalog(){
         }catch(e){ lastErr = `GitHub Raw: ${e.message}`; }
     }
 
+    /* --- 第3候補: 公式ZIPをプロキシ経由 --- */
     if(!csv_text){
         try{
             console.log('[青空文庫] 公式ZIPをプロキシ経由で試行...');
@@ -697,11 +597,7 @@ function parseCSVLine(line){
     result.push(cur);
     return result;
 }
-
-/* ============================================================
-   青空文庫検索フォールバック（NDL失敗時のみ）
-   ============================================================ */
-async function searchAozoraFallback(query, mode){
+async function searchAozora(query){
     if(!aozora_catalog_ready){
         if(!aozora_catalog_loading) fetchAozoraCatalog();
         let waited = 0;
@@ -709,11 +605,11 @@ async function searchAozoraFallback(query, mode){
             await sleep(300);
             waited += 300;
         }
-        if(!aozora_catalog_ready) throw new Error('カタログ読み込みタイムアウト');
+        if(!aozora_catalog_ready) throw new Error('青空文庫カタログの読み込みが完了していません。少し待ってから再度お試しください。');
     }
     const q = query.toLowerCase();
     let results;
-    if(mode === "author"){
+    if(search_mode_v === "author"){
         results = aozora_catalog.filter(it => (it.personName||'').toLowerCase().includes(q));
     } else {
         results = aozora_catalog.filter(it => (it.title||'').toLowerCase().includes(q));
@@ -1054,14 +950,9 @@ async function execSearchGutenberg(q_v){
     const loose = q_v.replace(/[・＝ _]/g," ").replace(/\s+/g," ").trim();
     let eng = "";
     if(search_mode_v === "title"){
-        setStatus("search-status", `NDLで「${loose}」の原題を探り中...`, 'info');
-        eng = await getOriginalTitleFromNDL(loose);
-        if(eng){ setStatus("search-status", `NDLで原題「${eng}」を発見！Gutendexを検索中...`, 'info'); }
-        else{
-            setStatus("search-status", "NDLにないので翻訳で英語化中...", 'info');
-            eng = await translateText(loose, 'ja', 'en');
-            setStatus("search-status", `翻訳結果「${eng}」でGutendexを検索中...`, 'info');
-        }
+        setStatus("search-status", `「${loose}」を英語化中...`, 'info');
+        eng = await translateText(loose, 'ja', 'en');
+        setStatus("search-status", `翻訳結果「${eng}」でGutendexを検索中...`, 'info');
     } else {
         setStatus("search-status", `Wikipediaで「${loose}」の英語表記を探り中...`, 'info');
         eng = await getAuthorEnglishNameFromWikipedia(loose);
@@ -1105,58 +996,33 @@ async function execSearchGutenberg(q_v){
     }
 }
 
-/* ============================================================
-   青空文庫検索実行 — NDLサーチ優先、ダメならカタログ
-   ============================================================ */
 async function execSearchAozora(q_v){
     const t = document.getElementById("results-table");
     const tb = document.getElementById("results-tbody");
-    let results = null;
-
-    /* --- 第1候補: NDLサーチ --- */
-    setStatus("search-status", "NDLサーチで青空文庫を検索中...", 'info');
+    if(!aozora_catalog_ready) setStatus("search-status", "青空文庫カタログを読み込み中...", 'info');
     try{
-        results = await searchAozoraViaNDL(q_v, search_mode_v);
-        if(results && results.length){
-            console.log(`[青空文庫] NDLサーチ成功 (${results.length}件)`);
-        } else {
-            results = null;
+        const results = await searchAozora(q_v);
+        if(!results.length){
+            setStatus("search-status", "青空文庫に該当する作品が見つかりませんでした", 'error');
+            showToast('検索結果0件: 青空文庫に該当作品なし', 'warn');
+            return;
         }
-    }catch(e){
-        console.warn('[青空文庫] NDLサーチ失敗:', e.message);
+        setStatus("search-status", `見つかりました (${results.length}件)`, 'success');
+        t.style.display = "table";
+        results.forEach((item)=>{
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${escapeHtml(item.workId)}</td>
+                <td>${escapeHtml(item.title)}</td>
+                <td>${escapeHtml(item.personName)}</td>
+                <td><button onclick="downloadAndSaveAozora('${escapeHtml(item.workId)}','${escapeHtml(item.personId)}','${escapeHtml(item.title)}','${escapeHtml(item.personName)}')">保存・読む</button></td>
+            `;
+            tb.appendChild(tr);
+        });
+    }catch(err){
+        setStatus("search-status", `検索エラー: ${err.message}`, 'error');
+        showToast('検索エラー: '+err.message, 'error');
     }
-
-    /* --- 第2候補: カタログフォールバック --- */
-    if(!results){
-        setStatus("search-status", "NDLが応答しないためカタログを読み込み中...", 'info');
-        try{
-            results = await searchAozoraFallback(q_v, search_mode_v);
-            if(!results.length) results = null;
-            else console.log(`[青空文庫] カタログフォールバック成功 (${results.length}件)`);
-        }catch(e){
-            console.warn('[青空文庫] カタログフォールバックも失敗:', e.message);
-        }
-    }
-
-    /* --- 全滅 --- */
-    if(!results || !results.length){
-        setStatus("search-status", "青空文庫に該当する作品が見つかりませんでした", 'error');
-        showToast('検索結果0件: 青空文庫に該当作品なし', 'warn');
-        return;
-    }
-
-    setStatus("search-status", `見つかりました (${results.length}件)`, 'success');
-    t.style.display = "table";
-    results.forEach((item)=>{
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td>${escapeHtml(item.workId)}</td>
-            <td>${escapeHtml(item.title)}</td>
-            <td>${escapeHtml(item.personName)}</td>
-            <td><button onclick="downloadAndSaveAozora('${escapeHtml(item.workId)}','${escapeHtml(item.personId)}','${escapeHtml(item.title)}','${escapeHtml(item.personName)}')">保存・読む</button></td>
-        `;
-        tb.appendChild(tr);
-    });
 }
 
 async function downloadAndSaveGutenberg(bookId){
@@ -1222,10 +1088,6 @@ async function downloadAndSaveGutenberg(bookId){
 }
 window.downloadAndSaveGutenberg = downloadAndSaveGutenberg;
 
-/* ============================================================
-   青空文庫 本文ダウンロード
-   図書カード → 本文HTML の2段フェッチ
-   ============================================================ */
 async function downloadAndSaveAozora(workId, personId, title, personName){
     const key = 'aozora_' + workId;
     setStatus("search-status", `「${title}」をダウンロード中...`, 'info');
@@ -1712,6 +1574,7 @@ window.onload = async ()=>{
     catch(err){ showToast('DB初期化失敗: '+err.message, 'error', 15000); return; }
 
     resumePendingTranslations();
+    /* 青空文庫カタログは必要になった時だけ読み込み（遅延） */
 };
 
 window.addEventListener('error', (ev)=>{
