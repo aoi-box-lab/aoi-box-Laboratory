@@ -433,11 +433,9 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
    ============================================================ */
 
 // NDLサーチ・Gutendex取得用のCORSプロキシ
-// （翻訳APIはCORS対応なのでプロキシ不要）
 const maji_de_proxy_base = "https://aoi-box-lab.idosenpai.workers.dev/?url=";
 
 // Lingva Translate の公開インスタンス一覧
-// 1つ落ちても次を試す。必要に応じて追加・削除可
 const LINGVA_INSTANCES = [
     'https://lingva.ml',
     'https://translate.igna.wtf',
@@ -449,16 +447,18 @@ const LINGVA_INSTANCES = [
     'https://translate.jae.fi'
 ];
 
-// LibreTranslate の公開インスタンス（APIキー不要のもの）
+// LibreTranslate の公開インスタンス
 const LIBRETRANSLATE_INSTANCES = [
     'https://libretranslate.com',
     'https://translate.cutie.dating'
 ];
 
-// 翻訳の並列度・間隔
-const TRANSLATION_CONCURRENCY = 3;
-const WORKER_DELAY_MS = 300;
-const MAX_CONSECUTIVE_FAILS = 20;
+// 翻訳チューニング
+const INITIAL_PARALLELISM = 32;       // 初期並列度
+const WORKER_DELAY_MS = 10;           // 各段落処理後の待機
+const MAX_RETRY_PER_PARAGRAPH = 20;   // 1段落あたりの最大リトライ回数
+const FAILS_TO_DROP_CONCURRENCY = 20; // この回数失敗したら並列度を下げる
+const MIN_PARALLELISM = 8;            // 並列度の下限
 
 let maji_de_db = null;
 let current_font_size = 18;
@@ -617,7 +617,6 @@ async function getAuthorEnglishNameFromWikipedia(jpName) {
     } catch (err) { return null; }
 }
 
-// 検索クエリ用の日本語→英語翻訳。Lingvaを順番に試す
 async function translateToEnglish(jpText) {
     if (/^[a-zA-Z0-9\s]+$/.test(jpText)) return jpText;
     for (const instance of LINGVA_INSTANCES) {
@@ -633,20 +632,6 @@ async function translateToEnglish(jpText) {
 }
 
 /* ===================== 翻訳コア ===================== */
-function splitTextRoughly(text, maxLen) {
-    const chunks = [];
-    let rest = text;
-    while (rest.length > maxLen) {
-        let cut = rest.lastIndexOf(". ", maxLen);
-        if (cut < maxLen * 0.5) cut = maxLen;
-        chunks.push(rest.slice(0, cut + 1));
-        rest = rest.slice(cut + 1);
-    }
-    if (rest.length > 0) chunks.push(rest);
-    return chunks;
-}
-
-// UTF-8バイト数でテキストを分割（MyMemoryの500バイト制限対策）
 function splitTextByBytes(text, maxBytes) {
     const chunks = [];
     let current = '';
@@ -676,10 +661,10 @@ async function translateChunkToJapanese(text) {
             if (data && data.translation) {
                 return { ok: true, text: data.translation, endpoint: 'Lingva' };
             }
-        } catch (e) { /* 次のインスタンスへ */ }
+        } catch (e) {}
     }
 
-    // === 2. MyMemory（500バイト制限に対応）===
+    // === 2. MyMemory ===
     try {
         const chunks = splitTextByBytes(text, 450);
         let combined = '';
@@ -696,10 +681,10 @@ async function translateChunkToJapanese(text) {
                     anySuccess = true;
                 }
             }
-            await sleep(300);
+            await sleep(200);
         }
         if (anySuccess) return { ok: true, text: combined, endpoint: 'MyMemory' };
-    } catch (e) { /* 次へ */ }
+    } catch (e) {}
 
     // === 3. LibreTranslate ===
     for (const instance of LIBRETRANSLATE_INSTANCES) {
@@ -714,7 +699,7 @@ async function translateChunkToJapanese(text) {
             if (data && data.translatedText) {
                 return { ok: true, text: data.translatedText, endpoint: 'LibreTranslate' };
             }
-        } catch (e) { /* 次のインスタンスへ */ }
+        } catch (e) {}
     }
 
     return { ok: false, error: '全翻訳APIが失敗しました' };
@@ -749,7 +734,12 @@ function buildTranslatedHtml(book) {
     return book.contentTranslated || book.content || "";
 }
 
-/* ===================== バックグラウンド翻訳 ===================== */
+/* ============================================================
+   バックグラウンド翻訳
+   ・初期並列32 → 失敗20回で16 → さらに20回で8 → 以降8維持
+   ・各段落は最大20回リトライ（段階的バックオフ）
+   ・一旦停止なし。全段落を最後まで処理する
+   ============================================================ */
 async function startBackgroundTranslation(bookId) {
     if (active_translation_jobs[bookId]) return;
     active_translation_jobs[bookId] = true;
@@ -758,7 +748,6 @@ async function startBackgroundTranslation(bookId) {
     try {
         const book = await getBookFromDB(bookId);
         if (!book || !book.paragraphs || !book.paragraphs.length) {
-            showToast('翻訳スキップ: 段落データがありません', 'warn');
             return;
         }
         bookTitleForToast = book.title;
@@ -768,79 +757,109 @@ async function startBackgroundTranslation(bookId) {
             book.translatedTexts = new Array(total).fill(null);
         }
 
+        // 既に全段落翻訳済みなら何もしない
+        const alreadyDone = book.translatedTexts.filter(t => t != null).length;
+        if (alreadyDone >= total) {
+            book.translationStatus = "done";
+            book.translationDone = total;
+            await saveBookToDB(book);
+            onTranslationTick(book);
+            return;
+        }
+
         book.translationStatus = "translating";
         book.translationTotal = total;
-        book.translationDone = book.translatedTexts.filter(t => t != null).length;
+        book.translationDone = alreadyDone;
         delete book.lastError;
 
-        const pending = buildBidirectionalQueue(total).filter(i => book.translatedTexts[i] == null);
+        const queue = buildBidirectionalQueue(total).filter(i => book.translatedTexts[i] == null);
 
         let qi = 0;
         let last_save = 0;
-        let consecutive_fails = 0;
-        let aborted = false;
-        let lastErrorMsg = '';
-        const retry_list = [];
+        let fails_since_last_drop = 0;
+        // 動的並列度。ワーカーはこの値以上になると自主退場する
+        let current_parallelism = INITIAL_PARALLELISM;
 
-        const worker = async () => {
-            while (qi < pending.length && !aborted) {
-                const idx = pending[qi++];
+        console.log(`[翻訳開始] ${bookTitleForToast} 未訳${queue.length}段落 並列${current_parallelism}`);
+
+        const worker = async (worker_id) => {
+            while (true) {
+                // 並列度が下がったら自主退場
+                if (worker_id >= current_parallelism) return;
+                if (qi >= queue.length) return;
+
+                const idx = queue[qi++];
                 if (book.translatedTexts[idx] != null) continue;
 
-                const r = await translateParagraphToJapanese(book.paragraphs[idx].text);
+                let success = false;
+                let lastErr = '';
 
-                if (r.ok) {
-                    consecutive_fails = 0;
-                    book.translatedTexts[idx] = r.text;
-                    book.translationDone = (book.translationDone || 0) + 1;
-                    onTranslationTick(book);
-                    if (Date.now() - last_save > 1500) {
-                        last_save = Date.now();
-                        saveBookToDB(book);
-                    }
-                } else {
-                    consecutive_fails++;
-                    lastErrorMsg = r.error || '不明なエラー';
-                    retry_list.push(idx);
-                    if (consecutive_fails >= MAX_CONSECUTIVE_FAILS) {
-                        aborted = true;
+                // 1段落につき最大20回トライ
+                for (let attempt = 0; attempt < MAX_RETRY_PER_PARAGRAPH; attempt++) {
+                    const r = await translateParagraphToJapanese(book.paragraphs[idx].text);
+                    if (r.ok) {
+                        book.translatedTexts[idx] = r.text;
+                        book.translationDone = (book.translationDone || 0) + 1;
+                        onTranslationTick(book);
+
+                        if (Date.now() - last_save > 1500) {
+                            last_save = Date.now();
+                            saveBookToDB(book);
+                        }
+                        success = true;
                         break;
                     }
+                    lastErr = r.error || 'unknown';
+                    // 段階的バックオフ（最大500ms）
+                    await sleep(Math.min(100 * (attempt + 1), 500));
                 }
+
+                if (success) {
+                    fails_since_last_drop = 0;
+                } else {
+                    fails_since_last_drop++;
+                    book.lastError = `段落${idx}: ${lastErr}`;
+
+                    // 20回失敗で並列度を下げる（32→16→8、以降は8維持）
+                    if (fails_since_last_drop >= FAILS_TO_DROP_CONCURRENCY) {
+                        if (current_parallelism > MIN_PARALLELISM) {
+                            const prev = current_parallelism;
+                            current_parallelism = current_parallelism === 32 ? 16 : MIN_PARALLELISM;
+                            fails_since_last_drop = 0;
+                            showToast(`翻訳が不安定なため並列度を${prev}→${current_parallelism}に下げます`, 'warn', 8000);
+                            console.log(`[並列度変更] ${prev} → ${current_parallelism}`);
+                        } else {
+                            // 8で失敗が続いても下げられないのでカウンタだけリセット
+                            fails_since_last_drop = 0;
+                        }
+                    }
+                }
+
                 await sleep(WORKER_DELAY_MS);
             }
         };
 
-        await Promise.all(Array.from({ length: TRANSLATION_CONCURRENCY }, () => worker()));
-
-        // 失敗分だけもう1周（abortedならスキップ）
-        if (!aborted) {
-            for (const idx of retry_list) {
-                if (book.translatedTexts[idx] != null) continue;
-                const r = await translateParagraphToJapanese(book.paragraphs[idx].text);
-                if (r.ok) {
-                    book.translatedTexts[idx] = r.text;
-                    book.translationDone = (book.translationDone || 0) + 1;
-                    onTranslationTick(book);
-                } else {
-                    lastErrorMsg = r.error || lastErrorMsg;
-                }
-                await sleep(WORKER_DELAY_MS);
-            }
+        // 初期並列度ぶんのワーカーを起動。並列度が下がると余剰ワーカーは自主退場する
+        const workers = [];
+        for (let i = 0; i < INITIAL_PARALLELISM; i++) {
+            workers.push(worker(i));
         }
+        await Promise.all(workers);
 
+        // 最終集計
         book.translationDone = book.translatedTexts.filter(t => t != null).length;
         if (book.translationDone >= total) {
             book.translationStatus = "done";
-            showToast(`「${bookTitleForToast}」の翻訳が完了しました`, 'success');
+            showToast(`「${bookTitleForToast}」の翻訳が完了しました (${book.translationDone}/${total})`, 'success');
         } else {
             book.translationStatus = "error";
-            book.lastError = lastErrorMsg || '一部の段落が翻訳できませんでした';
-            showToast(`「${bookTitleForToast}」翻訳中断: ${book.lastError}`, 'error', 15000);
+            showToast(`「${bookTitleForToast}」一部の段落が未翻訳です (${book.translationDone}/${total})`, 'warn', 12000);
         }
 
         await saveBookToDB(book);
         onTranslationTick(book);
+
+        console.log(`[翻訳終了] ${bookTitleForToast} ${book.translationDone}/${total}`);
     } catch (err) {
         showToast('翻訳ジョブがクラッシュ: ' + err.message, 'error');
         try {
@@ -874,8 +893,6 @@ function onTranslationTick(book) {
     updateBookshelfRowStatus(book);
 }
 
-// 翻訳済みになった段落だけをDOMに差し込む。
-// innerHTMLを丸ごと書き換えるとスクロールが飛ぶので要素単位で更新
 function applyTranslationToDom(book) {
     if (!ima_yonderu_hon || ima_yonderu_hon.id !== book.id) return;
     if (!is_showing_translation) return;
@@ -918,13 +935,26 @@ function formatTranslationStatus(book) {
     return "—";
 }
 
+// 未完了の翻訳を全部拾って再開する。
+// status="translating" でも "error" でも、done<total なら対象。
+// 起動時と本を開いた時の両方で呼ばれる
 async function resumePendingTranslations() {
     try {
         const books = await getAllBooksFromDB();
-        const pending = books.filter(b => b.translationStatus === "translating" && b.paragraphs && b.paragraphs.length);
+        const pending = books.filter(b => {
+            if (!b.paragraphs || !b.paragraphs.length) return false;
+            const total = b.translationTotal || b.paragraphs.length;
+            const done = b.translationDone || 0;
+            return done < total;
+        });
+
         if (pending.length > 0) {
-            showToast(`中断された翻訳 ${pending.length}件 を再開します`, 'info');
-            pending.forEach(b => startBackgroundTranslation(b.id));
+            showToast(`未完了の翻訳 ${pending.length}件 を再開します`, 'info');
+            pending.forEach(b => {
+                // 念のためフラグをクリアしてから起動
+                active_translation_jobs[b.id] = false;
+                startBackgroundTranslation(b.id);
+            });
         }
     } catch (err) {}
 }
@@ -1135,8 +1165,11 @@ function loadBookshelf() {
                              : b.translationStatus === "done" ? "done" : "";
             const err_title = b.lastError ? ` title="${escapeHtml(b.lastError)}"` : "";
 
-            const is_stuck = (b.translationStatus === "translating" || b.translationStatus === "error") && b.paragraphs;
-            const retry_btn = is_stuck
+            // done<total なら「翻訳を再開」ボタンを出す
+            const total = b.translationTotal || (b.paragraphs ? b.paragraphs.length : 0);
+            const done = b.translationDone || 0;
+            const is_incomplete = b.paragraphs && b.paragraphs.length && done < total;
+            const retry_btn = is_incomplete
                 ? `<button onclick="event.stopPropagation(); retryTranslation(${b.id})">翻訳を再開</button>`
                 : "";
 
@@ -1173,6 +1206,7 @@ async function retryTranslation(bookId) {
         showToast('翻訳データがないため再開できません', 'error');
         return;
     }
+    // フラグを必ずクリアしてから再開
     active_translation_jobs[bookId] = false;
     showToast('翻訳を再開します', 'info');
     startBackgroundTranslation(bookId);
@@ -1313,9 +1347,13 @@ function openReader(bookObj) {
     rb.scrollTop = 0;
     rb.scrollLeft = 0;
 
-    // 止まってたら自動で再開
-    if (bookObj.paragraphs && (bookObj.translationStatus === "error" || bookObj.translationStatus === "translating")) {
-        if (!active_translation_jobs[bookObj.id]) {
+    // 未完了なら必ず翻訳を再開する（0/xxxで止まってる本もここで救済）
+    if (bookObj.paragraphs && bookObj.paragraphs.length) {
+        const total = bookObj.translationTotal || bookObj.paragraphs.length;
+        const done = bookObj.translationDone || 0;
+        if (done < total) {
+            // フラグを強制クリアしてから起動（前回クラッシュで残ってても動くように）
+            active_translation_jobs[bookObj.id] = false;
             startBackgroundTranslation(bookObj.id);
         }
     }
@@ -1514,6 +1552,7 @@ window.onload = async () => {
         showToast('DB初期化失敗: ' + err.message, 'error', 15000);
         return;
     }
+    // 未完了の翻訳を全部拾って再開（translatingでもerrorでもdone<totalなら対象）
     resumePendingTranslations();
 };
 
