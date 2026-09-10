@@ -277,6 +277,7 @@
             gap: 15px;
             align-items: center;
             font-size: 0.9rem;
+            flex-wrap: wrap;
         }
 
         .reader-content {
@@ -334,6 +335,17 @@
             font-size: 0.95rem;
             opacity: 0.8;
             font-weight: bold;
+        }
+
+        /* 翻訳ステータスのバッジ。本棚でも読書画面でも使う */
+        .trans-badge {
+            font-size: 0.8rem;
+            color: var(--accent-color);
+            white-space: nowrap;
+        }
+
+        .trans-badge.error {
+            color: #d9534f;
         }
 
         .modal-overlay {
@@ -435,6 +447,7 @@
                         <th>ID</th>
                         <th>タイトル</th>
                         <th>著者</th>
+                        <th>状態</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -453,6 +466,7 @@
                 <button onclick="setTheme('light')">Light</button>
                 <button onclick="setTheme('sepia')">Sepia</button>
                 <button onclick="setTheme('dark')">Dark</button>
+                <span id="translation-status-label" class="trans-badge"></span>
                 <span id="reading-title" style="margin-left:auto; font-weight:bold;"></span>
                 <button onclick="switchTab('bookshelf')" style="margin-left:15px;">閉じる</button>
             </div>
@@ -487,48 +501,91 @@ let current_font_size = 18;
 let is_vertical_mode = false;
 
 // キャッシュ格納庫。V作戦
-let v_project_cache = {}; 
+let v_project_cache = {};
 
-let search_mode_v = "title";     
-let drag_zaku_id = null;         
-let menu_char_aznable_id = null; 
-let delete_kill_confirm_id = null; 
+// 検索モード
+let search_mode_v = "title";
+// ドラッグ中の本のID
+let drag_zaku_id = null;
+// 今開いてる3点メニューのID
+let menu_char_aznable_id = null;
+// 削除確認待ちID
+let delete_kill_confirm_id = null;
 
-// めくりモード＆翻訳切替まわりの変数
-const gata_gap_haba = 60;       
-let is_page_mode = false;       
-let ima_no_page = 0;            
-let zenbu_page_su = 1;          
-let is_showing_translation = false; 
-let ima_yonderu_hon = null;     
+// めくりモード＆翻訳切替
+const gata_gap_haba = 60;
+let is_page_mode = false;
+let ima_no_page = 0;
+let zenbu_page_su = 1;
+let is_showing_translation = false;
+let ima_yonderu_hon = null;
+
+// バックグラウンド翻訳ジョブの管理。bookId -> true で「実行中」を表す
+let active_translation_jobs = {};
+// ページ再計算のデバウンス用
+let page_recompute_timer = null;
 
 // DB初期化
 function initDB()
 {
-    return new Promise((resolve, reject) => 
+    return new Promise((resolve, reject) =>
     {
         const req = indexedDB.open("SolariGutenbergDB", 1);
-        
-        req.onupgradeneeded = (e) => 
+
+        req.onupgradeneeded = (e) =>
         {
             const db = e.target.result;
-            if (!db.objectStoreNames.contains("books")) 
+            if (!db.objectStoreNames.contains("books"))
             {
                 db.createObjectStore("books", { keyPath: "id" });
             }
         };
 
-        req.onsuccess = (e) => 
+        req.onsuccess = (e) =>
         {
             maji_de_db = e.target.result;
             resolve(maji_de_db);
         };
 
-        req.onerror = (e) => 
+        req.onerror = (e) =>
         {
             console.error("DB起動失敗！", e);
             reject(e);
         };
+    });
+}
+
+// DBヘルパー。コールバック地獄を避けるためにPromiseで包む
+function getBookFromDB(bookId)
+{
+    return new Promise((resolve, reject) =>
+    {
+        const tx = maji_de_db.transaction(["books"], "readonly");
+        const rq = tx.objectStore("books").get(bookId);
+        rq.onsuccess = () => resolve(rq.result || null);
+        rq.onerror = () => reject(rq.error);
+    });
+}
+
+function getAllBooksFromDB()
+{
+    return new Promise((resolve, reject) =>
+    {
+        const tx = maji_de_db.transaction(["books"], "readonly");
+        const rq = tx.objectStore("books").getAll();
+        rq.onsuccess = () => resolve(rq.result || []);
+        rq.onerror = () => reject(rq.error);
+    });
+}
+
+function saveBookToDB(book)
+{
+    return new Promise((resolve, reject) =>
+    {
+        const tx = maji_de_db.transaction(["books"], "readwrite");
+        tx.objectStore("books").put(book);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
     });
 }
 
@@ -559,133 +616,131 @@ async function getOriginalTitleFromNDL(jpTitle)
 {
     if (/^[a-zA-Z0-9\s]+$/.test(jpTitle)) return null;
 
-    try 
+    try
     {
         const ndl_api_yobidashi = `https://ndlsearch.ndl.go.jp/api/opensearch?title=${encodeURIComponent(jpTitle)}&cnt=10`;
         const res = await fetch(maji_de_proxy_base + encodeURIComponent(ndl_api_yobidashi));
         const xml = await res.text();
-        
+
         const parser = new DOMParser();
         const doc = parser.parseFromString(xml, 'application/xml');
         const items = [...doc.getElementsByTagName('item')];
-        
+
         if (!items.length) return null;
 
-        for(const item of items) 
+        for(const item of items)
         {
             const text = item.textContent;
-            
+
             const pats = [
                 /原タイトル\s*[:：]\s*([^\n\r]+)/,
                 /原題\s*[:：]\s*([^\n\r]+)/,
                 /Original title\s*[:：]\s*([^\n\r]+)/i,
                 /別書名\s*[:：]\s*([^\n\r]+)/,
             ];
-            
-            for (const p of pats) 
+
+            for (const p of pats)
             {
                 const m = text.match(p);
-                if (m) 
+                if (m)
                 {
                     const cand = m[1].trim().replace(/[。．.\s]+$/, '');
-                    if (cand && !cand.includes(jpTitle)) return cand; 
+                    if (cand && !cand.includes(jpTitle)) return cand;
                 }
             }
-            
+
             const latin = text.match(/[A-Z][A-Za-z'’\-]+(?:\s+(?:of|the|and|in|a|an|to|[A-Z][A-Za-z'’\-]+)){2,}/g);
-            if (latin && latin.length) 
+            if (latin && latin.length)
             {
                 latin.sort((a, b) => b.length - a.length);
                 return latin[0].trim();
             }
         }
-    } 
-    catch (err) 
+    }
+    catch (err)
     {
         console.warn("NDLサーチ失敗したわ…", err);
     }
-    
+
     return null;
 }
 
-// 著者名の英語化システムを魔改造
+// 著者名専用の英語化システム。
+// 以前は Object.values(pages)[0] で先頭ページを取っていたけど、
+// JSのオブジェクトは数値キー(pageid)を昇順で並べる仕様なので、
+// 検索スコア順が完全に壊れて「コナンドイル→アガサクリスティ」みたいな
+// カオスが起きていた。indexpageids=1 で得られる pageids 配列を使えば
+// Wikipediaが返した本来の検索順位のまま取り出せる。これで解決。
 async function getAuthorEnglishNameFromWikipedia(jpName)
 {
-    if (/^[a-zA-Z0-9\s]+$/.test(jpName)) return null; 
+    if (/^[a-zA-Z0-9\s]+$/.test(jpName)) return null;
 
-    try 
+    try
     {
-        // アガサ・クリスティ化する謎バグを回避するため、opensearchで
-        // リダイレクト込みの正確なタイトルをピンポイントで引っ張ってくる作戦
-        const the_world_api = `https://ja.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(jpName)}&limit=1&format=json&origin=*`;
-        const res_first = await fetch(maji_de_proxy_base + encodeURIComponent(the_world_api));
-        const data_first = await res_first.json();
+        const wiki_api = `https://ja.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(jpName)}&gsrlimit=5&prop=langlinks&lllang=en&format=json&origin=*&indexpageids=1`;
+        const res = await fetch(maji_de_proxy_base + encodeURIComponent(wiki_api));
+        const data = await res.json();
 
-        // サジェストが空っぽならギブアップ
-        if (!data_first[1] || data_first[1].length === 0) return null;
+        const query = data && data.query;
+        if (!query || !query.pages) return null;
 
-        const seikaku_na_title = data_first[1][0]; 
+        // pageids が検索スコア順の配列。ここを Object.values にすると順位が壊れるので絶対に使う
+        const ids = (query.pageids && query.pageids.length) ? query.pageids : Object.keys(query.pages);
 
-        // 正確なタイトルが判明したから、今度こそ英語リンクを取りに行くぜ
-        const wiki_api_mk2 = `https://ja.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(seikaku_na_title)}&prop=langlinks&lllang=en&format=json&origin=*`;
-        const res_second = await fetch(maji_de_proxy_base + encodeURIComponent(wiki_api_mk2));
-        const data_second = await res_second.json();
-
-        const pages = data_second.query && data_second.query.pages;
-        if (!pages) return null;
-
-        const page = Object.values(pages)[0];
-        const eng_title = page && page.langlinks && page.langlinks[0] && page.langlinks[0]["*"];
-
-        // Wikipedia特有の "Arthur Conan Doyle (writer)" みたいなカッコ書きを消し飛ばす
-        if (eng_title) 
+        for (const id of ids)
         {
-            return eng_title.replace(/\s*\(.*?\)\s*/g, '').trim();
+            const page = query.pages[id];
+            if (!page) continue;
+
+            // 曖昧さ回避・一覧記事は本人じゃない可能性が高いのでスキップ
+            if (page.title && /曖昧さ回避|一覧|の作品|作品一覧/.test(page.title)) continue;
+
+            const ll = page.langlinks;
+            if (ll && ll[0] && ll[0]["*"]) return ll[0]["*"];
         }
 
         return null;
-    } 
-    catch (err) 
+    }
+    catch (err)
     {
-        // またエラー出たわ…APIの仕様変更とかあったらキレそう
         console.warn("Wikipediaの言語間リンク取得コケた…", err);
         return null;
     }
 }
 
-// Google翻訳のフォールバック
+// NDLで見つからなかった時のためのGoogle翻訳
 async function translateToEnglish(jpText)
 {
     if (/^[a-zA-Z0-9\s]+$/.test(jpText)) return jpText;
 
-    try 
+    try
     {
         const nen_ryou = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=en&dt=t&q=${encodeURIComponent(jpText)}`;
         const res = await fetch(maji_de_proxy_base + encodeURIComponent(nen_ryou));
         const data = await res.json();
-        
-        if (data && data[0] && data[0][0] && data[0][0][0]) 
+
+        if (data && data[0] && data[0][0] && data[0][0][0])
         {
             return data[0][0][0];
         }
-    } 
-    catch (err) 
+    }
+    catch (err)
     {
         console.warn("Google翻訳も死んだ…", err);
     }
     return jpText;
 }
 
-// ダウンロード時翻訳まわり。雑スプリッター
+// 長文をだいたいの文字数で区切る雑スプリッター
 function splitTextRoughly(text, maxLen)
 {
     const chunks = [];
     let rest = text;
 
-    while (rest.length > maxLen) 
+    while (rest.length > maxLen)
     {
         let cut = rest.lastIndexOf(". ", maxLen);
-        if (cut < maxLen * 0.5) cut = maxLen; 
+        if (cut < maxLen * 0.5) cut = maxLen;
 
         chunks.push(rest.slice(0, cut + 1));
         rest = rest.slice(cut + 1);
@@ -695,70 +750,261 @@ function splitTextRoughly(text, maxLen)
     return chunks;
 }
 
-// 1チャンク分翻訳
+// 1チャンク分をGoogle翻訳(EN→JA)に投げる。
+// 失敗時は null を返す。原文を返しちゃうと「翻訳済み」扱いになって
+// 二度と再試行されなくなるので、あえて null にして区別できるようにした
 async function translateChunkToJapanese(text)
 {
-    try 
+    try
     {
         const q_url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ja&dt=t&q=${encodeURIComponent(text)}`;
         const res = await fetch(maji_de_proxy_base + encodeURIComponent(q_url));
         const data = await res.json();
 
-        if (data && data[0]) 
+        if (data && data[0])
         {
             return data[0].map(seg => seg[0]).join("");
         }
-    } 
-    catch (err) 
+    }
+    catch (err)
     {
-        console.warn("段落翻訳コケた…原文のまま突っ込む", err);
+        console.warn("段落翻訳コケた…", err);
     }
 
-    return text; 
+    return null;
 }
 
-// 段落翻訳
+// 段落1個分を翻訳する。長すぎる段落はURL長制限に引っかかるので分割
 async function translateParagraphToJapanese(text)
 {
     if (!text || !text.trim()) return text;
 
     const MAX_LEN = 1500;
-    if (text.length <= MAX_LEN) 
+    if (text.length <= MAX_LEN)
     {
         return await translateChunkToJapanese(text);
     }
 
     const chunks = splitTextRoughly(text, MAX_LEN);
-    const translated_chunks = [];
-    for (const c of chunks) 
+    let out = "";
+    for (const c of chunks)
     {
-        translated_chunks.push(await translateChunkToJapanese(c));
+        const t = await translateChunkToJapanese(c);
+        if (t == null) return null;
+        out += t;
     }
-    return translated_chunks.join("");
+    return out;
 }
 
-// 段落一括翻訳バッチ
-async function translateParagraphList(paragraphList, onProgress)
+/* ============================================================
+   ここからバックグラウンド翻訳まわり
+   ダウンロード時は原文だけ保存して即座に本棚へ。
+   翻訳は裏でコツコツ進めて、進捗をDBとUIに随時反映する方式に変更。
+   ============================================================ */
+
+// 段落リストから翻訳済みHTMLを組み立てる。
+// 未翻訳の段落は原文をそのまま出すので、上から順に日本語へ置き換わっていく
+function buildTranslatedHtml(book)
 {
-    const result_list = new Array(paragraphList.length).fill("");
-    const batch_size = 5;
-
-    for (let i = 0; i < paragraphList.length; i += batch_size) 
+    if (book.paragraphs && book.paragraphs.length)
     {
-        const batch = paragraphList.slice(i, i + batch_size);
-        const batch_results = await Promise.all(
-            batch.map(p => translateParagraphToJapanese(p.text))
-        );
-
-        batch_results.forEach((t, j) => { result_list[i + j] = t; });
-
-        if (onProgress) onProgress(Math.min(i + batch_size, paragraphList.length), paragraphList.length);
+        const texts = book.translatedTexts || [];
+        return book.paragraphs.map((p, i) =>
+        {
+            const t = texts[i];
+            const is_un = (t == null);
+            return `<${p.tag} data-pidx="${i}"${is_un ? ' class="untranslated"' : ''}>${escapeHtml(is_un ? p.text : t)}</${p.tag}>`;
+        }).join("");
     }
-
-    return result_list;
+    return book.contentTranslated || book.content || "";
 }
 
-// 検索メイン処理
+// 翻訳ジョブ本体。bookId単位で1つだけ走る
+async function startBackgroundTranslation(bookId)
+{
+    if (active_translation_jobs[bookId]) return;
+    active_translation_jobs[bookId] = true;
+
+    try
+    {
+        const book = await getBookFromDB(bookId);
+        if (!book || !book.paragraphs || !book.paragraphs.length) return;
+
+        const total = book.paragraphs.length;
+        if (!Array.isArray(book.translatedTexts) || book.translatedTexts.length !== total)
+        {
+            book.translatedTexts = new Array(total).fill(null);
+        }
+
+        book.translationStatus = "translating";
+        book.translationTotal = total;
+        book.translationDone = book.translatedTexts.filter(t => t != null).length;
+
+        // 未翻訳のインデックスを集めて、上から順に潰していく
+        let pending = [];
+        for (let i = 0; i < total; i++)
+        {
+            if (book.translatedTexts[i] == null) pending.push(i);
+        }
+
+        const batch_size = 5;
+        let last_save = 0;
+
+        // 失敗分はもう1周だけリトライする。無限ループは避けたいので2パス固定
+        for (let pass = 0; pass < 2 && pending.length; pass++)
+        {
+            const remaining = [];
+
+            for (let k = 0; k < pending.length; k += batch_size)
+            {
+                const idxs = pending.slice(k, k + batch_size);
+
+                const results = await Promise.all(
+                    idxs.map(i => translateParagraphToJapanese(book.paragraphs[i].text))
+                );
+
+                results.forEach((t, j) =>
+                {
+                    if (t != null) book.translatedTexts[idxs[j]] = t;
+                    else remaining.push(idxs[j]);
+                });
+
+                book.translationDone = book.translatedTexts.filter(t => t != null).length;
+
+                // UIは毎バッチ更新するけど、DB書き込みは1.5秒間隔に間引く。
+                // 段落配列まるごと書くので毎回やると重い
+                onTranslationTick(book);
+
+                if (Date.now() - last_save > 1500)
+                {
+                    await saveBookToDB(book);
+                    last_save = Date.now();
+                }
+            }
+
+            pending = remaining;
+        }
+
+        book.translationDone = book.translatedTexts.filter(t => t != null).length;
+        book.translationStatus = (book.translationDone >= total) ? "done" : "error";
+
+        await saveBookToDB(book);
+        onTranslationTick(book);
+    }
+    catch (err)
+    {
+        console.error("翻訳ジョブ失敗", err);
+        try
+        {
+            const b = await getBookFromDB(bookId);
+            if (b)
+            {
+                b.translationStatus = "error";
+                await saveBookToDB(b);
+                onTranslationTick(b);
+            }
+        }
+        catch (e) { /* 握りつぶし */ }
+    }
+    finally
+    {
+        active_translation_jobs[bookId] = false;
+    }
+}
+
+// 翻訳が1バッチ進むたびに呼ばれる。開いてる本と本棚の表示を同期させる
+function onTranslationTick(book)
+{
+    if (ima_yonderu_hon && ima_yonderu_hon.id === book.id)
+    {
+        // 読書画面が持ってるオブジェクトは別インスタンスなので中身をコピーしてくる
+        ima_yonderu_hon.translatedTexts = book.translatedTexts;
+        ima_yonderu_hon.translationStatus = book.translationStatus;
+        ima_yonderu_hon.translationDone = book.translationDone;
+        ima_yonderu_hon.translationTotal = book.translationTotal;
+        if (!ima_yonderu_hon.paragraphs) ima_yonderu_hon.paragraphs = book.paragraphs;
+
+        if (is_showing_translation)
+        {
+            applyTranslationToDom(book);
+            if (is_page_mode) schedulePageRecompute();
+        }
+
+        updateReaderTranslationLabel();
+    }
+
+    updateBookshelfRowStatus(book);
+}
+
+// 翻訳済みになった段落だけをDOMに差し込む。
+// innerHTMLを丸ごと書き換えるとスクロール位置が飛ぶので、要素単位で更新する
+function applyTranslationToDom(book)
+{
+    if (!ima_yonderu_hon || ima_yonderu_hon.id !== book.id) return;
+    if (!is_showing_translation) return;
+    if (!book.paragraphs) return;
+
+    const flow = document.getElementById("reader-flow");
+    const texts = book.translatedTexts || [];
+    const children = flow.children;
+
+    // buildTranslatedHtmlの出力は段落と1対1で並ぶので、children[i]がそのまま対応する
+    for (let i = 0; i < book.paragraphs.length && i < children.length; i++)
+    {
+        const el = children[i];
+        if (texts[i] != null && el.classList.contains("untranslated"))
+        {
+            el.textContent = texts[i];
+            el.classList.remove("untranslated");
+        }
+    }
+}
+
+// 本棚の該当行の状態セルだけをピンポイント更新
+function updateBookshelfRowStatus(book)
+{
+    const el = document.querySelector(`[data-status-for="${book.id}"]`);
+    if (!el) return;
+    el.textContent = formatTranslationStatus(book);
+    el.classList.toggle("error", book.translationStatus === "error");
+}
+
+function formatTranslationStatus(book)
+{
+    if (book.translationStatus === "translating")
+    {
+        const done = book.translationDone || 0;
+        const total = book.translationTotal || (book.paragraphs ? book.paragraphs.length : 0);
+        return `翻訳中 ${done}/${total}`;
+    }
+    if (book.translationStatus === "done") return "翻訳完了";
+    if (book.translationStatus === "error") return "翻訳失敗";
+    // 旧形式(段落データ無し)で翻訳HTMLだけ持ってる本
+    if (book.contentTranslated) return "翻訳完了";
+    return "—";
+}
+
+// アプリ起動時に、中断された翻訳ジョブを拾い直して再開する
+async function resumePendingTranslations()
+{
+    try
+    {
+        const books = await getAllBooksFromDB();
+        books.forEach(b =>
+        {
+            if (b.translationStatus === "translating" && b.paragraphs && b.paragraphs.length)
+            {
+                startBackgroundTranslation(b.id);
+            }
+        });
+    }
+    catch (err)
+    {
+        console.warn("翻訳ジョブの再開に失敗", err);
+    }
+}
+
+// グーテンベルク検索メイン処理
 async function execSearch()
 {
     const in_e = document.getElementById("search-input");
@@ -774,6 +1020,7 @@ async function execSearch()
     v_project_cache = {};
     s_e.style.color = "#2b2b2b";
 
+    // 検索の幅を広げる！・や＝、全角スペースを半角スペースにする
     const loose_jp_q = q_v.replace(/[・＝ _]/g, " ").replace(/\s+/g, " ").trim();
 
     let eng_q = "";
@@ -783,11 +1030,11 @@ async function execSearch()
         s_e.textContent = `NDLで「${loose_jp_q}」の原題を探り中... ( ｀・ω・´)`;
         eng_q = await getOriginalTitleFromNDL(loose_jp_q);
 
-        if (eng_q) 
+        if (eng_q)
         {
-            s_e.textContent = `NDLで原題「${eng_q}」を発見！Gutendexを索敵中... ( ﾟдpx)`;
-        } 
-        else 
+            s_e.textContent = `NDLで原題「${eng_q}」を発見！Gutendexを索敵中... ( ﾟдﾟ)`;
+        }
+        else
         {
             s_e.textContent = "NDLにないからGoogle翻訳で英語化中... ( ˘ω˘ )";
             eng_q = await translateToEnglish(loose_jp_q);
@@ -799,11 +1046,11 @@ async function execSearch()
         s_e.textContent = `Wikipediaで「${loose_jp_q}」の英語表記を探り中... ( ｀・ω・´)`;
         eng_q = await getAuthorEnglishNameFromWikipedia(loose_jp_q);
 
-        if (eng_q) 
+        if (eng_q)
         {
             s_e.textContent = `Wikipediaで英語表記「${eng_q}」を発見！Gutendexを索敵中...`;
-        } 
-        else 
+        }
+        else
         {
             s_e.textContent = "Wikipediaに無いからGoogle翻訳で英語化中... ( ˘ω˘ )";
             eng_q = await translateToEnglish(loose_jp_q);
@@ -811,15 +1058,16 @@ async function execSearch()
         }
     }
 
+    // Gutendexは記号に弱いので、アルファベットと数字以外をスペースにする
     let clean_eng_q = eng_q.replace(/[^\w\s]/gi, ' ').replace(/\s+/g, ' ').trim();
 
-    try 
+    try
     {
         const g_api = `https://gutendex.com/books/?search=${encodeURIComponent(clean_eng_q)}`;
         const res = await fetch(maji_de_proxy_base + encodeURIComponent(g_api));
         const data = await res.json();
 
-        if (!data.results || data.results.length === 0) 
+        if (!data.results || data.results.length === 0)
         {
             s_e.style.color = "#d9534f";
             s_e.textContent = "Gutendexに該当する作品が見つからんかった＼(^o^)／";
@@ -830,7 +1078,7 @@ async function execSearch()
         s_e.textContent = `見つけたぜ！(${data.results.length}件)`;
         t_e.style.display = "table";
 
-        data.results.forEach((b) => 
+        data.results.forEach((b) =>
         {
             v_project_cache[b.id] = b;
 
@@ -845,7 +1093,7 @@ async function execSearch()
                 <td>${a_a.name}</td>
                 <td>${d_y ? d_y : "不明"}</td>
                 <td>
-                    ${is_s 
+                    ${is_s
                         ? `<button onclick="downloadAndSaveBook(${b.id})">保存・読む</button>`
                         : `<span style="color:red; font-size:0.8rem;">保護期間内</span>`
                     }
@@ -854,15 +1102,16 @@ async function execSearch()
             tb_e.appendChild(tr);
         });
 
-    } 
-    catch (err) 
+    }
+    catch (err)
     {
         s_e.style.color = "#d9534f";
         s_e.textContent = `検索中にエラー発生: ${err.message}`;
     }
 }
 
-// 作品ダウンロード＆DB保存処理
+// 作品ダウンロード＆DB保存。
+// 翻訳は待たずに原文だけで即保存し、バックグラウンドジョブに翻訳を丸投げする
 async function downloadAndSaveBook(bookId)
 {
     const s_e = document.getElementById("search-status");
@@ -877,10 +1126,11 @@ async function downloadAndSaveBook(bookId)
         return;
     }
 
-    s_e.textContent = `作品ID:${bookId} をダウンロード＆分解構築中... (｀・ω・´)`;
+    s_e.textContent = `作品ID:${bookId} をダウンロード中... (｀・ω・´)`;
 
-    try 
+    try
     {
+        // 404対策。複数のURL候補をファンネルみたいに飛ばす
         const funnel_urls = [
             rx_78.formats["text/html; charset=utf-8"],
             rx_78.formats["text/html"],
@@ -888,12 +1138,12 @@ async function downloadAndSaveBook(bookId)
             rx_78.formats["text/plain; charset=utf-8"],
             rx_78.formats["text/plain"],
             `https://www.gutenberg.org/cache/epub/${bookId}/pg${bookId}.txt.utf8`
-        ].filter(Boolean); 
+        ].filter(Boolean);
 
         if (funnel_urls.length === 0)
         {
             s_e.style.color = "#d9534f";
-            s_e.textContent = "エラー: この作品、読める形式のURLが全く存在しないわorz";
+            s_e.textContent = "エラー: この作品、読める形式(HTMLかテキスト)のURLが全く存在しないわorz";
             return;
         }
 
@@ -901,31 +1151,31 @@ async function downloadAndSaveBook(bookId)
         let r_t = "";
         let final_url = "";
 
-        for (const u of funnel_urls) 
+        for (const u of funnel_urls)
         {
-            try 
+            try
             {
                 const tmp_r = await fetch(maji_de_proxy_base + encodeURIComponent(u));
-                if (tmp_r.ok) 
+                if (tmp_r.ok)
                 {
                     res_ok = tmp_r;
                     r_t = await tmp_r.text();
                     final_url = u;
-                    break; 
+                    break;
                 }
-            } 
-            catch(e) 
+            }
+            catch(e)
             {
-                // エラーが出ても次のURLを試すためにスルー
+                // 次のURLを試す
             }
         }
 
-        if (!res_ok) 
+        if (!res_ok)
         {
-            throw new Error(`全URL試したけどHTTP 404等で全滅したわ…`);
+            throw new Error(`全URL試したけどHTTP 404等で全滅したわ…Gutenbergのサーバーから消えてるかも`);
         }
-        
-        let paragraph_list = []; 
+
+        let paragraph_list = [];
 
         if (final_url.includes("html") || final_url.includes("htm"))
         {
@@ -935,18 +1185,18 @@ async function downloadAndSaveBook(bookId)
             d.querySelectorAll("script, style, header, footer, img").forEach(el => el.remove());
 
             const pe = d.querySelectorAll("p, h1, h2, h3");
-            if (pe.length > 0) 
+            if (pe.length > 0)
             {
-                pe.forEach(px => 
+                pe.forEach(px =>
                 {
                     const tx = px.textContent.trim();
-                    if (tx.length > 0) 
+                    if (tx.length > 0)
                     {
                         paragraph_list.push({ tag: px.tagName.toLowerCase(), text: tx });
                     }
                 });
-            } 
-            else 
+            }
+            else
             {
                 paragraph_list.push({ tag: "p", text: d.body.textContent.trim() });
             }
@@ -954,26 +1204,16 @@ async function downloadAndSaveBook(bookId)
         else
         {
             const lns = r_t.split("\n");
-            lns.forEach(l => 
+            lns.forEach(l =>
             {
-                if(l.trim().length > 0) 
+                if(l.trim().length > 0)
                 {
                     paragraph_list.push({ tag: "p", text: l.trim() });
                 }
             });
         }
 
-        s_e.textContent = `本文を日本語に翻訳中... (0/${paragraph_list.length})`;
-        const translated_texts = await translateParagraphList(paragraph_list, (done, total) => 
-        {
-            s_e.textContent = `本文を日本語に翻訳中... (${done}/${total})`;
-        });
-
         const c_h = paragraph_list.map(p => `<${p.tag}>${escapeHtml(p.text)}</${p.tag}>`).join("");
-        const c_h_translated = paragraph_list.map((p, i) => `<${p.tag}>${escapeHtml(translated_texts[i])}</${p.tag}>`).join("");
-
-        const tx_db = maji_de_db.transaction(["books"], "readwrite");
-        const st = tx_db.objectStore("books");
         const a_n = rx_78.authors[0] ? rx_78.authors[0].name : "不明";
 
         const bd = {
@@ -981,28 +1221,26 @@ async function downloadAndSaveBook(bookId)
             title: rx_78.title,
             author: a_n,
             content: c_h,
-            contentTranslated: c_h_translated, 
+            contentTranslated: "",           // 旧コードとの互換用に枠だけ用意。新形式はparagraphsから都度生成
+            paragraphs: paragraph_list,      // 原文の段落リスト。翻訳ジョブと表示の基礎データ
+            translatedTexts: new Array(paragraph_list.length).fill(null), // 上から順に埋まっていく
+            translationStatus: paragraph_list.length ? "translating" : "done",
+            translationDone: 0,
+            translationTotal: paragraph_list.length,
             savedAt: new Date().toISOString(),
-            sortOrder: Date.now(), 
+            sortOrder: Date.now(),
             favorite: false
         };
 
-        st.put(bd);
+        await saveBookToDB(bd);
 
-        tx_db.oncomplete = () => 
-        {
-            s_e.style.color = "#4a6fa5";
-            s_e.textContent = "保存完了！読書画面へ移行します ( ﾟ∀ﾟ)o彡";
-            openReader(bd);
-        };
+        s_e.style.color = "#4a6fa5";
+        s_e.textContent = "保存完了！裏で翻訳を進めるから、読みたい時にどうぞ ( ﾟ∀ﾟ)o彡";
 
-        tx_db.onerror = (e) => 
-        {
-            throw new Error(`DB保存エラー: ${e.target.error.message}`);
-        };
-
-    } 
-    catch (err) 
+        openReader(bd);
+        startBackgroundTranslation(bookId);
+    }
+    catch (err)
     {
         s_e.style.color = "#d9534f";
         s_e.textContent = `クラッシュしたわ… 原因: ${err.message}`;
@@ -1024,10 +1262,10 @@ function loadBookshelf()
     const st = tx.objectStore("books");
     const rq = st.getAll();
 
-    rq.onsuccess = () => 
+    rq.onsuccess = () =>
     {
         const bks = rq.result;
-        if (bks.length === 0) 
+        if (bks.length === 0)
         {
             s_e.textContent = "本棚は空っぽだよ ( ˘ω˘ )";
             t_e.style.display = "none";
@@ -1039,7 +1277,7 @@ function loadBookshelf()
         s_e.textContent = "";
         t_e.style.display = "table";
 
-        bks.forEach(b => 
+        bks.forEach(b =>
         {
             const tr = document.createElement("tr");
 
@@ -1051,7 +1289,8 @@ function loadBookshelf()
             tr.style.cursor = "pointer";
             tr.onclick = () => readSavedBook(b.id);
 
-            const fav_mark = b.favorite ? "★ " : ""; 
+            const fav_mark = b.favorite ? "★ " : "";
+            const status_txt = formatTranslationStatus(b);
 
             tr.innerHTML = `
                 <td class="id-cell">
@@ -1062,6 +1301,7 @@ function loadBookshelf()
                 </td>
                 <td>${fav_mark}${b.title}</td>
                 <td>${b.author}</td>
+                <td><span class="trans-badge" data-status-for="${b.id}">${status_txt}</span></td>
                 <td onclick="event.stopPropagation()">
                     <div class="menu-wrap">
                         <button class="dots-btn" onclick="toggleRowMenu(event, ${b.id})">⋮</button>
@@ -1077,7 +1317,7 @@ function loadBookshelf()
     };
 }
 
-// ドラッグ並べ替え
+// ドラッグ並べ替え。preventDefault()を書き忘れるとdropが発火しない罠つき
 function handleDragStart(ev, bookId)
 {
     drag_zaku_id = bookId;
@@ -1086,7 +1326,7 @@ function handleDragStart(ev, bookId)
 
 function handleDragOver(ev, rowEl)
 {
-    ev.preventDefault(); 
+    ev.preventDefault(); // ← 消すと詰む
     rowEl.classList.add("drag-over-row");
 }
 
@@ -1106,12 +1346,12 @@ function swapBookOrder(idA, idB)
     const st = tx.objectStore("books");
     const rqA = st.get(idA);
 
-    rqA.onsuccess = () => 
+    rqA.onsuccess = () =>
     {
         const bookA = rqA.result;
         const rqB = st.get(idB);
 
-        rqB.onsuccess = () => 
+        rqB.onsuccess = () =>
         {
             const bookB = rqB.result;
             if (!bookA || !bookB) return;
@@ -1125,7 +1365,7 @@ function swapBookOrder(idA, idB)
         };
     };
 
-    tx.oncomplete = () => 
+    tx.oncomplete = () =>
     {
         loadBookshelf();
     };
@@ -1134,14 +1374,14 @@ function swapBookOrder(idA, idB)
 // 3点メニューの開閉
 function toggleRowMenu(ev, bookId)
 {
-    ev.stopPropagation(); 
+    ev.stopPropagation();
 
     const target_menu = document.getElementById(`menu-${bookId}`);
     const is_opening = !target_menu.classList.contains("active");
 
     closeAllRowMenus();
 
-    if (is_opening) 
+    if (is_opening)
     {
         target_menu.classList.add("active");
         menu_char_aznable_id = bookId;
@@ -1154,12 +1394,12 @@ function closeAllRowMenus()
     menu_char_aznable_id = null;
 }
 
-document.addEventListener("click", () => 
+document.addEventListener("click", () =>
 {
     closeAllRowMenus();
 });
 
-// お気に入り
+// お気に入りのON/OFF切り替え
 function toggleFavorite(bookId)
 {
     closeAllRowMenus();
@@ -1168,7 +1408,7 @@ function toggleFavorite(bookId)
     const st = tx.objectStore("books");
     const rq = st.get(bookId);
 
-    rq.onsuccess = () => 
+    rq.onsuccess = () =>
     {
         const b = rq.result;
         if (!b) return;
@@ -1176,13 +1416,13 @@ function toggleFavorite(bookId)
         st.put(b);
     };
 
-    tx.oncomplete = () => 
+    tx.oncomplete = () =>
     {
         loadBookshelf();
     };
 }
 
-// 削除確認
+// 削除確認ポップアップ
 function confirmDeleteBook(bookId)
 {
     closeAllRowMenus();
@@ -1210,9 +1450,9 @@ function readSavedBook(bookId)
     const st = tx.objectStore("books");
     const rq = st.get(bookId);
 
-    rq.onsuccess = () => 
+    rq.onsuccess = () =>
     {
-        if (rq.result) 
+        if (rq.result)
         {
             openReader(rq.result);
         }
@@ -1225,7 +1465,7 @@ function deleteBook(bookId)
     const tx = maji_de_db.transaction(["books"], "readwrite");
     const st = tx.objectStore("books");
     st.delete(bookId);
-    tx.oncomplete = () => 
+    tx.oncomplete = () =>
     {
         loadBookshelf();
     };
@@ -1239,9 +1479,12 @@ function openReader(bookObj)
     rv.classList.add("active");
 
     ima_yonderu_hon = bookObj;
-    is_showing_translation = false;
     is_page_mode = false;
     ima_no_page = 0;
+
+    // 翻訳がまだ走ってる本は、最初から翻訳ビューで開いて
+    // 「上から日本語に埋まっていく」のをそのまま見せる
+    is_showing_translation = (bookObj.translationStatus === "translating") && !!bookObj.paragraphs;
 
     document.getElementById("reading-title").textContent = bookObj.title;
 
@@ -1252,33 +1495,44 @@ function openReader(bookObj)
 
     updateTranslationButtonLabel();
     renderReaderContent();
+    updateReaderTranslationLabel();
 
     rb.scrollTop = 0;
     rb.scrollLeft = 0;
 }
 
-// 本文の差し替え
+// 今の状態(原文/翻訳)に応じて中身を差し替える
 function renderReaderContent()
 {
     if (!ima_yonderu_hon) return;
 
     const flow = document.getElementById("reader-flow");
-    const use_translated = is_showing_translation && ima_yonderu_hon.contentTranslated;
 
-    flow.innerHTML = use_translated ? ima_yonderu_hon.contentTranslated : ima_yonderu_hon.content;
-
-    if (is_page_mode) 
+    if (is_showing_translation)
     {
-        requestAnimationFrame(computePageLayout);
+        flow.innerHTML = buildTranslatedHtml(ima_yonderu_hon);
+    }
+    else
+    {
+        flow.innerHTML = ima_yonderu_hon.content || "";
+    }
+
+    if (is_page_mode)
+    {
+        requestAnimationFrame(() => computePageLayout());
     }
 }
 
-// 翻訳ボタンでのパタパタ切り替え
+// 翻訳ボタンで原文⇔翻訳を切り替える
 function toggleTranslationView()
 {
     if (!ima_yonderu_hon) return;
 
-    if (!ima_yonderu_hon.contentTranslated) 
+    const has_translation =
+        (ima_yonderu_hon.paragraphs && ima_yonderu_hon.paragraphs.length) ||
+        !!ima_yonderu_hon.contentTranslated;
+
+    if (!has_translation)
     {
         alert("この本には翻訳データが無いよ（アプデ前にダウンロードした本かも）");
         return;
@@ -1296,7 +1550,45 @@ function updateTranslationButtonLabel()
     btn.textContent = is_showing_translation ? "原文で読む" : "翻訳で読む";
 }
 
-// めくりモード
+// 読書画面のツールバーに出してる翻訳進捗ラベル
+function updateReaderTranslationLabel()
+{
+    const el = document.getElementById("translation-status-label");
+    if (!el) return;
+
+    if (!ima_yonderu_hon)
+    {
+        el.textContent = "";
+        return;
+    }
+
+    const b = ima_yonderu_hon;
+
+    if (b.translationStatus === "translating")
+    {
+        const done = b.translationDone || 0;
+        const total = b.translationTotal || (b.paragraphs ? b.paragraphs.length : 0);
+        el.textContent = `翻訳中 ${done}/${total}`;
+        el.classList.remove("error");
+    }
+    else if (b.translationStatus === "done")
+    {
+        el.textContent = "翻訳完了";
+        el.classList.remove("error");
+    }
+    else if (b.translationStatus === "error")
+    {
+        el.textContent = "翻訳失敗(一部未翻訳)";
+        el.classList.add("error");
+    }
+    else
+    {
+        el.textContent = "";
+        el.classList.remove("error");
+    }
+}
+
+// めくりモード。column-widthを画面幅ぴったりにしてscrollLeftでページ送りするハック
 function togglePageMode()
 {
     is_page_mode = !is_page_mode;
@@ -1310,11 +1602,11 @@ function togglePageMode()
     page_nav.style.display = is_page_mode ? "flex" : "none";
     mode_btn.textContent = is_page_mode ? "スクロールに戻す" : "めくりモード";
 
-    if (is_page_mode) 
+    if (is_page_mode)
     {
-        requestAnimationFrame(computePageLayout);
-    } 
-    else 
+        requestAnimationFrame(() => computePageLayout());
+    }
+    else
     {
         flow.style.columnWidth = "";
         flow.style.columnGap = "";
@@ -1323,7 +1615,19 @@ function togglePageMode()
     }
 }
 
-function computePageLayout()
+// 翻訳が進んで段落の長さが変わった時に、ページ数だけ再計算して
+// 今読んでるページ位置をなるべく維持するデバウンス付き再計算
+function schedulePageRecompute()
+{
+    if (!is_page_mode) return;
+    clearTimeout(page_recompute_timer);
+    page_recompute_timer = setTimeout(() =>
+    {
+        computePageLayout(ima_no_page);
+    }, 500);
+}
+
+function computePageLayout(keep_page)
 {
     if (!is_page_mode) return;
 
@@ -1338,7 +1642,8 @@ function computePageLayout()
     const total_w = flow.scrollWidth;
     zenbu_page_su = Math.max(1, Math.round(total_w / (page_w + gata_gap_haba)));
 
-    goToPage(0);
+    const target = (typeof keep_page === "number") ? keep_page : 0;
+    goToPage(target);
 }
 
 function turnPage(delta)
@@ -1356,8 +1661,8 @@ function goToPage(pageIdx)
     if (indicator) indicator.textContent = `${ima_no_page + 1} / ${zenbu_page_su}`;
 }
 
-// 画面右・左タップでページめくり
-document.getElementById("reader-body").addEventListener("click", (ev) => 
+// 画面の右側/左側タップでめくれるオマケ
+document.getElementById("reader-body").addEventListener("click", (ev) =>
 {
     if (!is_page_mode) return;
 
@@ -1369,18 +1674,18 @@ document.getElementById("reader-body").addEventListener("click", (ev) =>
     else if (rel_x > 0.75) turnPage(1);
 });
 
-// 矢印キーでページめくり
-document.addEventListener("keydown", (ev) => 
+// 矢印キーでもめくれる
+document.addEventListener("keydown", (ev) =>
 {
     if (!is_page_mode) return;
     if (ev.key === "ArrowRight") turnPage(1);
     if (ev.key === "ArrowLeft") turnPage(-1);
 });
 
-// 画面サイズ変更時の再計算
-window.addEventListener("resize", () => 
+// 画面サイズが変わったらページ幅もズレるので再計算
+window.addEventListener("resize", () =>
 {
-    if (is_page_mode) computePageLayout();
+    if (is_page_mode) computePageLayout(ima_no_page);
 });
 
 // タブ切り替え
@@ -1389,11 +1694,11 @@ function switchTab(tabName)
     document.getElementById("reader-view").classList.remove("active");
     document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
 
-    if (tabName === "search") 
+    if (tabName === "search")
     {
         document.getElementById("search-view").classList.add("active");
-    } 
-    else if (tabName === "bookshelf") 
+    }
+    else if (tabName === "bookshelf")
     {
         document.getElementById("bookshelf-view").classList.add("active");
         loadBookshelf();
@@ -1405,16 +1710,9 @@ function toggleWritingMode()
 {
     const rb = document.getElementById("reader-body");
     is_vertical_mode = !is_vertical_mode;
-    if (is_vertical_mode) 
-    {
-        rb.classList.add("vertical");
-    } 
-    else 
-    {
-        rb.classList.remove("vertical");
-    }
+    rb.classList.toggle("vertical", is_vertical_mode);
 
-    if (is_page_mode) computePageLayout(); 
+    if (is_page_mode) computePageLayout(ima_no_page);
 }
 
 function changeFontSize(delta)
@@ -1422,7 +1720,7 @@ function changeFontSize(delta)
     current_font_size = Math.max(12, Math.min(36, current_font_size + delta));
     document.getElementById("reader-body").style.fontSize = `${current_font_size}px`;
 
-    if (is_page_mode) computePageLayout(); 
+    if (is_page_mode) computePageLayout(ima_no_page);
 }
 
 function setTheme(theme)
@@ -1443,9 +1741,11 @@ function escapeHtml(str)
 }
 
 // アプリ初期起動
-window.onload = async () => 
+window.onload = async () =>
 {
     await initDB();
+    // 前回の起動で途中終了した翻訳があれば、ここで裏側から再開しておく
+    resumePendingTranslations();
 };
 </script>
 </body>
