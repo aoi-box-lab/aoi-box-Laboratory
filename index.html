@@ -99,6 +99,37 @@
             margin: 0 auto 20px auto;
         }
 
+        /* 作品／著者の切り替えトグル。本当は入力欄の上に置くデザインも考えたけど、
+           横に並べたほうがワンアクションで済むからこっちにした */
+        .mode-toggle {
+            display: flex;
+            flex-shrink: 0;
+        }
+
+        .mode-toggle button {
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-color);
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .mode-toggle button:first-child {
+            border-radius: 4px 0 0 4px;
+        }
+
+        .mode-toggle button:last-child {
+            border-radius: 0 4px 4px 0;
+            border-left: none;
+        }
+
+        .mode-toggle button.active {
+            background: var(--accent-color);
+            color: #fff;
+            border-color: var(--accent-color);
+        }
+
         .search-box input {
             flex: 1;
             padding: 10px 14px;
@@ -141,6 +172,91 @@
         .results-table tr:hover {
             background-color: rgba(0,0,0,0.02);
             cursor: pointer;
+        }
+
+        /* 本棚の並べ替えハンドル。3本線(いわゆるハンバーガー)にすると検索ボタンぽく見えて
+           押し間違えそうだったので、あえて2本線にして「並べ替え専用」感を出した */
+        .id-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .drag-handle {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            width: 16px;
+            cursor: grab;
+            flex-shrink: 0;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .drag-handle .bar {
+            height: 2px;
+            background: var(--text-color);
+            opacity: 0.4;
+            border-radius: 1px;
+        }
+
+        .results-table tr.drag-over-row {
+            outline: 2px dashed var(--accent-color);
+            outline-offset: -2px;
+        }
+
+        /* 3点メニュー本体。ボタン自体はただの縦点だけど、押した時に出てくる
+           メニューが表組みの外にはみ出さないようにposition:relativeで囲ってる */
+        .menu-wrap {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dots-btn {
+            background: none;
+            border: none;
+            font-size: 1.3rem;
+            line-height: 1;
+            cursor: pointer;
+            color: var(--text-color);
+            padding: 4px 10px;
+        }
+
+        .row-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 4px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 30;
+            min-width: 170px;
+            overflow: hidden;
+        }
+
+        .row-menu.active {
+            display: block;
+        }
+
+        .row-menu button {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 10px 14px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-color);
+            font-size: 0.9rem;
+        }
+
+        .row-menu button:hover {
+            background: rgba(0,0,0,0.05);
         }
 
         #reader-view {
@@ -191,6 +307,60 @@
             opacity: 0.8;
             font-weight: bold;
         }
+
+        /* 削除確認ポップアップ。本当はconfirm()一発で済ませたい気持ちもあったけど、
+           それだとブラウザ標準の見た目が浮くのでちゃんとカードにした */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-box {
+            background: var(--card-bg);
+            color: var(--text-color);
+            padding: 26px 30px;
+            border-radius: 8px;
+            max-width: 320px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+
+        .modal-box p {
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .modal-buttons button {
+            padding: 8px 20px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            background: var(--card-bg);
+            color: var(--text-color);
+            font-size: 0.9rem;
+        }
+
+        .modal-buttons button.danger {
+            background: #d9534f;
+            color: #fff;
+            border-color: #d9534f;
+        }
     </style>
 </head>
 <body>
@@ -207,7 +377,11 @@
         <!-- 検索タブ -->
         <div id="search-view" class="view-panel active">
             <div class="search-box">
-                <input type="text" id="search-input" placeholder="作品名や著者名（・がなくてもいけるようにした！）">
+                <div class="mode-toggle">
+                    <button id="mode-title-btn" class="active" onclick="setSearchMode('title')">作品</button>
+                    <button id="mode-author-btn" onclick="setSearchMode('author')">著者</button>
+                </div>
+                <input type="text" id="search-input" placeholder="作品名（・がなくてもいけるようにした！）">
                 <button onclick="execSearch()">検索実行</button>
             </div>
             <div id="search-status" class="status-msg"></div>
@@ -258,6 +432,17 @@
         </div>
     </div>
 
+    <!-- 削除確認ポップアップ本体。デフォは非表示、confirmDeleteBook()が呼ばれた時だけactiveがつく -->
+    <div class="modal-overlay" id="confirm-modal">
+        <div class="modal-box">
+            <p>削除しますか？</p>
+            <div class="modal-buttons">
+                <button onclick="closeConfirmModal()">いいえ</button>
+                <button class="danger" onclick="executeConfirmedDelete()">はい</button>
+            </div>
+        </div>
+    </div>
+
 <script>
 // マジで最強のプロキシ
 const maji_de_proxy_base = "https://aoi-box-lab.idosenpai.workers.dev/?url=";
@@ -268,6 +453,12 @@ let is_vertical_mode = false;
 
 // キャッシュ格納庫。V作戦
 let v_project_cache = {}; 
+
+// ここから追加分の変数たち。癖で全部先頭に並べとく
+let search_mode_v = "title";     // 検索モード。"title"（作品名）か"author"（著者名）の2択
+let drag_zaku_id = null;         // ドラッグ中の本のID。ドロップされるまでここで待機させとく量産機的な変数
+let menu_char_aznable_id = null; // 今開いてる3点メニューのID。同時に2つ開くとバグる未来が見えたので1つに制限
+let delete_kill_confirm_id = null; // 削除確認ポップアップで「はい」が押されるまで待機してるID
 
 // DB初期化
 function initDB()
@@ -303,8 +494,24 @@ function initDB()
 function checkChosakukenSafe(authorDeathYear)
 {
     if (!authorDeathYear) return false;
-    const genzaiNen = 2026; 
+    // 前は2026って直書きしてたけど、これ来年になったらまた自分で書き換えなきゃいけなくて
+    // 絶対忘れる未来しか見えなかったので、その場で現在の年を取るように直した
+    const genzaiNen = new Date().getFullYear();
     return (genzaiNen - authorDeathYear) >= 80;
+}
+
+// 検索モード切り替え（作品名 or 著者名）
+function setSearchMode(mode)
+{
+    search_mode_v = mode;
+
+    document.getElementById("mode-title-btn").classList.toggle("active", mode === "title");
+    document.getElementById("mode-author-btn").classList.toggle("active", mode === "author");
+
+    const in_e = document.getElementById("search-input");
+    in_e.placeholder = mode === "title"
+        ? "作品名（・がなくてもいけるようにした！）"
+        : "著者名（フルネームじゃなくても多分いける）";
 }
 
 // 君の天才的コードを移植した「NDL原題抽出システム」
@@ -403,16 +610,28 @@ async function execSearch()
     // 検索の幅を広げる！・や＝、全角スペースを半角スペースにしてAND検索になりやすくする
     const loose_jp_q = q_v.replace(/[・＝ _]/g, " ").replace(/\s+/g, " ").trim();
 
-    s_e.textContent = `NDLで「${loose_jp_q}」の原題を探り中... ( ｀・ω・´)`;
-    let eng_q = await getOriginalTitleFromNDL(loose_jp_q);
-    
-    if(eng_q) 
+    let eng_q = "";
+
+    if (search_mode_v === "title")
     {
-        s_e.textContent = `NDLで原題「${eng_q}」を発見！Gutendexを索敵中... ( ﾟдpx)`;
-    } 
-    else 
+        s_e.textContent = `NDLで「${loose_jp_q}」の原題を探り中... ( ｀・ω・´)`;
+        eng_q = await getOriginalTitleFromNDL(loose_jp_q);
+
+        if (eng_q) 
+        {
+            s_e.textContent = `NDLで原題「${eng_q}」を発見！Gutendexを索敵中... ( ﾟдpx)`;
+        } 
+        else 
+        {
+            s_e.textContent = "NDLにないからGoogle翻訳で英語化中... ( ˘ω˘ )";
+            eng_q = await translateToEnglish(loose_jp_q);
+            s_e.textContent = `翻訳結果「${eng_q}」でGutendexを索敵中...`;
+        }
+    }
+    else
     {
-        s_e.textContent = "NDLにないからGoogle翻訳で英語化中... ( ˘ω˘ )";
+        // 著者名でNDLの原題検索やっても意味ないから、ここはワープしてGoogle翻訳に直行する
+        s_e.textContent = `著者名「${loose_jp_q}」を英語化中... ( ˘ω˘ )`;
         eng_q = await translateToEnglish(loose_jp_q);
         s_e.textContent = `翻訳結果「${eng_q}」でGutendexを索敵中...`;
     }
@@ -584,7 +803,9 @@ async function downloadAndSaveBook(bookId)
             title: rx_78.title,
             author: a_n,
             content: c_h,
-            savedAt: new Date().toISOString()
+            savedAt: new Date().toISOString(),
+            sortOrder: Date.now(), // 並べ替え用。とりあえず保存した瞬間のタイムスタンプを初期値にしとく
+            favorite: false
         };
 
         st.put(bd);
@@ -634,24 +855,178 @@ function loadBookshelf()
             return;
         }
 
+        // sortOrderが無い古いデータ（このアプデ前に保存した本）は末尾に回す救済処置
+        bks.sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity));
+
         s_e.textContent = "";
         t_e.style.display = "table";
 
         bks.forEach(b => 
         {
             const tr = document.createElement("tr");
+
+            // 行ごとドラッグできるようにする。ハンドル部分だけじゃなくて行全体を掴める仕様
+            tr.draggable = true;
+            tr.ondragstart = (e) => handleDragStart(e, b.id);
+            tr.ondragover = (e) => handleDragOver(e, tr);
+            tr.ondragleave = () => tr.classList.remove("drag-over-row");
+            tr.ondrop = (e) => handleRowDrop(e, b.id, tr);
+            tr.style.cursor = "pointer";
+            tr.onclick = () => readSavedBook(b.id);
+
+            const fav_mark = b.favorite ? "★ " : ""; // お気に入りは星印つけるだけの原始的な表現でいく
+
             tr.innerHTML = `
-                <td>${b.id}</td>
-                <td>${b.title}</td>
+                <td class="id-cell">
+                    <span class="drag-handle" title="ドラッグで並べ替え" onclick="event.stopPropagation()">
+                        <span class="bar"></span><span class="bar"></span>
+                    </span>
+                    ${b.id}
+                </td>
+                <td>${fav_mark}${b.title}</td>
                 <td>${b.author}</td>
-                <td>
-                    <button onclick='readSavedBook(${b.id})'>読む</button>
-                    <button onclick='deleteBook(${b.id})' style='color:red;'>削除</button>
+                <td onclick="event.stopPropagation()">
+                    <div class="menu-wrap">
+                        <button class="dots-btn" onclick="toggleRowMenu(event, ${b.id})">⋮</button>
+                        <div class="row-menu" id="menu-${b.id}">
+                            <button onclick="toggleFavorite(${b.id})">${b.favorite ? "お気に入り解除" : "お気に入りに追加"}</button>
+                            <button onclick="confirmDeleteBook(${b.id})" style="color:#d9534f;">削除</button>
+                        </div>
+                    </div>
                 </td>
             `;
             tb_e.appendChild(tr);
         });
     };
+}
+
+// ここからドラッグ並べ替え関連。preventDefault()を書き忘れるとdropが発火しないっていう
+// 罠に一回ハマって小一時間溶かしたので、絶対消すなよという自分向けの警告つき
+function handleDragStart(ev, bookId)
+{
+    drag_zaku_id = bookId;
+    ev.dataTransfer.effectAllowed = "move";
+}
+
+function handleDragOver(ev, rowEl)
+{
+    ev.preventDefault(); // ← これ消すと詰む。何度でも書く。消すな。
+    rowEl.classList.add("drag-over-row");
+}
+
+function handleRowDrop(ev, targetId, rowEl)
+{
+    ev.preventDefault();
+    rowEl.classList.remove("drag-over-row");
+
+    if (drag_zaku_id === null || drag_zaku_id === targetId) return;
+    swapBookOrder(drag_zaku_id, targetId);
+    drag_zaku_id = null;
+}
+
+// sortOrderをまるっと入れ替えるだけの脳筋作戦だけど、これで十分機能する
+function swapBookOrder(idA, idB)
+{
+    const tx = maji_de_db.transaction(["books"], "readwrite");
+    const st = tx.objectStore("books");
+    const rqA = st.get(idA);
+
+    rqA.onsuccess = () => 
+    {
+        const bookA = rqA.result;
+        const rqB = st.get(idB);
+
+        rqB.onsuccess = () => 
+        {
+            const bookB = rqB.result;
+            if (!bookA || !bookB) return;
+
+            const tmp_order = bookA.sortOrder ?? 0;
+            bookA.sortOrder = bookB.sortOrder ?? 0;
+            bookB.sortOrder = tmp_order;
+
+            st.put(bookA);
+            st.put(bookB);
+        };
+    };
+
+    tx.oncomplete = () => 
+    {
+        loadBookshelf();
+    };
+}
+
+// 3点メニューの開閉。同時に2つ開くと見た目バグるので、開く前に他を全部閉じる
+function toggleRowMenu(ev, bookId)
+{
+    ev.stopPropagation(); // これ無いと直後のdocumentクリック判定に即座に殺されるので必須
+
+    const target_menu = document.getElementById(`menu-${bookId}`);
+    const is_opening = !target_menu.classList.contains("active");
+
+    closeAllRowMenus();
+
+    if (is_opening) 
+    {
+        target_menu.classList.add("active");
+        menu_char_aznable_id = bookId;
+    }
+}
+
+function closeAllRowMenus()
+{
+    document.querySelectorAll(".row-menu").forEach(m => m.classList.remove("active"));
+    menu_char_aznable_id = null;
+}
+
+// どっか適当な場所をクリックしたら問答無用でメニューを閉じる作戦
+document.addEventListener("click", () => 
+{
+    closeAllRowMenus();
+});
+
+// お気に入りのON/OFF切り替え。トグルするだけ、シンプルイズベスト
+function toggleFavorite(bookId)
+{
+    closeAllRowMenus();
+
+    const tx = maji_de_db.transaction(["books"], "readwrite");
+    const st = tx.objectStore("books");
+    const rq = st.get(bookId);
+
+    rq.onsuccess = () => 
+    {
+        const b = rq.result;
+        if (!b) return;
+        b.favorite = !b.favorite;
+        st.put(b);
+    };
+
+    tx.oncomplete = () => 
+    {
+        loadBookshelf();
+    };
+}
+
+// 削除確認ポップアップを開く。ここでは消さない、「はい」を押されるまでは何もしない
+function confirmDeleteBook(bookId)
+{
+    closeAllRowMenus();
+    delete_kill_confirm_id = bookId;
+    document.getElementById("confirm-modal").classList.add("active");
+}
+
+function closeConfirmModal()
+{
+    delete_kill_confirm_id = null;
+    document.getElementById("confirm-modal").classList.remove("active");
+}
+
+function executeConfirmedDelete()
+{
+    if (delete_kill_confirm_id === null) return;
+    deleteBook(delete_kill_confirm_id);
+    closeConfirmModal();
 }
 
 // 保存済み本を読む
