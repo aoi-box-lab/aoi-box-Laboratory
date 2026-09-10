@@ -71,13 +71,13 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
     display: none;
 }
 .view-panel.active { display: block; }
-
 .search-box {
     display: flex;
     gap: 10px;
     max-width: 700px;
     margin: 0 auto 20px auto;
     align-items: center;
+    flex-wrap: wrap;
 }
 .mode-toggle { display: flex; flex-shrink: 0; }
 .mode-toggle button {
@@ -94,6 +94,7 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
 .mode-toggle button:not(.active) { opacity: 0.45; }
 .search-box input {
     flex: 1;
+    min-width: 180px;
     padding: 10px 14px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
@@ -261,6 +262,9 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
     opacity: 0.8;
     font-weight: bold;
 }
+.status-msg.error { color: #d9534f; }
+.status-msg.success { color: #4caf50; }
+.status-msg.info { color: var(--accent-color); }
 .trans-badge {
     font-size: 0.8rem;
     color: var(--accent-color);
@@ -332,9 +336,6 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
     from { transform: translateX(100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
 }
-.status-msg.error { color: #d9534f; }
-.status-msg.success { color: #4caf50; }
-.status-msg.info { color: var(--accent-color); }
 </style>
 </head>
 <body>
@@ -428,12 +429,15 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
 
 <script>
 /* ============================================================
-   翻訳エンジン・フォールバックチェーン
-   Safari/Firefox/Chrome すべてで動く CORS 対応 API のみ使用
+   定数・グローバル変数
    ============================================================ */
 
+// NDLサーチ・Gutendex取得用のCORSプロキシ
+// （翻訳APIはCORS対応なのでプロキシ不要）
+const maji_de_proxy_base = "https://aoi-box-lab.idosenpai.workers.dev/?url=";
+
 // Lingva Translate の公開インスタンス一覧
-// 必要に応じて追加・削除してください
+// 1つ落ちても次を試す。必要に応じて追加・削除可
 const LINGVA_INSTANCES = [
     'https://lingva.ml',
     'https://translate.igna.wtf',
@@ -450,6 +454,11 @@ const LIBRETRANSLATE_INSTANCES = [
     'https://libretranslate.com',
     'https://translate.cutie.dating'
 ];
+
+// 翻訳の並列度・間隔
+const TRANSLATION_CONCURRENCY = 3;
+const WORKER_DELAY_MS = 300;
+const MAX_CONSECUTIVE_FAILS = 20;
 
 let maji_de_db = null;
 let current_font_size = 18;
@@ -470,11 +479,6 @@ let ima_yonderu_hon = null;
 
 let active_translation_jobs = {};
 let page_recompute_timer = null;
-
-// 翻訳の並列度と間隔（429回避のため控えめ）
-const TRANSLATION_CONCURRENCY = 3;
-const WORKER_DELAY_MS = 300;
-const MAX_CONSECUTIVE_FAILS = 20;
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -613,7 +617,7 @@ async function getAuthorEnglishNameFromWikipedia(jpName) {
     } catch (err) { return null; }
 }
 
-// 検索クエリ用の単発翻訳。フォールバックチェーンを使う
+// 検索クエリ用の日本語→英語翻訳。Lingvaを順番に試す
 async function translateToEnglish(jpText) {
     if (/^[a-zA-Z0-9\s]+$/.test(jpText)) return jpText;
     for (const instance of LINGVA_INSTANCES) {
@@ -670,26 +674,31 @@ async function translateChunkToJapanese(text) {
             if (!res.ok) continue;
             const data = await res.json();
             if (data && data.translation) {
-                return { ok: true, text: data.translation, endpoint: 'Lingva(' + instance + ')' };
+                return { ok: true, text: data.translation, endpoint: 'Lingva' };
             }
         } catch (e) { /* 次のインスタンスへ */ }
     }
 
-    // === 2. MyMemory（500バイト制限に注意）===
+    // === 2. MyMemory（500バイト制限に対応）===
     try {
         const chunks = splitTextByBytes(text, 450);
         let combined = '';
+        let anySuccess = false;
         for (const chunk of chunks) {
             const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=en|ja`;
             const res = await fetch(url, { cache: 'no-store' });
             if (!res.ok) continue;
             const data = await res.json();
             if (data && data.responseData && data.responseData.translatedText) {
-                combined += data.responseData.translatedText;
+                const t = data.responseData.translatedText;
+                if (!/MYMEMORY WARNING|INVALID|QUERY LENGTH/i.test(t)) {
+                    combined += t;
+                    anySuccess = true;
+                }
             }
             await sleep(300);
         }
-        if (combined) return { ok: true, text: combined, endpoint: 'MyMemory' };
+        if (anySuccess) return { ok: true, text: combined, endpoint: 'MyMemory' };
     } catch (e) { /* 次へ */ }
 
     // === 3. LibreTranslate ===
@@ -703,7 +712,7 @@ async function translateChunkToJapanese(text) {
             if (!res.ok) continue;
             const data = await res.json();
             if (data && data.translatedText) {
-                return { ok: true, text: data.translatedText, endpoint: 'LibreTranslate(' + instance + ')' };
+                return { ok: true, text: data.translatedText, endpoint: 'LibreTranslate' };
             }
         } catch (e) { /* 次のインスタンスへ */ }
     }
@@ -716,6 +725,7 @@ async function translateParagraphToJapanese(text) {
     return await translateChunkToJapanese(text);
 }
 
+// 先頭と末尾から交互に取り出すキュー。[0, n-1, 1, n-2, ...]
 function buildBidirectionalQueue(total) {
     const q = [];
     let f = 0, b = total - 1;
@@ -803,6 +813,7 @@ async function startBackgroundTranslation(bookId) {
 
         await Promise.all(Array.from({ length: TRANSLATION_CONCURRENCY }, () => worker()));
 
+        // 失敗分だけもう1周（abortedならスキップ）
         if (!aborted) {
             for (const idx of retry_list) {
                 if (book.translatedTexts[idx] != null) continue;
@@ -863,6 +874,8 @@ function onTranslationTick(book) {
     updateBookshelfRowStatus(book);
 }
 
+// 翻訳済みになった段落だけをDOMに差し込む。
+// innerHTMLを丸ごと書き換えるとスクロールが飛ぶので要素単位で更新
 function applyTranslationToDom(book) {
     if (!ima_yonderu_hon || ima_yonderu_hon.id !== book.id) return;
     if (!is_showing_translation) return;
@@ -972,8 +985,8 @@ async function execSearch() {
             const tr = document.createElement("tr");
             tr.innerHTML = `
                 <td>${b.id}</td>
-                <td>${b.title}</td>
-                <td>${a_a.name}</td>
+                <td>${escapeHtml(b.title)}</td>
+                <td>${escapeHtml(a_a.name)}</td>
                 <td>
                     ${is_s
                         ? `<button onclick="downloadAndSaveBook(${b.id})">保存・読む</button>`
@@ -1165,6 +1178,7 @@ async function retryTranslation(bookId) {
     startBackgroundTranslation(bookId);
     loadBookshelf();
 }
+window.retryTranslation = retryTranslation;
 
 function handleDragStart(ev, bookId) {
     drag_zaku_id = bookId;
@@ -1220,6 +1234,8 @@ function toggleRowMenu(ev, bookId) {
         menu_char_aznable_id = bookId;
     }
 }
+window.toggleRowMenu = toggleRowMenu;
+
 function closeAllRowMenus() {
     document.querySelectorAll(".row-menu").forEach(m => m.classList.remove("active"));
     menu_char_aznable_id = null;
@@ -1241,21 +1257,28 @@ function toggleFavorite(bookId) {
     };
     tx.oncomplete = () => { loadBookshelf(); };
 }
+window.toggleFavorite = toggleFavorite;
 
 function confirmDeleteBook(bookId) {
     closeAllRowMenus();
     delete_kill_confirm_id = bookId;
     document.getElementById("confirm-modal").classList.add("active");
 }
+window.confirmDeleteBook = confirmDeleteBook;
+
 function closeConfirmModal() {
     delete_kill_confirm_id = null;
     document.getElementById("confirm-modal").classList.remove("active");
 }
+window.closeConfirmModal = closeConfirmModal;
+
 function executeConfirmedDelete() {
     if (delete_kill_confirm_id === null) return;
     deleteBook(delete_kill_confirm_id);
     closeConfirmModal();
 }
+window.executeConfirmedDelete = executeConfirmedDelete;
+
 function readSavedBook(bookId) {
     const tx = maji_de_db.transaction(["books"], "readonly");
     const st = tx.objectStore("books");
@@ -1290,6 +1313,7 @@ function openReader(bookObj) {
     rb.scrollTop = 0;
     rb.scrollLeft = 0;
 
+    // 止まってたら自動で再開
     if (bookObj.paragraphs && (bookObj.translationStatus === "error" || bookObj.translationStatus === "translating")) {
         if (!active_translation_jobs[bookObj.id]) {
             startBackgroundTranslation(bookObj.id);
@@ -1321,6 +1345,7 @@ function toggleTranslationView() {
     updateTranslationButtonLabel();
     renderReaderContent();
 }
+window.toggleTranslationView = toggleTranslationView;
 
 function updateTranslationButtonLabel() {
     const btn = document.getElementById("translate-toggle-btn");
@@ -1369,6 +1394,7 @@ function togglePageMode() {
         rb.scrollLeft = 0;
     }
 }
+window.togglePageMode = togglePageMode;
 
 function schedulePageRecompute() {
     if (!is_page_mode) return;
@@ -1391,6 +1417,8 @@ function computePageLayout(keep_page) {
 }
 
 function turnPage(delta) { goToPage(ima_no_page + delta); }
+window.turnPage = turnPage;
+
 function goToPage(pageIdx) {
     const rb = document.getElementById("reader-body");
     ima_no_page = Math.max(0, Math.min(zenbu_page_su - 1, pageIdx));
@@ -1429,6 +1457,7 @@ function switchTab(tabName) {
         loadBookshelf();
     }
 }
+window.switchTab = switchTab;
 
 function toggleWritingMode() {
     const rb = document.getElementById("reader-body");
@@ -1436,18 +1465,21 @@ function toggleWritingMode() {
     rb.classList.toggle("vertical", is_vertical_mode);
     if (is_page_mode) computePageLayout(ima_no_page);
 }
+window.toggleWritingMode = toggleWritingMode;
 
 function changeFontSize(delta) {
     current_font_size = Math.max(12, Math.min(36, current_font_size + delta));
     document.getElementById("reader-body").style.fontSize = `${current_font_size}px`;
     if (is_page_mode) computePageLayout(ima_no_page);
 }
+window.changeFontSize = changeFontSize;
 
 function setTheme(theme) {
     document.body.classList.remove("dark-mode", "sepia-mode");
     if (theme === "dark") document.body.classList.add("dark-mode");
     if (theme === "sepia") document.body.classList.add("sepia-mode");
 }
+window.setTheme = setTheme;
 
 function escapeHtml(str) {
     if (str == null) return "";
@@ -1458,11 +1490,10 @@ function escapeHtml(str) {
               .replace(/'/g, "&#039;");
 }
 
-/* ===================== プロキシ疎通テスト ===================== */
+/* ===================== 疎通テスト ===================== */
 async function runProxyTest() {
     setStatus("search-status", "翻訳API疎通テスト実行中...", 'info');
     showToast('翻訳API疎通テスト中...', 'info');
-
     const result = await translateChunkToJapanese("Hello world, this is a test.");
     if (result && result.ok) {
         setStatus("search-status", `テスト成功 (${result.endpoint}): 「${result.text}」`, 'success');
