@@ -1,186 +1,717 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>邦題 → 原題</title>
-<style>
-  *{box-sizing:border-box}
-  body{margin:0;background:#0f1115;color:#e6e8ec;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.6}
-  .wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px}
-  h1{font-size:20px;margin:0 0 16px;font-weight:600}
-  .bar{display:flex;gap:8px}
-  input{flex:1;padding:12px 14px;font-size:16px;background:#171a21;border:1px solid #2a2f3a;border-radius:8px;color:#e6e8ec;outline:none}
-  input:focus{border-color:#5b8cff}
-  button{padding:12px 20px;font-size:15px;font-weight:600;background:#5b8cff;border:0;border-radius:8px;color:#fff;cursor:pointer}
-  button:hover{background:#7aa2ff}
-  button:disabled{opacity:.5;cursor:default}
-  .status{margin-top:18px;font-size:14px;color:#8b93a7;min-height:20px}
-  .status.err{color:#ff7a7a}
-  .card{background:#171a21;border:1px solid #2a2f3a;border-radius:10px;padding:16px;margin-top:12px}
-  .ja{font-size:15px;font-weight:600}
-  .orig{margin-top:8px;font-size:18px;font-weight:700;color:#ffd66b;word-break:break-word}
-  .orig.none{color:#8b93a7;font-weight:400;font-size:14px}
-  .meta{margin-top:8px;font-size:13px;color:#8b93a7}
-  .meta span{margin-right:12px}
-  a{color:#5b8cff;font-size:12px;text-decoration:none}
-  a:hover{text-decoration:underline}
-  details{margin-top:24px;font-size:13px;color:#8b93a7}
-  summary{cursor:pointer}
-  pre{background:#0b0d11;border:1px solid #2a2f3a;border-radius:8px;padding:12px;overflow:auto;max-height:360px;font-size:12px;color:#b7bfd0}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gutenberg Solari Reader</title>
+    <style>
+        :root {
+            --bg-color: #f7f6f2;
+            --text-color: #2b2b2b;
+            --accent-color: #4a6fa5;
+            --card-bg: #ffffff;
+            --border-color: #e0e0e0;
+            --font-family: 'Georgia', 'Yu Mincho', 'Hiragino Mincho ProN', serif;
+        }
+
+        body.dark-mode {
+            --bg-color: #1a1a1a;
+            --text-color: #d1d1d1;
+            --accent-color: #6b8cce;
+            --card-bg: #282828;
+            --border-color: #404040;
+        }
+
+        body.sepia-mode {
+            --bg-color: #f4ecd8;
+            --text-color: #5b4636;
+            --accent-color: #8c6d53;
+            --card-bg: #fbf0d9;
+            --border-color: #e2d7c0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-family);
+            transition: background-color 0.3s, color 0.3s;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 12px 20px;
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 1.2rem;
+            font-weight: normal;
+            letter-spacing: 1px;
+        }
+
+        .nav-buttons button {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 6px 12px;
+            margin-left: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .view-panel {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .view-panel.active {
+            display: block;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            max-width: 600px;
+            margin: 0 auto 20px auto;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            font-size: 1rem;
+        }
+
+        .search-box button {
+            padding: 10px 20px;
+            background: var(--accent-color);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card-bg);
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .results-table th, .results-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .results-table th {
+            background-color: rgba(0,0,0,0.03);
+            font-weight: bold;
+        }
+
+        .results-table tr:hover {
+            background-color: rgba(0,0,0,0.02);
+            cursor: pointer;
+        }
+
+        #reader-view {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            position: relative;
+        }
+
+        #reader-view.active {
+            display: flex;
+        }
+
+        .reader-toolbar {
+            padding: 8px 20px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .reader-content {
+            flex: 1;
+            padding: 40px;
+            overflow: auto;
+            line-height: 1.8;
+            font-size: 1.1rem;
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .reader-content.vertical {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            max-width: none;
+            height: 100%;
+            padding: 40px 60px;
+        }
+
+        .status-msg {
+            text-align: center;
+            padding: 20px;
+            font-size: 0.95rem;
+            opacity: 0.8;
+        }
+    </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>邦題 → 原題 検索</h1>
-  <div class="bar">
-    <input id="q" placeholder="例：白衣の騎士団" autofocus>
-    <button id="go">検索</button>
-  </div>
-  <div class="status" id="s"></div>
-  <div id="r"></div>
-  <details>
-    <summary>生のXML</summary>
-    <pre id="raw">（未検索）</pre>
-  </details>
-</div>
+
+    <header>
+        <h1>Solari Gutenberg Reader (NDL-Powered)</h1>
+        <div class="nav-buttons">
+            <button onclick="switchTab('search')">検索</button>
+            <button onclick="switchTab('bookshelf')">本棚</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- 検索タブ -->
+        <div id="search-view" class="view-panel active">
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="作品名や著者名（邦題を入力してね）">
+                <button onclick="execSearch()">検索実行</button>
+            </div>
+            <div id="search-status" class="status-msg"></div>
+            <table class="results-table" id="results-table" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>タイトル</th>
+                        <th>著者</th>
+                        <th>没年</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="results-tbody"></tbody>
+            </table>
+        </div>
+
+        <!-- 本棚タブ -->
+        <div id="bookshelf-view" class="view-panel">
+            <h2>保存済み作品</h2>
+            <div id="bookshelf-status" class="status-msg"></div>
+            <table class="results-table" id="bookshelf-table" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>タイトル</th>
+                        <th>著者</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="bookshelf-tbody"></tbody>
+            </table>
+        </div>
+
+        <!-- 読書画面 -->
+        <div id="reader-view">
+            <div class="reader-toolbar">
+                <button onclick="toggleWritingMode()">縦横切替</button>
+                <button onclick="changeFontSize(1)">拡大</button>
+                <button onclick="changeFontSize(-1)">縮小</button>
+                <button onclick="setTheme('light')">Light</button>
+                <button onclick="setTheme('sepia')">Sepia</button>
+                <button onclick="setTheme('dark')">Dark</button>
+                <span id="reading-title" style="margin-left:auto; font-weight:bold;"></span>
+                <button onclick="switchTab('bookshelf')" style="margin-left:15px;">閉じる</button>
+            </div>
+            <div id="reader-body" class="reader-content"></div>
+        </div>
+    </div>
 
 <script>
-const PROXIES = [
-  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-  u => 'https://corsproxy.io/?' + encodeURIComponent(u),
-  u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
-  u => u,
-];
+// マジで最強のプロキシ
+const maji_de_proxy_base = "https://aoi-box-lab.idosenpai.workers.dev/?url=";
 
-const $q = document.getElementById('q');
-const $go = document.getElementById('go');
-const $s = document.getElementById('s');
-const $r = document.getElementById('r');
-const $raw = document.getElementById('raw');
+let maji_de_db = null;
+let current_font_size = 18;
+let is_vertical_mode = false;
 
-$go.onclick = run;
-$q.onkeydown = e => { if (e.key === 'Enter') run(); };
+// キャッシュ格納庫。V作戦と名付けよう
+let v_project_cache = {}; 
 
-async function run() {
-  const title = $q.value.trim();
-  if (!title) return;
-  $go.disabled = true;
-  $s.className = 'status';
-  $s.textContent = '検索中…';
-  $r.innerHTML = '';
-  $raw.textContent = '';
+// DB初期化
+function initDB()
+{
+    return new Promise((resolve, reject) => 
+    {
+        const req = indexedDB.open("SolariGutenbergDB", 1);
+        
+        req.onupgradeneeded = (e) => 
+        {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains("books")) 
+            {
+                db.createObjectStore("books", { keyPath: "id" });
+            }
+        };
 
-  const api = 'https://ndlsearch.ndl.go.jp/api/opensearch?title='
-    + encodeURIComponent(title) + '&cnt=10';
+        req.onsuccess = (e) => 
+        {
+            maji_de_db = e.target.result;
+            resolve(maji_de_db);
+        };
 
-  let xml = null, lastErr = null;
-  for (const p of PROXIES) {
-    try {
-      const res = await fetch(p(api));
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const t = await res.text();
-      if (!t || t.length < 50) throw new Error('empty');
-      xml = t;
-      break;
-    } catch (e) { lastErr = e; }
-  }
-
-  if (!xml) {
-    $s.className = 'status err';
-    $s.textContent = '取得失敗：' + (lastErr ? lastErr.message : 'unknown');
-    $go.disabled = false;
-    return;
-  }
-
-  $raw.textContent = xml;
-  const doc = new DOMParser().parseFromString(xml, 'application/xml');
-  if (doc.querySelector('parsererror')) {
-    $s.className = 'status err';
-    $s.textContent = 'XMLパース失敗';
-    $go.disabled = false;
-    return;
-  }
-
-  const items = [...doc.getElementsByTagName('item')];
-  if (!items.length) {
-    $s.textContent = '見つかりませんでした';
-    $go.disabled = false;
-    return;
-  }
-  $s.textContent = items.length + ' 件';
-
-  items.forEach(it => $r.appendChild(render(it)));
-  $go.disabled = false;
+        req.onerror = (e) => 
+        {
+            console.error("DB起動失敗！", e);
+            reject(e);
+        };
+    });
 }
 
-function txt(parent, tag) {
-  const el = parent.getElementsByTagName(tag)[0];
-  return el ? el.textContent.trim() : '';
+// 著作権チェック
+function checkChosakukenSafe(authorDeathYear)
+{
+    if (!authorDeathYear) return false;
+    const genzaiNen = 2026; 
+    return (genzaiNen - authorDeathYear) >= 80;
 }
 
-function render(item) {
-  const jaTitle = txt(item, 'title');
-  const creator = txt(item, 'creator');
-  const publisher = txt(item, 'publisher');
-  const date = txt(item, 'date');
-  const link = txt(item, 'link');
+// 君の天才的コードを移植した「NDL原題抽出システム」
+async function getOriginalTitleFromNDL(jpTitle)
+{
+    // 英数字のみならNDL通す意味ないからスキップ
+    if (/^[a-zA-Z0-9\s]+$/.test(jpTitle)) return null;
 
-  const all = item.textContent;
-  const orig = extractOriginal(all, jaTitle);
+    try 
+    {
+        // プロキシ経由で国会図書館APIを叩き割る
+        const ndl_api_yobidashi = `https://ndlsearch.ndl.go.jp/api/opensearch?title=${encodeURIComponent(jpTitle)}&cnt=10`;
+        const res = await fetch(maji_de_proxy_base + encodeURIComponent(ndl_api_yobidashi));
+        const xml = await res.text();
+        
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xml, 'application/xml');
+        const items = [...doc.getElementsByTagName('item')];
+        
+        if (!items.length) return null;
 
-  const c = document.createElement('div');
-  c.className = 'card';
-
-  const j = document.createElement('div');
-  j.className = 'ja';
-  j.textContent = jaTitle || '(タイトル不明)';
-  c.appendChild(j);
-
-  const o = document.createElement('div');
-  o.className = 'orig' + (orig ? '' : ' none');
-  o.textContent = orig ? '原題： ' + orig : '原題： 情報なし';
-  c.appendChild(o);
-
-  const m = document.createElement('div');
-  m.className = 'meta';
-  [creator, publisher, date].filter(Boolean).forEach(t => {
-    const s = document.createElement('span');
-    s.textContent = t;
-    m.appendChild(s);
-  });
-  c.appendChild(m);
-
-  if (link && /^https?:/.test(link)) {
-    const a = document.createElement('a');
-    a.href = link; a.target = '_blank'; a.rel = 'noopener';
-    a.textContent = 'NDLサーチで開く →';
-    c.appendChild(a);
-  }
-  return c;
-}
-
-function extractOriginal(text, jaTitle) {
-  const pats = [
-    /原タイトル\s*[:：]\s*([^\n\r]+)/,
-    /原題\s*[:：]\s*([^\n\r]+)/,
-    /Original title\s*[:：]\s*([^\n\r]+)/i,
-    /別書名\s*[:：]\s*([^\n\r]+)/,
-  ];
-  for (const p of pats) {
-    const m = text.match(p);
-    if (m) {
-      const cand = m[1].trim().replace(/[。．.\s]+$/, '');
-      if (cand && cand !== jaTitle) return cand;
+        for(const item of items) 
+        {
+            const text = item.textContent;
+            
+            // 君が書いた正規表現パターンをそのまま流用[cite: 1]
+            const pats = [
+                /原タイトル\s*[:：]\s*([^\n\r]+)/,
+                /原題\s*[:：]\s*([^\n\r]+)/,
+                /Original title\s*[:：]\s*([^\n\r]+)/i,
+                /別書名\s*[:：]\s*([^\n\r]+)/,
+            ];
+            
+            for (const p of pats) 
+            {
+                const m = text.match(p);
+                if (m) 
+                {
+                    const cand = m[1].trim().replace(/[。．.\s]+$/, '');
+                    if (cand && cand !== jpTitle) return cand;
+                }
+            }
+            
+            // 見つからなかったらラテン文字の連続を強引に抽出するやつ[cite: 1]
+            const latin = text.match(/[A-Z][A-Za-z'’\-]+(?:\s+(?:of|the|and|in|a|an|to|[A-Z][A-Za-z'’\-]+)){2,}/g);
+            if (latin && latin.length) 
+            {
+                latin.sort((a, b) => b.length - a.length);
+                return latin[0].trim();
+            }
+        }
+    } 
+    catch (err) 
+    {
+        console.warn("NDLサーチ失敗したわ…", err);
     }
-  }
-  const latin = text.match(/[A-Z][A-Za-z'’\-]+(?:\s+(?:of|the|and|in|a|an|to|[A-Z][A-Za-z'’\-]+)){2,}/g);
-  if (latin && latin.length) {
-    latin.sort((a, b) => b.length - a.length);
-    return latin[0].trim();
-  }
-  return null;
+    
+    return null;
 }
+
+// NDLで見つからなかった時のためのGoogle翻訳（gtx）
+async function translateToEnglish(jpText)
+{
+    if (/^[a-zA-Z0-9\s]+$/.test(jpText)) return jpText;
+
+    try 
+    {
+        const nen_ryou = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=en&dt=t&q=${encodeURIComponent(jpText)}`;
+        const res = await fetch(maji_de_proxy_base + encodeURIComponent(nen_ryou));
+        const data = await res.json();
+        
+        if (data && data[0] && data[0][0] && data[0][0][0]) 
+        {
+            return data[0][0][0];
+        }
+    } 
+    catch (err) 
+    {
+        console.warn("Google翻訳も死んだ…", err);
+    }
+    return jpText;
+}
+
+// グーテンベルク検索メイン処理
+async function execSearch()
+{
+    const in_e = document.getElementById("search-input");
+    const q_v = in_e.value.trim();
+    const s_e = document.getElementById("search-status");
+    const t_e = document.getElementById("results-table");
+    const tb_e = document.getElementById("results-tbody");
+
+    if (!q_v) return;
+
+    tb_e.innerHTML = "";
+    t_e.style.display = "none";
+    v_project_cache = {};
+
+    // 1. まず国会図書館に原題を聞く
+    s_e.textContent = "国会図書館(NDL)のデータから原題を探り中... ( ｀・ω・´)";
+    let eng_q = await getOriginalTitleFromNDL(q_v);
+    
+    if(eng_q) 
+    {
+        s_e.textContent = `NDLで原題「${eng_q}」を発見！Gutendexを索敵中... ( ﾟдpx)`;
+    } 
+    else 
+    {
+        // 2. NDLで見つからなかったらGoogle翻訳で力技
+        s_e.textContent = "NDLにないからGoogle翻訳で英語化中... ( ˘ω˘ )";
+        eng_q = await translateToEnglish(q_v);
+        s_e.textContent = `翻訳結果「${eng_q}」でGutendexを索敵中...`;
+    }
+
+    try 
+    {
+        // Gutendex API叩く
+        const g_api = `https://gutendex.com/books/?search=${encodeURIComponent(eng_q)}`;
+        const res = await fetch(maji_de_proxy_base + encodeURIComponent(g_api));
+        const data = await res.json();
+
+        if (!data.results || data.results.length === 0) 
+        {
+            s_e.textContent = "Gutendexに該当する作品が見つからんかった＼(^o^)／";
+            return;
+        }
+
+        s_e.textContent = `見つけたぜ！(${data.results.length}件)`;
+        t_e.style.display = "table";
+
+        data.results.forEach((b) => 
+        {
+            v_project_cache[b.id] = b;
+
+            const a_a = b.authors[0] || { name: "不明", death_year: null };
+            const d_y = a_a.death_year;
+            const is_s = checkChosakukenSafe(d_y);
+
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${b.id}</td>
+                <td>${b.title}</td>
+                <td>${a_a.name}</td>
+                <td>${d_y ? d_y : "不明"}</td>
+                <td>
+                    ${is_s 
+                        ? `<button onclick="downloadAndSaveBook(${b.id})">保存・読む</button>`
+                        : `<span style="color:red; font-size:0.8rem;">保護期間内(不可)</span>`
+                    }
+                </td>
+            `;
+            tb_e.appendChild(tr);
+        });
+
+    } 
+    catch (err) 
+    {
+        console.error("検索エラー:", err);
+        s_e.textContent = "エラーが発生しました。コンソール見てみて";
+    }
+}
+
+// 作品ダウンロード＆DB保存処理（ここら辺から変数名が雑になるのは仕様）
+async function downloadAndSaveBook(bookId)
+{
+    const s_e = document.getElementById("search-status");
+    const rx_78 = v_project_cache[bookId]; // キャッシュから機体(本)データを取得
+
+    if (!rx_78)
+    {
+        s_e.textContent = "キャッシュがないぞ…バグってんじゃねーか！";
+        return;
+    }
+
+    s_e.textContent = `作品ID:${bookId} をダウンロード＆分解構築中... (｀・ω・´)`;
+
+    try 
+    {
+        let a_url = rx_78.formats["text/html"] || rx_78.formats["text/html; charset=utf-8"];
+        if (!a_url)
+        {
+            a_url = rx_78.formats["text/plain"] || rx_78.formats["text/plain; charset=utf-8"];
+        }
+
+        if (!a_url)
+        {
+            s_e.textContent = "この作品、読める形式のデータがねぇ…orz";
+            return;
+        }
+
+        const r = await fetch(maji_de_proxy_base + encodeURIComponent(a_url));
+        if (!r.ok) throw new Error("Gutenbergからの取得でHTTPエラーだボケ！");
+        
+        const r_t = await r.text();
+        let c_h = "";
+
+        if (a_url.includes("html") || a_url.includes("htm"))
+        {
+            const p = new DOMParser();
+            const d = p.parseFromString(r_t, "text/html");
+
+            // 邪魔な装飾を全部消し飛ばす
+            d.querySelectorAll("script, style, header, footer, img").forEach(el => el.remove());
+
+            const pe = d.querySelectorAll("p, h1, h2, h3");
+            if (pe.length > 0) 
+            {
+                pe.forEach(px => 
+                {
+                    const tx = px.textContent.trim();
+                    if (tx.length > 0) 
+                    {
+                        const tn = px.tagName.toLowerCase();
+                        c_h += `<${tn}>${escapeHtml(tx)}</${tn}>`;
+                    }
+                });
+            } 
+            else 
+            {
+                c_h = `<p>${escapeHtml(d.body.textContent)}</p>`;
+            }
+        }
+        else
+        {
+            // プレーンテキスト用
+            const lns = r_t.split("\n");
+            lns.forEach(l => 
+            {
+                if(l.trim().length > 0) 
+                {
+                    c_h += `<p>${escapeHtml(l.trim())}</p>`;
+                }
+            });
+        }
+
+        const tx_db = maji_de_db.transaction(["books"], "readwrite");
+        const st = tx_db.objectStore("books");
+        const a_n = rx_78.authors[0] ? rx_78.authors[0].name : "不明";
+
+        const bd = {
+            id: bookId,
+            title: rx_78.title,
+            author: a_n,
+            content: c_h,
+            savedAt: new Date().toISOString()
+        };
+
+        st.put(bd);
+
+        tx_db.oncomplete = () => 
+        {
+            s_e.textContent = "保存完了！読書画面へ移行します ( ﾟ∀ﾟ)o彡";
+            openReader(bd);
+        };
+
+    } 
+    catch (err) 
+    {
+        console.error("ダウンロード分解中にクラッシュ:", err);
+        s_e.textContent = "ダウンロード・解析で死んだわ…コンソール見て";
+    }
+}
+
+// 本棚の表示
+function loadBookshelf()
+{
+    const s_e = document.getElementById("bookshelf-status");
+    const t_e = document.getElementById("bookshelf-table");
+    const tb_e = document.getElementById("bookshelf-tbody");
+
+    tb_e.innerHTML = "";
+    s_e.textContent = "読み込み中...";
+
+    const tx = maji_de_db.transaction(["books"], "readonly");
+    const st = tx.objectStore("books");
+    const rq = st.getAll();
+
+    rq.onsuccess = () => 
+    {
+        const bks = rq.result;
+        if (bks.length === 0) 
+        {
+            s_e.textContent = "本棚は空っぽだよ ( ˘ω˘ )";
+            t_e.style.display = "none";
+            return;
+        }
+
+        s_e.textContent = "";
+        t_e.style.display = "table";
+
+        bks.forEach(b => 
+        {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${b.id}</td>
+                <td>${b.title}</td>
+                <td>${b.author}</td>
+                <td>
+                    <button onclick='readSavedBook(${b.id})'>読む</button>
+                    <button onclick='deleteBook(${b.id})' style='color:red;'>削除</button>
+                </td>
+            `;
+            tb_e.appendChild(tr);
+        });
+    };
+}
+
+// 保存済み本を読む
+function readSavedBook(bookId)
+{
+    const tx = maji_de_db.transaction(["books"], "readonly");
+    const st = tx.objectStore("books");
+    const rq = st.get(bookId);
+
+    rq.onsuccess = () => 
+    {
+        if (rq.result) 
+        {
+            openReader(rq.result);
+        }
+    };
+}
+
+// 削除
+function deleteBook(bookId)
+{
+    const tx = maji_de_db.transaction(["books"], "readwrite");
+    const st = tx.objectStore("books");
+    st.delete(bookId);
+    tx.oncomplete = () => 
+    {
+        loadBookshelf();
+    };
+}
+
+// 読書画面を開く
+function openReader(bookObj)
+{
+    document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
+    const rv = document.getElementById("reader-view");
+    rv.classList.add("active");
+
+    document.getElementById("reading-title").textContent = bookObj.title;
+    const rb = document.getElementById("reader-body");
+    rb.innerHTML = bookObj.content;
+    rb.scrollTop = 0;
+}
+
+// タブ切り替え
+function switchTab(tabName)
+{
+    document.getElementById("reader-view").classList.remove("active");
+    document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
+
+    if (tabName === "search") 
+    {
+        document.getElementById("search-view").classList.add("active");
+    } 
+    else if (tabName === "bookshelf") 
+    {
+        document.getElementById("bookshelf-view").classList.add("active");
+        loadBookshelf();
+    }
+}
+
+// UI機能
+function toggleWritingMode()
+{
+    const rb = document.getElementById("reader-body");
+    is_vertical_mode = !is_vertical_mode;
+    if (is_vertical_mode) 
+    {
+        rb.classList.add("vertical");
+    } 
+    else 
+    {
+        rb.classList.remove("vertical");
+    }
+}
+
+function changeFontSize(delta)
+{
+    current_font_size = Math.max(12, Math.min(36, current_font_size + delta));
+    document.getElementById("reader-body").style.fontSize = `${current_font_size}px`;
+}
+
+function setTheme(theme)
+{
+    document.body.classList.remove("dark-mode", "sepia-mode");
+    if (theme === "dark") document.body.classList.add("dark-mode");
+    if (theme === "sepia") document.body.classList.add("sepia-mode");
+}
+
+function escapeHtml(str)
+{
+    if (!str) return "";
+    return str.replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;")
+              .replace(/'/g, "&#039;");
+}
+
+// アプリ初期起動
+window.onload = async () => 
+{
+    await initDB();
+};
 </script>
 </body>
 </html>
