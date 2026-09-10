@@ -105,6 +105,33 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
 #header-spinner.active{display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+#error-banner{
+    display:none;
+    position:fixed;
+    top:0;left:0;right:0;
+    z-index:99999;
+    background:#d9534f;
+    color:#fff;
+    padding:12px 44px 12px 16px;
+    font-family:system-ui,'Yu Gothic',sans-serif;
+    font-size:.9rem;
+    line-height:1.55;
+    box-shadow:0 2px 10px rgba(0,0,0,.35);
+    word-break:break-word;
+    max-height:40vh;
+    overflow-y:auto;
+}
+#error-banner.active{display:block}
+#error-banner .eb-close{
+    position:absolute;top:6px;right:8px;
+    background:none;border:none;color:#fff;
+    font-size:1.5rem;line-height:1;cursor:pointer;
+    padding:2px 8px;border-radius:4px;
+}
+#error-banner .eb-close:hover{background:rgba(255,255,255,.18)}
+#error-banner .eb-title{font-weight:bold;margin-right:6px}
+#error-banner .eb-detail{opacity:.9;font-size:.82rem;margin-top:4px;font-family:monospace;white-space:pre-wrap}
+
 @media (max-width: 1024px){
     .reader-toolbar{padding:6px 12px;gap:6px 8px;}
     .reader-toolbar button{padding:4px 9px;font-size:.85rem}
@@ -153,10 +180,18 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
     .reader-content.vertical{padding:18px 26px}
     .modal-box{padding:22px 20px}
     .toast-container{top:auto;bottom:16px;left:16px;right:16px;max-width:none;}
+    #error-banner{font-size:.82rem;padding:10px 40px 10px 12px}
 }
 </style>
 </head>
 <body>
+
+<div id="error-banner">
+    <span class="eb-title">⚠ エラー:</span>
+    <span class="eb-msg"></span>
+    <div class="eb-detail"></div>
+    <button class="eb-close" onclick="document.getElementById('error-banner').classList.remove('active')">×</button>
+</div>
 
 <header>
     <div class="header-title-wrap">
@@ -257,11 +292,9 @@ const LINGVA_INSTANCES = [
     'https://translate.dr460nf1r3.org','https://translate.jae.fi'
 ];
 const LIBRETRANSLATE_INSTANCES = ['https://libretranslate.com','https://translate.cutie.dating'];
-const AOZORA_CSV_FILENAME = "list_person_all_extended_utf8.csv";
-const AOZORA_ZIP_SOURCES = [
-    { name: 'jsDelivr',  url: 'https://cdn.jsdelivr.net/gh/aozorabunko/aozorabunko@master/index_pages/list_person_all_extended_utf8.zip', viaProxy: false },
-    { name: 'GitHub Raw', url: 'https://raw.githubusercontent.com/aozorabunko/aozorabunko/master/index_pages/list_person_all_extended_utf8.zip', viaProxy: false },
-    { name: '公式(proxy)', url: 'https://www.aozora.gr.jp/index_pages/list_person_all_extended_utf8.zip', viaProxy: true }
+const AOZORA_CATALOG_CSV_URLS = [
+    'https://raw.githubusercontent.com/aozorabunko/aozorabunko/master/index_pages/list_person_all_extended_utf8.csv',
+    'https://cdn.jsdelivr.net/gh/aozorabunko/aozorabunko@master/index_pages/list_person_all_extended_utf8.csv'
 ];
 const LANGUAGE_NAMES = {'ja':'日本語','en':'英語','zh':'中国語','ko':'韓国語','fr':'フランス語','de':'ドイツ語','es':'スペイン語','it':'イタリア語','pt':'ポルトガル語','ru':'ロシア語'};
 const INITIAL_PARALLELISM = 32;
@@ -323,6 +356,16 @@ function hideHeaderSpinner(){
     const el = document.getElementById('header-spinner');
     if(el) el.classList.remove('active');
 }
+
+function showErrorBanner(msg, detail){
+    const banner = document.getElementById('error-banner');
+    if(!banner) return;
+    banner.querySelector('.eb-msg').textContent = msg;
+    banner.querySelector('.eb-detail').textContent = detail || '';
+    banner.classList.add('active');
+    setTimeout(()=>banner.classList.remove('active'), 12000);
+}
+window.showErrorBanner = showErrorBanner;
 
 function showToast(msg, type, duration){
     type = type||'info';
@@ -498,16 +541,14 @@ async function translateText(text, source, target){
 
 /* ============================================================
    青空文庫カタログ取得
-   3段フォールバック（すべてZIP → JSZipで解凍）
-   1. jsDelivr (CORS対応・高速CDN)
-   2. GitHub Raw (CORS対応)
-   3. 公式サイト (プロキシ経由)
+   GitHub Raw / jsDelivr の CSV を直接取得（プロキシ不要・CORS対応）
    ============================================================ */
 async function fetchAozoraCatalog(){
     if(aozora_catalog_loading || aozora_catalog_ready) return;
     aozora_catalog_loading = true;
     showHeaderSpinner();
 
+    /* 1. IndexedDB キャッシュ */
     try{
         const cached = await getCacheFromDB('aozora_catalog');
         if(cached && cached.value && cached.value.length > 100){
@@ -521,46 +562,27 @@ async function fetchAozoraCatalog(){
     }catch(e){}
 
     console.log('[青空文庫] カタログ取得開始...');
-
     let csv_text = null;
     let lastErr = '';
 
-    for(const src of AOZORA_ZIP_SOURCES){
+    /* 2. GitHub Raw → jsDelivr の順で CSV を直接取得 */
+    for(const url of AOZORA_CATALOG_CSV_URLS){
         if(csv_text) break;
+        const srcName = url.includes('jsdelivr') ? 'jsDelivr' : 'GitHub Raw';
         try{
-            console.log(`[青空文庫] ${src.name} から取得中...`);
-            const fetchUrl = src.viaProxy
-                ? maji_de_proxy_base + encodeURIComponent(src.url)
-                : src.url;
-
-            const res = await fetchWithTimeout(fetchUrl, { cache: 'no-store' }, FETCH_TIMEOUT_BOOK);
-            if(!res.ok){ lastErr = `${src.name}: HTTP ${res.status}`; continue; }
-
-            const buf = await res.arrayBuffer();
-            if(buf.byteLength < 10000){
-                lastErr = `${src.name}: データが短すぎる (${buf.byteLength} bytes)`;
-                continue;
-            }
-
-            const zip = await JSZip.loadAsync(buf);
-            let f = zip.file(AOZORA_CSV_FILENAME);
-            if(!f){
-                const names = Object.keys(zip.files);
-                const cn = names.find(n=>n.endsWith('.csv'));
-                if(cn) f = zip.file(cn);
-            }
-            if(!f){ lastErr = `${src.name}: CSVが見つからない`; continue; }
-
-            const text = await f.async('string');
+            console.log(`[青空文庫] ${srcName} から取得中...`);
+            const res = await fetchWithTimeout(url, { cache: 'no-store' }, FETCH_TIMEOUT_BOOK);
+            if(!res.ok){ lastErr = `${srcName}: HTTP ${res.status}`; continue; }
+            const text = await res.text();
             if(text && text.length > 10000){
                 csv_text = text;
-                console.log(`[青空文庫] ${src.name} 成功 (${text.length}文字)`);
+                console.log(`[青空文庫] ${srcName} 成功 (${text.length}文字)`);
             } else {
-                lastErr = `${src.name}: CSVが短すぎる`;
+                lastErr = `${srcName}: データが短すぎる (${text.length}文字)`;
             }
         }catch(e){
-            lastErr = `${src.name}: ${e.message}`;
-            console.warn(`[青空文庫] ${src.name} 失敗:`, e.message);
+            lastErr = `${srcName}: ${e.message}`;
+            console.warn(`[青空文庫] ${srcName} 失敗:`, e.message);
         }
     }
 
@@ -568,10 +590,14 @@ async function fetchAozoraCatalog(){
         aozora_catalog_loading = false;
         hideHeaderSpinner();
         console.error('[青空文庫] 全ソース失敗:', lastErr);
-        showToast('青空文庫カタログ取得失敗: ' + lastErr, 'error', 15000);
+        showErrorBanner(
+            '青空文庫カタログの取得に失敗しました。',
+            `最終エラー: ${lastErr}`
+        );
         return;
     }
 
+    /* 3. CSV パース */
     const lines = csv_text.split('\n');
     const catalog = [];
     for(let i=1;i<lines.length;i++){
@@ -596,7 +622,7 @@ async function fetchAozoraCatalog(){
     if(!catalog.length){
         aozora_catalog_loading = false;
         hideHeaderSpinner();
-        showToast('青空文庫カタログのパース結果が0件でした', 'error', 12000);
+        showErrorBanner('青空文庫カタログのパース結果が0件でした。', 'CSVの内容を確認してください。');
         return;
     }
 
@@ -1602,6 +1628,7 @@ window.onload = async ()=>{
 
     resumePendingTranslations();
 
+    /* 青空文庫カタログを裏で先読み */
     setTimeout(async ()=>{
         try{
             const cached = await getCacheFromDB('aozora_catalog');
@@ -1620,12 +1647,14 @@ window.onload = async ()=>{
 window.addEventListener('error', (ev)=>{
     const msg = ev.message || 'unknown';
     if(msg.includes('database connection is closing')) return;
+    showErrorBanner('予期しないエラーが発生しました', msg);
     try{ showToast('予期しないエラー: '+msg, 'error', 12000); }catch(e){}
 });
 window.addEventListener('unhandledrejection', (ev)=>{
     try{
         const msg = (ev.reason && ev.reason.message)?ev.reason.message:String(ev.reason);
         if(msg.includes('database connection is closing')) return;
+        showErrorBanner('未処理のPromiseエラーが発生しました', msg);
         showToast('未処理のPromiseエラー: '+msg, 'error', 12000);
     }catch(e){}
 });
