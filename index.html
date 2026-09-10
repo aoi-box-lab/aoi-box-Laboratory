@@ -92,69 +92,102 @@
             display: block;
         }
 
-        .search-box {
+        /* ---- 新しい検索UI ---- */
+        .search-container {
+            max-width: 720px;
+            margin: 0 auto 20px auto;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .simple-search-box {
             display: flex;
             gap: 10px;
-            max-width: 600px;
-            margin: 0 auto 20px auto;
-        }
-
-        /* 作品／著者の切り替えトグル。本当は入力欄の上に置くデザインも考えたけど、
-           横に並べたほうがワンアクションで済むからこっちにした */
-        .mode-toggle {
-            display: flex;
-            flex-shrink: 0;
-        }
-
-        .mode-toggle button {
-            padding: 6px 10px;
-            border: 1px solid var(--border-color);
+            padding: 14px;
             background: var(--card-bg);
-            color: var(--text-color);
-            cursor: pointer;
-            font-size: 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.04);
         }
 
-        .mode-toggle button:first-child {
-            border-radius: 4px 0 0 4px;
-        }
-
-        .mode-toggle button:last-child {
-            border-radius: 0 4px 4px 0;
-            border-left: none;
-        }
-
-        .mode-toggle button.active {
-            background: var(--accent-color);
-            color: #fff;
-            border-color: var(--accent-color);
-        }
-
-        /* 選ばれてない方のボタンをちゃんと「薄く」する。activeじゃない側は
-           opacityを落として、今どっちのモードなのか一目でわかるようにした */
-        .mode-toggle button:not(.active) {
-            opacity: 0.45;
-        }
-
-        .search-box input {
+        .simple-search-box input {
             flex: 1;
-            padding: 10px 14px;
+            padding: 12px 16px;
+            font-size: 1rem;
             border: 1px solid var(--border-color);
             border-radius: 4px;
-            background: var(--card-bg);
+            background: var(--bg-color);
             color: var(--text-color);
-            font-size: 1rem;
+            font-family: inherit;
         }
 
-        .search-box button {
-            padding: 10px 20px;
+        .simple-search-box button {
+            padding: 12px 22px;
             background: var(--accent-color);
             color: #fff;
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            font-size: 1rem;
+            font-family: inherit;
+            white-space: nowrap;
         }
 
+        .simple-search-label {
+            font-size: 0.85rem;
+            opacity: 0.7;
+            margin-bottom: -6px;
+        }
+
+        .advanced-search-box {
+            padding: 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+        }
+
+        .field-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .field-row label {
+            width: 70px;
+            flex-shrink: 0;
+            font-size: 0.92rem;
+            opacity: 0.85;
+        }
+
+        .field-row input {
+            flex: 1;
+            padding: 10px 14px;
+            font-size: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-color);
+            color: var(--text-color);
+            font-family: inherit;
+        }
+
+        .advanced-search-box > button {
+            align-self: flex-end;
+            padding: 10px 24px;
+            background: var(--accent-color);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-family: inherit;
+        }
+
+        /* ---- 検索結果テーブル ---- */
         .results-table {
             width: 100%;
             border-collapse: collapse;
@@ -180,8 +213,6 @@
             cursor: pointer;
         }
 
-        /* 本棚の並べ替えハンドル。3本線(いわゆるハンバーガー)にすると検索ボタンぽく見えて
-           押し間違えそうだったので、あえて2本線にして「並べ替え専用」感を出した */
         .id-cell {
             display: flex;
             align-items: center;
@@ -213,8 +244,6 @@
             outline-offset: -2px;
         }
 
-        /* 3点メニュー本体。ボタン自体はただの縦点だけど、押した時に出てくる
-           メニューが表組みの外にはみ出さないようにposition:relativeで囲ってる */
         .menu-wrap {
             position: relative;
             display: inline-block;
@@ -282,9 +311,21 @@
             background: var(--card-bg);
             border-bottom: 1px solid var(--border-color);
             display: flex;
-            gap: 15px;
+            gap: 12px;
             align-items: center;
             font-size: 0.9rem;
+            flex-wrap: wrap;
+        }
+
+        .reader-toolbar button {
+            padding: 5px 12px;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-color);
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.88rem;
         }
 
         .reader-content {
@@ -306,16 +347,47 @@
             padding: 40px 60px;
         }
 
+        #reader-body.paged {
+            overflow: hidden;
+            scroll-behavior: smooth;
+            cursor: pointer;
+        }
+
+        #reader-flow {
+            height: 100%;
+        }
+
+        #page-nav {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            padding: 8px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+        }
+
+        #page-nav button {
+            padding: 4px 14px;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-color);
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
         .status-msg {
             text-align: center;
             padding: 20px;
             font-size: 0.95rem;
-            opacity: 0.8;
+            opacity: 0.85;
             font-weight: bold;
+            max-width: 720px;
+            margin: 0 auto;
         }
 
-        /* 削除確認ポップアップ。本当はconfirm()一発で済ませたい気持ちもあったけど、
-           それだとブラウザ標準の見た目が浮くのでちゃんとカードにした */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -360,6 +432,7 @@
             background: var(--card-bg);
             color: var(--text-color);
             font-size: 0.9rem;
+            font-family: inherit;
         }
 
         .modal-buttons button.danger {
@@ -382,14 +455,34 @@
     <div class="container">
         <!-- 検索タブ -->
         <div id="search-view" class="view-panel active">
-            <div class="search-box">
-                <div class="mode-toggle">
-                    <button id="mode-title-btn" class="active" onclick="setSearchMode('title')">作品</button>
-                    <button id="mode-author-btn" onclick="setSearchMode('author')">著者</button>
+            <div class="search-container">
+                <!-- 簡単検索：作品名・著者名をまとめて両方あたる -->
+                <div class="simple-search-label">簡単検索（作品名・著者名どっちでもどうぞ）</div>
+                <div class="simple-search-box">
+                    <input type="text" id="simple-search-input"
+                           placeholder="例: シャーロック・ホームズ / コナン・ドイル"
+                           onkeydown="if(event.key==='Enter') execSimpleSearch()">
+                    <button onclick="execSimpleSearch()">検索</button>
                 </div>
-                <input type="text" id="search-input" placeholder="作品名（・がなくてもいけるようにした！）">
-                <button onclick="execSearch()">検索実行</button>
+
+                <!-- 個別検索 -->
+                <div class="advanced-search-box">
+                    <div class="field-row">
+                        <label>作品名</label>
+                        <input type="text" id="title-search-input"
+                               placeholder="例: シャーロック・ホームズ"
+                               onkeydown="if(event.key==='Enter') execAdvancedSearch()">
+                    </div>
+                    <div class="field-row">
+                        <label>著者名</label>
+                        <input type="text" id="author-search-input"
+                               placeholder="例: コナン・ドイル"
+                               onkeydown="if(event.key==='Enter') execAdvancedSearch()">
+                    </div>
+                    <button onclick="execAdvancedSearch()">この条件で検索</button>
+                </div>
             </div>
+
             <div id="search-status" class="status-msg"></div>
             <table class="results-table" id="results-table" style="display:none;">
                 <thead>
@@ -428,17 +521,26 @@
                 <button onclick="toggleWritingMode()">縦横切替</button>
                 <button onclick="changeFontSize(1)">拡大</button>
                 <button onclick="changeFontSize(-1)">縮小</button>
+                <button id="page-mode-btn" onclick="togglePageMode()">めくりモード</button>
+                <button id="translate-toggle-btn" onclick="toggleTranslationView()">翻訳で読む</button>
                 <button onclick="setTheme('light')">Light</button>
                 <button onclick="setTheme('sepia')">Sepia</button>
                 <button onclick="setTheme('dark')">Dark</button>
                 <span id="reading-title" style="margin-left:auto; font-weight:bold;"></span>
                 <button onclick="switchTab('bookshelf')" style="margin-left:15px;">閉じる</button>
             </div>
-            <div id="reader-body" class="reader-content"></div>
+            <div id="page-nav">
+                <button onclick="turnPage(-1)">‹ 前のページ</button>
+                <span id="page-indicator">1 / 1</span>
+                <button onclick="turnPage(1)">次のページ ›</button>
+            </div>
+            <div id="reader-body" class="reader-content">
+                <div id="reader-flow"></div>
+            </div>
         </div>
     </div>
 
-    <!-- 削除確認ポップアップ本体。デフォは非表示、confirmDeleteBook()が呼ばれた時だけactiveがつく -->
+    <!-- 削除確認ポップアップ -->
     <div class="modal-overlay" id="confirm-modal">
         <div class="modal-box">
             <p>削除しますか？</p>
@@ -457,14 +559,21 @@ let maji_de_db = null;
 let current_font_size = 18;
 let is_vertical_mode = false;
 
-// キャッシュ格納庫。V作戦
-let v_project_cache = {}; 
+// キャッシュ格納庫
+let v_project_cache = {};
 
-// ここから追加分の変数たち。癖で全部先頭に並べとく
-let search_mode_v = "title";     // 検索モード。"title"（作品名）か"author"（著者名）の2択
-let drag_zaku_id = null;         // ドラッグ中の本のID。ドロップされるまでここで待機させとく量産機的な変数
-let menu_char_aznable_id = null; // 今開いてる3点メニューのID。同時に2つ開くとバグる未来が見えたので1つに制限
-let delete_kill_confirm_id = null; // 削除確認ポップアップで「はい」が押されるまで待機してるID
+// 並べ替え・メニュー・削除まわり
+let drag_zaku_id = null;
+let menu_char_aznable_id = null;
+let delete_kill_confirm_id = null;
+
+// めくりモード＆翻訳切替
+const gata_gap_haba = 60;
+let is_page_mode = false;
+let ima_no_page = 0;
+let zenbu_page_su = 1;
+let is_showing_translation = false;
+let ima_yonderu_hon = null;
 
 // DB初期化
 function initDB()
@@ -500,27 +609,13 @@ function initDB()
 function checkChosakukenSafe(authorDeathYear)
 {
     if (!authorDeathYear) return false;
-    // 前は2026って直書きしてたけど、これ来年になったらまた自分で書き換えなきゃいけなくて
-    // 絶対忘れる未来しか見えなかったので、その場で現在の年を取るように直した
     const genzaiNen = new Date().getFullYear();
     return (genzaiNen - authorDeathYear) >= 80;
 }
 
-// 検索モード切り替え（作品名 or 著者名）
-function setSearchMode(mode)
-{
-    search_mode_v = mode;
-
-    document.getElementById("mode-title-btn").classList.toggle("active", mode === "title");
-    document.getElementById("mode-author-btn").classList.toggle("active", mode === "author");
-
-    const in_e = document.getElementById("search-input");
-    in_e.placeholder = mode === "title"
-        ? "作品名（・がなくてもいけるようにした！）"
-        : "著者名（フルネームじゃなくても多分いける）";
-}
-
-// 君の天才的コードを移植した「NDL原題抽出システム」
+// ============================================================
+//  NDL 原題抽出
+// ============================================================
 async function getOriginalTitleFromNDL(jpTitle)
 {
     if (/^[a-zA-Z0-9\s]+$/.test(jpTitle)) return null;
@@ -554,7 +649,7 @@ async function getOriginalTitleFromNDL(jpTitle)
                 if (m) 
                 {
                     const cand = m[1].trim().replace(/[。．.\s]+$/, '');
-                    if (cand && !cand.includes(jpTitle)) return cand; // 完全一致回避
+                    if (cand && !cand.includes(jpTitle)) return cand;
                 }
             }
             
@@ -574,36 +669,75 @@ async function getOriginalTitleFromNDL(jpTitle)
     return null;
 }
 
-// 著者名専用の英語化システム。Google翻訳に直接名前を突っ込むと
-// 直訳になってそのまま返ってきたり変な逐語訳になったりで使い物にならなかったので、
-// まずWikipediaの言語間リンクから本人の英語表記を引っ張ってくる方式に変えた
+// ============================================================
+//  著者名の英語化（Wikipedia言語間リンク方式・改良版）
+//  ※旧実装は generator=search + gsrlimit=1 で1件だけ取っていたため、
+//    「コナン・ドイル」で検索したのにアガサ・クリスティが返る等の誤爆が頻発した。
+//    新実装では list=search で複数候補を取り、タイトル一致度でスコアリングして選抜する。
+// ============================================================
 async function getAuthorEnglishNameFromWikipedia(jpName)
 {
-    if (/^[a-zA-Z0-9\s]+$/.test(jpName)) return null; // 既に英語ならそのまま使えばいい
+    if (/^[a-zA-Z0-9\s]+$/.test(jpName)) return jpName;
+
+    const norm_target = jpName.replace(/[・\s　\.\,\-ー、]/g, "").toLowerCase();
 
     try 
     {
-        // generator=searchで一番近いページを探しつつ、同じリクエストでlanglinksも取る
-        const wiki_api = `https://ja.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(jpName)}&gsrlimit=1&prop=langlinks&lllang=en&format=json&origin=*`;
-        const res = await fetch(maji_de_proxy_base + encodeURIComponent(wiki_api));
+        const search_api = `https://ja.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(jpName)}&srlimit=10&format=json&origin=*`;
+        const res = await fetch(maji_de_proxy_base + encodeURIComponent(search_api));
         const data = await res.json();
 
-        const pages = data && data.query && data.query.pages;
-        if (!pages) return null;
+        const hits = data && data.query && data.query.search;
+        if (!hits || !hits.length) return null;
 
+        // タイトル一致度スコアリング
+        let best = null;
+        let best_score = -1;
+        for (const h of hits) 
+        {
+            const norm_hit = h.title.replace(/[・\s　\.\,\-ー、]/g, "").toLowerCase();
+            let score = 0;
+            if (norm_hit === norm_target) score = 100;
+            else if (norm_hit.includes(norm_target)) score = 80;
+            else if (norm_target.includes(norm_hit)) score = 70;
+            else 
+            {
+                let overlap = 0;
+                for (const ch of norm_target) 
+                {
+                    if (norm_hit.includes(ch)) overlap++;
+                }
+                score = (overlap / Math.max(1, norm_target.length)) * 50;
+            }
+            if (score > best_score) 
+            {
+                best_score = score;
+                best = h;
+            }
+        }
+
+        // 一致度が低すぎる場合は「別人を拾ってる」可能性が高いので諦める
+        if (!best || best_score < 30) return null;
+
+        // 選んだページの英語版タイトル（＝本人の英語表記）を取得
+        const ll_api = `https://ja.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(best.title)}&prop=langlinks&lllang=en&format=json&origin=*`;
+        const res2 = await fetch(maji_de_proxy_base + encodeURIComponent(ll_api));
+        const data2 = await res2.json();
+
+        const pages = data2 && data2.query && data2.query.pages;
+        if (!pages) return null;
         const page = Object.values(pages)[0];
         const eng_title = page && page.langlinks && page.langlinks[0] && page.langlinks[0]["*"];
-
         return eng_title || null;
     } 
     catch (err) 
     {
-        console.warn("Wikipediaの言語間リンク取得コケた…", err);
+        console.warn("Wikipedia検索コケた…", err);
         return null;
     }
 }
 
-// NDLで見つからなかった時のためのGoogle翻訳
+// フォールバック：Google翻訳
 async function translateToEnglish(jpText)
 {
     if (/^[a-zA-Z0-9\s]+$/.test(jpText)) return jpText;
@@ -626,115 +760,342 @@ async function translateToEnglish(jpText)
     return jpText;
 }
 
-// グーテンベルク検索メイン処理
-async function execSearch()
+// ============================================================
+//  本文まるごと日本語化（ダウンロード時翻訳）
+// ============================================================
+function splitTextRoughly(text, maxLen)
 {
-    const in_e = document.getElementById("search-input");
-    const q_v = in_e.value.trim();
-    const s_e = document.getElementById("search-status");
-    const t_e = document.getElementById("results-table");
-    const tb_e = document.getElementById("results-tbody");
+    const chunks = [];
+    let rest = text;
 
-    if (!q_v) return;
-
-    tb_e.innerHTML = "";
-    t_e.style.display = "none";
-    v_project_cache = {};
-    s_e.style.color = "#2b2b2b";
-
-    // 検索の幅を広げる！・や＝、全角スペースを半角スペースにしてAND検索になりやすくする
-    const loose_jp_q = q_v.replace(/[・＝ _]/g, " ").replace(/\s+/g, " ").trim();
-
-    let eng_q = "";
-
-    if (search_mode_v === "title")
+    while (rest.length > maxLen) 
     {
-        s_e.textContent = `NDLで「${loose_jp_q}」の原題を探り中... ( ｀・ω・´)`;
-        eng_q = await getOriginalTitleFromNDL(loose_jp_q);
+        let cut = rest.lastIndexOf(". ", maxLen);
+        if (cut < maxLen * 0.5) cut = maxLen;
 
-        if (eng_q) 
-        {
-            s_e.textContent = `NDLで原題「${eng_q}」を発見！Gutendexを索敵中... ( ﾟдpx)`;
-        } 
-        else 
-        {
-            s_e.textContent = "NDLにないからGoogle翻訳で英語化中... ( ˘ω˘ )";
-            eng_q = await translateToEnglish(loose_jp_q);
-            s_e.textContent = `翻訳結果「${eng_q}」でGutendexを索敵中...`;
-        }
-    }
-    else
-    {
-        // 著者名はGoogle翻訳に直接ぶち込んでも直訳になったり名前が崩れたりで
-        // 精度が雑すぎたので、まずWikipediaの言語間リンクから本人の英語表記を探す
-        s_e.textContent = `Wikipediaで「${loose_jp_q}」の英語表記を探り中... ( ｀・ω・´)`;
-        eng_q = await getAuthorEnglishNameFromWikipedia(loose_jp_q);
-
-        if (eng_q) 
-        {
-            s_e.textContent = `Wikipediaで英語表記「${eng_q}」を発見！Gutendexを索敵中...`;
-        } 
-        else 
-        {
-            s_e.textContent = "Wikipediaに無いからGoogle翻訳で英語化中... ( ˘ω˘ )";
-            eng_q = await translateToEnglish(loose_jp_q);
-            s_e.textContent = `翻訳結果「${eng_q}」でGutendexを索敵中...`;
-        }
+        chunks.push(rest.slice(0, cut + 1));
+        rest = rest.slice(cut + 1);
     }
 
-    // Gutendexは記号にクソ弱いので、アルファベットと数字以外をスペースにしてクリーンにする
-    let clean_eng_q = eng_q.replace(/[^\w\s]/gi, ' ').replace(/\s+/g, ' ').trim();
+    if (rest.length > 0) chunks.push(rest);
+    return chunks;
+}
 
+async function translateChunkToJapanese(text)
+{
     try 
     {
-        const g_api = `https://gutendex.com/books/?search=${encodeURIComponent(clean_eng_q)}`;
-        const res = await fetch(maji_de_proxy_base + encodeURIComponent(g_api));
+        const q_url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ja&dt=t&q=${encodeURIComponent(text)}`;
+        const res = await fetch(maji_de_proxy_base + encodeURIComponent(q_url));
         const data = await res.json();
 
-        if (!data.results || data.results.length === 0) 
+        if (data && data[0]) 
         {
-            s_e.style.color = "#d9534f";
-            s_e.textContent = "Gutendexに該当する作品が見つからんかった＼(^o^)／";
-            return;
+            return data[0].map(seg => seg[0]).join("");
         }
-
-        s_e.style.color = "#4a6fa5";
-        s_e.textContent = `見つけたぜ！(${data.results.length}件)`;
-        t_e.style.display = "table";
-
-        data.results.forEach((b) => 
-        {
-            v_project_cache[b.id] = b;
-
-            const a_a = b.authors[0] || { name: "不明", death_year: null };
-            const d_y = a_a.death_year;
-            const is_s = checkChosakukenSafe(d_y);
-
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
-                <td>${b.id}</td>
-                <td>${b.title}</td>
-                <td>${a_a.name}</td>
-                <td>${d_y ? d_y : "不明"}</td>
-                <td>
-                    ${is_s 
-                        ? `<button onclick="downloadAndSaveBook(${b.id})">保存・読む</button>`
-                        : `<span style="color:red; font-size:0.8rem;">保護期間内</span>`
-                    }
-                </td>
-            `;
-            tb_e.appendChild(tr);
-        });
-
     } 
     catch (err) 
     {
-        s_e.style.color = "#d9534f";
-        s_e.textContent = `検索中にエラー発生: ${err.message}`;
+        console.warn("段落翻訳コケた…原文のまま突っ込む", err);
     }
+
+    return text;
 }
 
-// 作品ダウンロード＆DB保存処理（404回避ファンネル搭載版）
+async function translateParagraphToJapanese(text)
+{
+    if (!text || !text.trim()) return text;
+
+    const MAX_LEN = 1500;
+    if (text.length <= MAX_LEN) 
+    {
+        return await translateChunkToJapanese(text);
+    }
+
+    const chunks = splitTextRoughly(text, MAX_LEN);
+    const translated_chunks = [];
+    for (const c of chunks) 
+    {
+        translated_chunks.push(await translateChunkToJapanese(c));
+    }
+    return translated_chunks.join("");
+}
+
+async function translateParagraphList(paragraphList, onProgress)
+{
+    const result_list = new Array(paragraphList.length).fill("");
+    const batch_size = 5;
+
+    for (let i = 0; i < paragraphList.length; i += batch_size) 
+    {
+        const batch = paragraphList.slice(i, i + batch_size);
+        const batch_results = await Promise.all(
+            batch.map(p => translateParagraphToJapanese(p.text))
+        );
+
+        batch_results.forEach((t, j) => { result_list[i + j] = t; });
+
+        if (onProgress) onProgress(Math.min(i + batch_size, paragraphList.length), paragraphList.length);
+    }
+
+    return result_list;
+}
+
+// ============================================================
+//  検索まわり（新UI対応）
+// ============================================================
+
+// 検索クエリを英語化（mode: "title" or "author"）
+async function resolveQueryToEnglish(rawQuery, mode)
+{
+    const loose = rawQuery.replace(/[・＝ _]/g, " ").replace(/\s+/g, " ").trim();
+
+    let eng = null;
+    if (mode === "title") 
+    {
+        eng = await getOriginalTitleFromNDL(loose);
+        if (!eng) eng = await translateToEnglish(loose);
+    } 
+    else 
+    {
+        eng = await getAuthorEnglishNameFromWikipedia(rawQuery);
+        if (!eng) eng = await translateToEnglish(loose);
+    }
+    return eng;
+}
+
+// Gutendexに投げるだけ
+async function fetchGutendexResults(engQuery)
+{
+    if (!engQuery) return { results: [] };
+    const clean = engQuery.replace(/[^\w\s]/gi, ' ').replace(/\s+/g, ' ').trim();
+    if (!clean) return { results: [] };
+
+    const g_api = `https://gutendex.com/books/?search=${encodeURIComponent(clean)}`;
+    const res = await fetch(maji_de_proxy_base + encodeURIComponent(g_api));
+    return await res.json();
+}
+
+// 検索結果をテーブルに描画（共通）
+function renderSearchResults(results, statusEl, tableEl, tbodyEl)
+{
+    if (!results || results.length === 0) 
+    {
+        statusEl.style.color = "#d9534f";
+        statusEl.textContent = "Gutendexに該当する作品が見つからんかった＼(^o^)／";
+        tableEl.style.display = "none";
+        tbodyEl.innerHTML = "";
+        return;
+    }
+
+    // 重複除去
+    const seen = new Set();
+    const unique = [];
+    for (const b of results) 
+    {
+        if (seen.has(b.id)) continue;
+        seen.add(b.id);
+        unique.push(b);
+    }
+
+    statusEl.style.color = "#4a6fa5";
+    statusEl.textContent = `見つけたぜ！(${unique.length}件)`;
+    tableEl.style.display = "table";
+    tbodyEl.innerHTML = "";
+
+    unique.forEach(b => 
+    {
+        v_project_cache[b.id] = b;
+
+        const a_a = b.authors[0] || { name: "不明", death_year: null };
+        const d_y = a_a.death_year;
+        const is_s = checkChosakukenSafe(d_y);
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${b.id}</td>
+            <td>${b.title}</td>
+            <td>${a_a.name}</td>
+            <td>${d_y ? d_y : "不明"}</td>
+            <td>
+                ${is_s 
+                    ? `<button onclick="downloadAndSaveBook(${b.id})">保存・読む</button>`
+                    : `<span style="color:red; font-size:0.8rem;">保護期間内</span>`
+                }
+            </td>
+        `;
+        tbodyEl.appendChild(tr);
+    });
+}
+
+// 簡単検索：作品名・著者名を並行で両方あたってマージ
+async function execSimpleSearch()
+{
+    const q = document.getElementById("simple-search-input").value.trim();
+    if (!q) return;
+
+    const statusEl = document.getElementById("search-status");
+    const tableEl = document.getElementById("results-table");
+    const tbodyEl = document.getElementById("results-tbody");
+
+    tbodyEl.innerHTML = "";
+    tableEl.style.display = "none";
+    v_project_cache = {};
+    statusEl.style.color = "#2b2b2b";
+    statusEl.textContent = `「${q}」を作品名・著者名の両方で英語化中... ( ｀・ω・´)`;
+
+    // 作品名・著者名の両方で英語化を並行実行
+    const [titleEng, authorEng] = await Promise.all([
+        resolveQueryToEnglish(q, "title").catch(() => null),
+        resolveQueryToEnglish(q, "author").catch(() => null)
+    ]);
+
+    statusEl.textContent = "Gutendexを索敵中... ( ﾟдﾟ)";
+
+    const all_results = [];
+    const seen = new Set();
+
+    // 作品名としての結果
+    if (titleEng) 
+    {
+        try 
+        {
+            const data = await fetchGutendexResults(titleEng);
+            if (data && data.results) 
+            {
+                for (const b of data.results) 
+                {
+                    if (!seen.has(b.id)) { seen.add(b.id); all_results.push(b); }
+                }
+            }
+        } 
+        catch (e) { /* 握りつぶし */ }
+    }
+
+    // 著者名としての結果（著者名でフィルタして誤爆を防ぐ）
+    if (authorEng) 
+    {
+        try 
+        {
+            const data = await fetchGutendexResults(authorEng);
+            if (data && data.results) 
+            {
+                const norm = authorEng.toLowerCase();
+                const words = norm.split(/\s+/).filter(w => w.length >= 3);
+                for (const b of data.results) 
+                {
+                    const authors = b.authors || [];
+                    const matched = authors.some(a => {
+                        const n = (a.name || "").toLowerCase();
+                        return words.length ? words.some(w => n.includes(w)) : n.includes(norm);
+                    });
+                    if (matched && !seen.has(b.id)) 
+                    {
+                        seen.add(b.id);
+                        all_results.push(b);
+                    }
+                }
+            }
+        } 
+        catch (e) { /* 握りつぶし */ }
+    }
+
+    renderSearchResults(all_results, statusEl, tableEl, tbodyEl);
+}
+
+// 個別検索：作品名・著者名それぞれの欄を個別に使う
+async function execAdvancedSearch()
+{
+    const titleQ = document.getElementById("title-search-input").value.trim();
+    const authorQ = document.getElementById("author-search-input").value.trim();
+
+    if (!titleQ && !authorQ) 
+    {
+        alert("作品名か著者名、最低どちらかは入れてください ( ˘ω˘ )");
+        return;
+    }
+
+    const statusEl = document.getElementById("search-status");
+    const tableEl = document.getElementById("results-table");
+    const tbodyEl = document.getElementById("results-tbody");
+
+    tbodyEl.innerHTML = "";
+    tableEl.style.display = "none";
+    v_project_cache = {};
+    statusEl.style.color = "#2b2b2b";
+    statusEl.textContent = "検索条件を英語化中... ( ｀・ω・´)";
+
+    let titleEng = null;
+    let authorEng = null;
+
+    if (titleQ) 
+    {
+        statusEl.textContent = `NDLで「${titleQ}」の原題を探り中...`;
+        titleEng = await getOriginalTitleFromNDL(titleQ.replace(/[・＝ _]/g, " ").trim());
+        if (!titleEng) 
+        {
+            statusEl.textContent = `Google翻訳で「${titleQ}」を英語化中...`;
+            titleEng = await translateToEnglish(titleQ);
+        }
+    }
+
+    if (authorQ) 
+    {
+        statusEl.textContent = `Wikipediaで「${authorQ}」の英語表記を探り中...`;
+        authorEng = await getAuthorEnglishNameFromWikipedia(authorQ);
+        if (!authorEng) 
+        {
+            statusEl.textContent = `Google翻訳で「${authorQ}」を英語化中...`;
+            authorEng = await translateToEnglish(authorQ);
+        }
+    }
+
+    // Gutendexは1クエリなので、両方あれば連結して投げる
+    let combined = [titleEng, authorEng].filter(Boolean).join(" ").trim();
+    if (!combined) 
+    {
+        statusEl.style.color = "#d9534f";
+        statusEl.textContent = "英語化に失敗しました…";
+        return;
+    }
+
+    statusEl.textContent = `「${combined}」でGutendexを索敵中... ( ﾟдﾟ)`;
+
+    let results = [];
+    try 
+    {
+        const data = await fetchGutendexResults(combined);
+        results = (data && data.results) || [];
+    } 
+    catch (err) 
+    {
+        statusEl.style.color = "#d9534f";
+        statusEl.textContent = `検索エラー: ${err.message}`;
+        return;
+    }
+
+    // 著者名が指定されている場合は、その著者の作品だけに絞る
+    if (authorEng) 
+    {
+        const norm = authorEng.toLowerCase();
+        const words = norm.split(/\s+/).filter(w => w.length >= 3);
+        results = results.filter(b => 
+        {
+            const authors = b.authors || [];
+            return authors.some(a => 
+            {
+                const n = (a.name || "").toLowerCase();
+                return words.length ? words.some(w => n.includes(w)) : n.includes(norm);
+            });
+        });
+    }
+
+    renderSearchResults(results, statusEl, tableEl, tbodyEl);
+}
+
+// ============================================================
+//  ダウンロード＆DB保存
+// ============================================================
 async function downloadAndSaveBook(bookId)
 {
     const s_e = document.getElementById("search-status");
@@ -753,7 +1114,6 @@ async function downloadAndSaveBook(bookId)
 
     try 
     {
-        // 404対策。Gutenbergのサーバー構造を予測して、複数のURL候補をファンネルみたいに飛ばす
         const funnel_urls = [
             rx_78.formats["text/html; charset=utf-8"],
             rx_78.formats["text/html"],
@@ -761,12 +1121,12 @@ async function downloadAndSaveBook(bookId)
             rx_78.formats["text/plain; charset=utf-8"],
             rx_78.formats["text/plain"],
             `https://www.gutenberg.org/cache/epub/${bookId}/pg${bookId}.txt.utf8`
-        ].filter(Boolean); // undefinedとかnullを消し飛ばす
+        ].filter(Boolean);
 
         if (funnel_urls.length === 0)
         {
             s_e.style.color = "#d9534f";
-            s_e.textContent = "エラー: この作品、読める形式(HTMLかテキスト)のURLが全く存在しないわorz";
+            s_e.textContent = "エラー: この作品、読める形式のURLが存在しないわorz";
             return;
         }
 
@@ -774,7 +1134,6 @@ async function downloadAndSaveBook(bookId)
         let r_t = "";
         let final_url = "";
 
-        // 行け、ファンネル！どれか一つでも200 OKを返せば勝ちだ
         for (const u of funnel_urls) 
         {
             try 
@@ -785,24 +1144,19 @@ async function downloadAndSaveBook(bookId)
                     res_ok = tmp_r;
                     r_t = await tmp_r.text();
                     final_url = u;
-                    break; // 生きてるURLを見つけたらループを抜ける
+                    break;
                 }
             } 
-            catch(e) 
-            {
-                // エラーが出ても次のURLを試すためにスルーするぜ( ˘ω˘ )
-            }
+            catch(e) { /* 次のURLを試す */ }
         }
 
         if (!res_ok) 
         {
-            // ここに落ちたなら全部404だったってことだ
-            throw new Error(`全URL試したけどHTTP 404等で全滅したわ…Gutenbergのサーバーから消えてるかも`);
+            throw new Error(`全URL試したけどHTTP 404等で全滅したわ…`);
         }
         
-        let c_h = "";
+        let paragraph_list = [];
 
-        // HTMLかプレーンテキストかで処理を分ける
         if (final_url.includes("html") || final_url.includes("htm"))
         {
             const p = new DOMParser();
@@ -818,14 +1172,13 @@ async function downloadAndSaveBook(bookId)
                     const tx = px.textContent.trim();
                     if (tx.length > 0) 
                     {
-                        const tn = px.tagName.toLowerCase();
-                        c_h += `<${tn}>${escapeHtml(tx)}</${tn}>`;
+                        paragraph_list.push({ tag: px.tagName.toLowerCase(), text: tx });
                     }
                 });
             } 
             else 
             {
-                c_h = `<p>${escapeHtml(d.body.textContent)}</p>`;
+                paragraph_list.push({ tag: "p", text: d.body.textContent.trim() });
             }
         }
         else
@@ -835,10 +1188,19 @@ async function downloadAndSaveBook(bookId)
             {
                 if(l.trim().length > 0) 
                 {
-                    c_h += `<p>${escapeHtml(l.trim())}</p>`;
+                    paragraph_list.push({ tag: "p", text: l.trim() });
                 }
             });
         }
+
+        s_e.textContent = `本文を日本語に翻訳中... (0/${paragraph_list.length})`;
+        const translated_texts = await translateParagraphList(paragraph_list, (done, total) => 
+        {
+            s_e.textContent = `本文を日本語に翻訳中... (${done}/${total})`;
+        });
+
+        const c_h = paragraph_list.map(p => `<${p.tag}>${escapeHtml(p.text)}</${p.tag}>`).join("");
+        const c_h_translated = paragraph_list.map((p, i) => `<${p.tag}>${escapeHtml(translated_texts[i])}</${p.tag}>`).join("");
 
         const tx_db = maji_de_db.transaction(["books"], "readwrite");
         const st = tx_db.objectStore("books");
@@ -849,8 +1211,9 @@ async function downloadAndSaveBook(bookId)
             title: rx_78.title,
             author: a_n,
             content: c_h,
+            contentTranslated: c_h_translated,
             savedAt: new Date().toISOString(),
-            sortOrder: Date.now(), // 並べ替え用。とりあえず保存した瞬間のタイムスタンプを初期値にしとく
+            sortOrder: Date.now(),
             favorite: false
         };
 
@@ -876,7 +1239,9 @@ async function downloadAndSaveBook(bookId)
     }
 }
 
-// 本棚の表示
+// ============================================================
+//  本棚
+// ============================================================
 function loadBookshelf()
 {
     const s_e = document.getElementById("bookshelf-status");
@@ -901,7 +1266,6 @@ function loadBookshelf()
             return;
         }
 
-        // sortOrderが無い古いデータ（このアプデ前に保存した本）は末尾に回す救済処置
         bks.sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity));
 
         s_e.textContent = "";
@@ -911,7 +1275,6 @@ function loadBookshelf()
         {
             const tr = document.createElement("tr");
 
-            // 行ごとドラッグできるようにする。ハンドル部分だけじゃなくて行全体を掴める仕様
             tr.draggable = true;
             tr.ondragstart = (e) => handleDragStart(e, b.id);
             tr.ondragover = (e) => handleDragOver(e, tr);
@@ -920,7 +1283,7 @@ function loadBookshelf()
             tr.style.cursor = "pointer";
             tr.onclick = () => readSavedBook(b.id);
 
-            const fav_mark = b.favorite ? "★ " : ""; // お気に入りは星印つけるだけの原始的な表現でいく
+            const fav_mark = b.favorite ? "★ " : "";
 
             tr.innerHTML = `
                 <td class="id-cell">
@@ -946,8 +1309,6 @@ function loadBookshelf()
     };
 }
 
-// ここからドラッグ並べ替え関連。preventDefault()を書き忘れるとdropが発火しないっていう
-// 罠に一回ハマって小一時間溶かしたので、絶対消すなよという自分向けの警告つき
 function handleDragStart(ev, bookId)
 {
     drag_zaku_id = bookId;
@@ -956,7 +1317,7 @@ function handleDragStart(ev, bookId)
 
 function handleDragOver(ev, rowEl)
 {
-    ev.preventDefault(); // ← これ消すと詰む。何度でも書く。消すな。
+    ev.preventDefault(); // ← これ消すと詰む
     rowEl.classList.add("drag-over-row");
 }
 
@@ -970,7 +1331,6 @@ function handleRowDrop(ev, targetId, rowEl)
     drag_zaku_id = null;
 }
 
-// sortOrderをまるっと入れ替えるだけの脳筋作戦だけど、これで十分機能する
 function swapBookOrder(idA, idB)
 {
     const tx = maji_de_db.transaction(["books"], "readwrite");
@@ -1002,10 +1362,9 @@ function swapBookOrder(idA, idB)
     };
 }
 
-// 3点メニューの開閉。同時に2つ開くと見た目バグるので、開く前に他を全部閉じる
 function toggleRowMenu(ev, bookId)
 {
-    ev.stopPropagation(); // これ無いと直後のdocumentクリック判定に即座に殺されるので必須
+    ev.stopPropagation();
 
     const target_menu = document.getElementById(`menu-${bookId}`);
     const is_opening = !target_menu.classList.contains("active");
@@ -1025,13 +1384,11 @@ function closeAllRowMenus()
     menu_char_aznable_id = null;
 }
 
-// どっか適当な場所をクリックしたら問答無用でメニューを閉じる作戦
 document.addEventListener("click", () => 
 {
     closeAllRowMenus();
 });
 
-// お気に入りのON/OFF切り替え。トグルするだけ、シンプルイズベスト
 function toggleFavorite(bookId)
 {
     closeAllRowMenus();
@@ -1054,7 +1411,6 @@ function toggleFavorite(bookId)
     };
 }
 
-// 削除確認ポップアップを開く。ここでは消さない、「はい」を押されるまでは何もしない
 function confirmDeleteBook(bookId)
 {
     closeAllRowMenus();
@@ -1075,7 +1431,6 @@ function executeConfirmedDelete()
     closeConfirmModal();
 }
 
-// 保存済み本を読む
 function readSavedBook(bookId)
 {
     const tx = maji_de_db.transaction(["books"], "readonly");
@@ -1091,7 +1446,6 @@ function readSavedBook(bookId)
     };
 }
 
-// 削除
 function deleteBook(bookId)
 {
     const tx = maji_de_db.transaction(["books"], "readwrite");
@@ -1103,20 +1457,160 @@ function deleteBook(bookId)
     };
 }
 
-// 読書画面を開く
+// ============================================================
+//  読書画面
+// ============================================================
 function openReader(bookObj)
 {
     document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
     const rv = document.getElementById("reader-view");
     rv.classList.add("active");
 
+    ima_yonderu_hon = bookObj;
+    is_showing_translation = false;
+    is_page_mode = false;
+    ima_no_page = 0;
+
     document.getElementById("reading-title").textContent = bookObj.title;
+
     const rb = document.getElementById("reader-body");
-    rb.innerHTML = bookObj.content;
+    rb.classList.remove("paged");
+    document.getElementById("page-nav").style.display = "none";
+    document.getElementById("page-mode-btn").textContent = "めくりモード";
+
+    updateTranslationButtonLabel();
+    renderReaderContent();
+
     rb.scrollTop = 0;
+    rb.scrollLeft = 0;
 }
 
-// タブ切り替え
+function renderReaderContent()
+{
+    if (!ima_yonderu_hon) return;
+
+    const flow = document.getElementById("reader-flow");
+    const use_translated = is_showing_translation && ima_yonderu_hon.contentTranslated;
+
+    flow.innerHTML = use_translated ? ima_yonderu_hon.contentTranslated : ima_yonderu_hon.content;
+
+    if (is_page_mode) 
+    {
+        requestAnimationFrame(computePageLayout);
+    }
+}
+
+function toggleTranslationView()
+{
+    if (!ima_yonderu_hon) return;
+
+    if (!ima_yonderu_hon.contentTranslated) 
+    {
+        alert("この本には翻訳データが無いよ（アプデ前にダウンロードした本かも）");
+        return;
+    }
+
+    is_showing_translation = !is_showing_translation;
+    updateTranslationButtonLabel();
+    renderReaderContent();
+}
+
+function updateTranslationButtonLabel()
+{
+    const btn = document.getElementById("translate-toggle-btn");
+    if (!btn) return;
+    btn.textContent = is_showing_translation ? "原文で読む" : "翻訳で読む";
+}
+
+// ============================================================
+//  めくりモード
+// ============================================================
+function togglePageMode()
+{
+    is_page_mode = !is_page_mode;
+
+    const rb = document.getElementById("reader-body");
+    const flow = document.getElementById("reader-flow");
+    const page_nav = document.getElementById("page-nav");
+    const mode_btn = document.getElementById("page-mode-btn");
+
+    rb.classList.toggle("paged", is_page_mode);
+    page_nav.style.display = is_page_mode ? "flex" : "none";
+    mode_btn.textContent = is_page_mode ? "スクロールに戻す" : "めくりモード";
+
+    if (is_page_mode) 
+    {
+        requestAnimationFrame(computePageLayout);
+    } 
+    else 
+    {
+        flow.style.columnWidth = "";
+        flow.style.columnGap = "";
+        flow.style.columnFill = "";
+        rb.scrollLeft = 0;
+    }
+}
+
+function computePageLayout()
+{
+    if (!is_page_mode) return;
+
+    const rb = document.getElementById("reader-body");
+    const flow = document.getElementById("reader-flow");
+
+    const page_w = rb.clientWidth;
+    flow.style.columnWidth = `${page_w}px`;
+    flow.style.columnGap = `${gata_gap_haba}px`;
+    flow.style.columnFill = "auto";
+
+    const total_w = flow.scrollWidth;
+    zenbu_page_su = Math.max(1, Math.round(total_w / (page_w + gata_gap_haba)));
+
+    goToPage(0);
+}
+
+function turnPage(delta)
+{
+    goToPage(ima_no_page + delta);
+}
+
+function goToPage(pageIdx)
+{
+    const rb = document.getElementById("reader-body");
+    ima_no_page = Math.max(0, Math.min(zenbu_page_su - 1, pageIdx));
+    rb.scrollLeft = ima_no_page * (rb.clientWidth + gata_gap_haba);
+
+    const indicator = document.getElementById("page-indicator");
+    if (indicator) indicator.textContent = `${ima_no_page + 1} / ${zenbu_page_su}`;
+}
+
+document.getElementById("reader-body").addEventListener("click", (ev) => 
+{
+    if (!is_page_mode) return;
+
+    const rb = ev.currentTarget;
+    const rect = rb.getBoundingClientRect();
+    const rel_x = (ev.clientX - rect.left) / rect.width;
+
+    if (rel_x < 0.25) turnPage(-1);
+    else if (rel_x > 0.75) turnPage(1);
+});
+
+document.addEventListener("keydown", (ev) => 
+{
+    if (!is_page_mode) return;
+    if (ev.key === "ArrowRight") turnPage(1);
+    if (ev.key === "ArrowLeft") turnPage(-1);
+});
+
+window.addEventListener("resize", () => 
+{
+    if (is_page_mode) computePageLayout();
+});
+
+// ============================================================
+//  タブ・UI
+// ============================================================
 function switchTab(tabName)
 {
     document.getElementById("reader-view").classList.remove("active");
@@ -1133,7 +1627,6 @@ function switchTab(tabName)
     }
 }
 
-// UI機能
 function toggleWritingMode()
 {
     const rb = document.getElementById("reader-body");
@@ -1146,12 +1639,16 @@ function toggleWritingMode()
     {
         rb.classList.remove("vertical");
     }
+
+    if (is_page_mode) computePageLayout();
 }
 
 function changeFontSize(delta)
 {
     current_font_size = Math.max(12, Math.min(36, current_font_size + delta));
     document.getElementById("reader-body").style.fontSize = `${current_font_size}px`;
+
+    if (is_page_mode) computePageLayout();
 }
 
 function setTheme(theme)
