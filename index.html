@@ -598,6 +598,7 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
     </div>
 </div>
 <div class="toast-container" id="toast-container"></div>
+
 <script>
 const LINGVA_INSTANCES = [
     'https://lingva.ml',
@@ -628,11 +629,10 @@ const CORS_PROXIES = {
    青空文庫カタログ取得元
    ============================================================ */
 const AOZORA_CATALOG_SOURCES = [
+    { name: 'card.json', url: 'https://raw.githubusercontent.com/takahashim/aozora_json_scrape/master/card.json', proxy: null, type: 'json' },
     { name: '公式ZIP(codetabs)',   url: 'https://www.aozora.gr.jp/index_pages/list_person_all_extended_utf8.zip', proxy: 'codetabs',   type: 'zip'  },
     { name: '公式ZIP(allorigins)', url: 'https://www.aozora.gr.jp/index_pages/list_person_all_extended_utf8.zip', proxy: 'allorigins', type: 'zip'  },
-    { name: '公式ZIP(corsproxy)',  url: 'https://www.aozora.gr.jp/index_pages/list_person_all_extended_utf8.zip', proxy: 'corsproxy',  type: 'zip'  },
-    { name: '公式ZIP(aoi)',        url: 'https://www.aozora.gr.jp/index_pages/list_person_all_extended_utf8.zip', proxy: 'aoi',        type: 'zip'  },
-    { name: 'card.json',           url: 'https://raw.githubusercontent.com/takahashim/aozora_json_scrape/master/card.json', proxy: null, type: 'json' }
+    { name: '公式ZIP(aoi)',        url: 'https://www.aozora.gr.jp/index_pages/list_person_all_extended_utf8.zip', proxy: 'aoi',        type: 'zip'  }
 ];
 
 const AOZORA_CSV_FILENAME = "list_person_all_extended_utf8.csv";
@@ -650,6 +650,10 @@ const BOOKMARK_SAVE_DEBOUNCE_MS = 500;
 const FETCH_TIMEOUT_TRANSLATE = 4000;
 const FETCH_TIMEOUT_API = 8000;
 const FETCH_TIMEOUT_BOOK = 90000;
+
+/* 青空文庫ミラー（GitHub Raw）と公式サイト */
+const AOZORA_GH_BASE = 'https://raw.githubusercontent.com/aozorabunko/aozorabunko/master/cards';
+const AOZORA_AZ_BASE = 'https://www.aozora.gr.jp/cards';
 
 let maji_de_db = null;
 let db_closing = false;
@@ -987,11 +991,7 @@ async function fetchAozoraCatalog(){
         console.error('[青空文庫] 全ソース失敗:', lastErr);
         showErrorBanner(
             '青空文庫カタログの取得に失敗しました。',
-            `最終エラー: ${lastErr}\n\n` +
-            `【対処法】\n` +
-            `青空文庫公式サイト (https://www.aozora.gr.jp/index_pages/person_all.html) から ` +
-            `list_person_all_extended_utf8.zip をダウンロードし、解凍した ` +
-            `list_person_all_extended_utf8.csv を、このHTMLファイルと同じフォルダに配置してください。`
+            `最終エラー: ${lastErr}`
         );
         return;
     }
@@ -1670,42 +1670,59 @@ async function downloadAndSaveGutenberg(bookId){
 }
 window.downloadAndSaveGutenberg = downloadAndSaveGutenberg;
 
+/* ============================================================
+   青空文庫 本文ダウンロード
+   GitHub Raw を第一候補、失敗時のみ公式サイトをプロキシ経由
+   ============================================================ */
 async function downloadAndSaveAozora(workId, personId, title, personName){
     const key = 'aozora_' + workId;
     setStatus("search-status", `「${title}」をダウンロード中...`, 'info');
     showToast(`ダウンロード開始: ${title}`, 'info');
-    try{
-        const cardUrl = `https://www.aozora.gr.jp/cards/${personId}/card${workId}.html`;
-        const cardRes = await fetchWithTimeout(CORS_PROXIES.aoi(cardUrl), {}, FETCH_TIMEOUT_BOOK);
-        if(!cardRes.ok) throw new Error(`図書カード取得失敗: HTTP ${cardRes.status}`);
-        const cardBuf = await cardRes.arrayBuffer();
-        let cardHtml = '';
-        const cardHead = new TextDecoder('ascii').decode(cardBuf.slice(0, 2000)).toLowerCase();
-        if(cardHead.includes('shift_jis') || cardHead.includes('shift-jis') || cardHead.includes('sjis')){
-            cardHtml = new TextDecoder('shift_jis').decode(cardBuf);
-        } else {
-            cardHtml = new TextDecoder('utf-8').decode(cardBuf);
-        }
 
+    /* 共通のHTML取得ヘルパ（Shift_JIS/UTF-8 自動判別） */
+    async function fetchHtml(candidates){
+        let lastErr = '';
+        for(const url of candidates){
+            try{
+                const r = await fetchWithTimeout(url, {}, FETCH_TIMEOUT_BOOK);
+                if(!r.ok){ lastErr = `HTTP ${r.status}`; continue; }
+                const buf = await r.arrayBuffer();
+                if(buf.byteLength < 100){ lastErr = 'データが空'; continue; }
+                const head = new TextDecoder('ascii').decode(buf.slice(0, 2000)).toLowerCase();
+                if(head.includes('shift_jis') || head.includes('shift-jis') || head.includes('sjis')){
+                    return new TextDecoder('shift_jis').decode(buf);
+                } else {
+                    return new TextDecoder('utf-8').decode(buf);
+                }
+            }catch(e){
+                lastErr = e.message;
+            }
+        }
+        throw new Error(lastErr);
+    }
+
+    try{
+        /* --- ステップ1: 図書カードを取得 --- */
+        const cardHtml = await fetchHtml([
+            `${AOZORA_GH_BASE}/${personId}/card${workId}.html`,
+            CORS_PROXIES.aoi(`${AOZORA_AZ_BASE}/${personId}/card${workId}.html`)
+        ]);
+
+        /* --- ステップ2: 本文HTMLのパスを抽出 --- */
         const htmlUrlMatch = cardHtml.match(/href="(\.\/files\/[^"]+\.html?)"/i)
                           || cardHtml.match(/href="(files\/[^"]+\.html?)"/i)
                           || cardHtml.match(/href="([^"]*\/files\/[^"]+\.html?)"/i);
         if(!htmlUrlMatch) throw new Error('本文HTMLのURLが図書カードから見つかりませんでした');
-        const relativePath = htmlUrlMatch[1].replace(/^\.\//, '');
-        const bodyUrl = `https://www.aozora.gr.jp/cards/${personId}/${relativePath}`;
-        console.log('[青空文庫] 本文URL:', bodyUrl);
+        const relPath = htmlUrlMatch[1].replace(/^\.\//, '');
+        console.log('[青空文庫] 本文パス:', relPath);
 
-        const bodyRes = await fetchWithTimeout(CORS_PROXIES.aoi(bodyUrl), {}, FETCH_TIMEOUT_BOOK);
-        if(!bodyRes.ok) throw new Error(`本文HTML取得失敗: HTTP ${bodyRes.status}`);
-        const bodyBuf = await bodyRes.arrayBuffer();
-        let bodyHtml = '';
-        const bodyHead = new TextDecoder('ascii').decode(bodyBuf.slice(0, 2000)).toLowerCase();
-        if(bodyHead.includes('shift_jis') || bodyHead.includes('shift-jis') || bodyHead.includes('sjis')){
-            bodyHtml = new TextDecoder('shift_jis').decode(bodyBuf);
-        } else {
-            bodyHtml = new TextDecoder('utf-8').decode(bodyBuf);
-        }
+        /* --- ステップ3: 本文HTMLを取得 --- */
+        const bodyHtml = await fetchHtml([
+            `${AOZORA_GH_BASE}/${personId}/${relPath}`,
+            CORS_PROXIES.aoi(`${AOZORA_AZ_BASE}/${personId}/${relPath}`)
+        ]);
 
+        /* --- ステップ4: main_text から段落を抽出 --- */
         const d = new DOMParser().parseFromString(bodyHtml, "text/html");
         d.querySelectorAll("script, style, header, footer, img, .bibliographical_information, .notation_notes, .after_text").forEach(el=>el.remove());
         const main = d.querySelector("div.main_text");
