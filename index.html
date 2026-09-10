@@ -106,10 +106,6 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
 #error-banner .eb-close:hover{background:rgba(255,255,255,.18)}
 #error-banner .eb-title{font-weight:bold;margin-right:6px}
 #error-banner .eb-detail{opacity:.9;font-size:.82rem;margin-top:4px;font-family:monospace;white-space:pre-wrap}
-
-/* ============================================================
-   青空文庫注記対応（フェーズ1+2+3）
-   ============================================================ */
 .reader-content h2{font-size:1.5rem;margin:1.8em 0 .8em;text-align:center;font-weight:bold;line-height:1.4}
 .reader-content h3{font-size:1.25rem;margin:1.5em 0 .7em;font-weight:bold;line-height:1.4}
 .reader-content h4{font-size:1.08rem;margin:1.2em 0 .5em;font-weight:bold;line-height:1.4}
@@ -135,37 +131,161 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
 .reader-content.vertical .indent-8{padding-left:0;padding-top:8em}
 .reader-content.vertical .indent-9{padding-left:0;padding-top:9em}
 .reader-content.vertical .indent-10{padding-left:0;padding-top:10em}
-
-/* 傍点（フェーズ2） */
 .reader-content .boten{font-style:normal;text-emphasis:filled dot;-webkit-text-emphasis:filled dot;}
 .reader-content .boten-maru{font-style:normal;text-emphasis:filled circle;-webkit-text-emphasis:filled circle;}
 .reader-content .boten-shiromaru{font-style:normal;text-emphasis:open circle;-webkit-text-emphasis:open circle;}
 .reader-content .boten-double{font-style:normal;text-emphasis:double-circle;-webkit-text-emphasis:double-circle;}
 .reader-content .boten-snake{font-style:normal;text-emphasis:open dot;-webkit-text-emphasis:open dot;}
-
-/* 傍線（フェーズ3） */
 .reader-content .boten-line{text-decoration:underline;font-style:normal;}
 .reader-content .boten-doubleline{text-decoration:underline double;font-style:normal;}
 .reader-content .boten-dash{text-decoration:underline dashed;font-style:normal;}
 .reader-content .boten-wave{text-decoration:underline wavy;font-style:normal;}
 .reader-content .boten-chain{text-decoration:underline dashed;font-style:normal;}
-
-/* 割注（フェーズ2） */
 .reader-content .warichu{font-size:.68em;line-height:1;padding:0 .1em;vertical-align:middle;}
-
-/* 罫囲み（フェーズ3） */
 .reader-content .keigakomi{border:1px solid currentColor;padding:.4em .9em;margin:.3em 0;border-radius:2px;}
-
-/* 縦中横（フェーズ3） */
 .reader-content .tate-chu-yoko{text-combine-upright:all;-webkit-text-combine:horizontal;}
-
-/* 太字・斜体（フェーズ3） */
 .reader-content strong{font-weight:bold;}
 .reader-content em{font-style:italic;}
-
-/* 上付き・下付き（フェーズ3） */
 .reader-content sup{font-size:.7em;vertical-align:super;line-height:0;}
 .reader-content sub{font-size:.7em;vertical-align:sub;line-height:0;}
+.reader-content .loading-msg{text-align:center;padding:60px 20px;opacity:.5;font-size:.95rem;}
+
+/* ============================================================
+   本モード（3Dめくりアニメーション）
+   ============================================================ */
+.book-stage{
+    position:absolute;
+    inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    perspective:2400px;
+    perspective-origin:50% 50%;
+    z-index:50;
+    background-color:var(--bg-color);
+    overflow:hidden;
+}
+.book-stage.active{display:flex;}
+.book-container{
+    position:relative;
+    transform-style:preserve-3d;
+    transform:translateX(var(--shift, 0px)) rotateX(8deg);
+    transition:transform .9s cubic-bezier(.22,1,.36,1);
+    cursor:grab;
+    user-select:none;
+    -webkit-user-select:none;
+    touch-action:none;
+    -webkit-tap-highlight-color:transparent;
+}
+.book-container.grabbing{cursor:grabbing;}
+.sheet{
+    position:absolute;
+    top:0;
+    width:50%;
+    height:100%;
+    transform-style:preserve-3d;
+    will-change:transform;
+}
+.book-stage.left-bound .sheet{left:50%;right:auto;transform-origin:0 0;}
+.book-stage.right-bound .sheet{left:auto;right:50%;transform-origin:100% 0;}
+.strip{
+    position:absolute;
+    top:0;left:0;
+    width:100%;
+    overflow:hidden;
+    transform-origin:0 0;
+    transform-style:preserve-3d;
+    will-change:transform;
+    backface-visibility:hidden;
+    -webkit-backface-visibility:hidden;
+}
+.face{
+    position:absolute;
+    inset:0;
+    overflow:hidden;
+    backface-visibility:hidden;
+    -webkit-backface-visibility:hidden;
+    background:linear-gradient(160deg,#fffdf7 0%,#f8f1e4 60%,#f1e7d6 100%);
+    color:#2a2118;
+}
+body.dark-mode .face{background:linear-gradient(160deg,#2e2e2e 0%,#252525 60%,#1f1f1f 100%);color:#d1d1d1;}
+body.sepia-mode .face{background:linear-gradient(160deg,#fbf0d9 0%,#f5e7cb 60%,#eeddc0 100%);color:#5b4636;}
+.face.back{transform:rotateY(180deg);}
+.face.front::before{
+    content:"";position:absolute;inset:0;z-index:3;pointer-events:none;
+    background:linear-gradient(to right,rgba(88,58,20,.28) 0%,rgba(88,58,20,.10) 5%,rgba(88,58,20,.02) 12%,transparent 22%);
+}
+.face.back::before{
+    content:"";position:absolute;inset:0;z-index:3;pointer-events:none;
+    background:linear-gradient(to left,rgba(88,58,20,.28) 0%,rgba(88,58,20,.10) 5%,rgba(88,58,20,.02) 12%,transparent 22%);
+}
+.book-stage.right-bound .face.front::before{
+    background:linear-gradient(to left,rgba(88,58,20,.28) 0%,rgba(88,58,20,.10) 5%,rgba(88,58,20,.02) 12%,transparent 22%);
+}
+.book-stage.right-bound .face.back::before{
+    background:linear-gradient(to right,rgba(88,58,20,.28) 0%,rgba(88,58,20,.10) 5%,rgba(88,58,20,.02) 12%,transparent 22%);
+}
+.book-page-content{
+    position:absolute;
+    left:0;
+    width:100%;
+    height:100%;
+}
+.book-page{
+    position:absolute;
+    inset:0;
+    padding:40px 30px 30px;
+    box-sizing:border-box;
+    overflow:hidden;
+    line-height:1.9;
+    font-family:var(--font-family);
+}
+.book-page.vertical{
+    writing-mode:vertical-rl;
+    text-orientation:mixed;
+    padding:30px 40px;
+}
+.book-page h2{font-size:1.4em;margin:0 0 .5em;text-align:center;font-weight:bold;line-height:1.4;}
+.book-page h3{font-size:1.15em;margin:0 0 .4em;font-weight:bold;line-height:1.4;}
+.book-page h4{font-size:1.05em;margin:0 0 .3em;font-weight:bold;line-height:1.4;}
+.book-page p{margin:0;}
+.book-page .align-center{text-align:center;}
+.book-page .indent-1{padding-left:1em}
+.book-page .indent-2{padding-left:2em}
+.book-page .indent-3{padding-left:3em}
+.book-page .indent-4{padding-left:4em}
+.book-page .indent-5{padding-left:5em}
+.book-page .indent-6{padding-left:6em}
+.book-page .indent-7{padding-left:7em}
+.book-page .indent-8{padding-left:8em}
+.book-page .indent-9{padding-left:9em}
+.book-page .indent-10{padding-left:10em}
+.book-page.vertical .indent-1{padding-left:0;padding-top:1em}
+.book-page.vertical .indent-2{padding-left:0;padding-top:2em}
+.book-page.vertical .indent-3{padding-left:0;padding-top:3em}
+.book-page.vertical .indent-4{padding-left:0;padding-top:4em}
+.book-page.vertical .indent-5{padding-left:0;padding-top:5em}
+.book-page.vertical .indent-6{padding-left:0;padding-top:6em}
+.book-page.vertical .indent-7{padding-left:0;padding-top:7em}
+.book-page.vertical .indent-8{padding-left:0;padding-top:8em}
+.book-page.vertical .indent-9{padding-left:0;padding-top:9em}
+.book-page.vertical .indent-10{padding-left:0;padding-top:10em}
+.book-page ruby rt{font-size:.55em;letter-spacing:0;line-height:1}
+.book-page .boten{font-style:normal;text-emphasis:filled dot;-webkit-text-emphasis:filled dot;}
+.book-page .boten-maru{font-style:normal;text-emphasis:filled circle;-webkit-text-emphasis:filled circle;}
+.book-page .boten-line{text-decoration:underline;font-style:normal;}
+.book-page .warichu{font-size:.68em;line-height:1;padding:0 .1em;vertical-align:middle;}
+.book-page .tate-chu-yoko{text-combine-upright:all;-webkit-text-combine:horizontal;}
+.book-page strong{font-weight:bold;}
+.book-page em{font-style:italic;}
+.book-loading{
+    display:none;
+    text-align:center;
+    opacity:.6;
+    font-size:.95rem;
+    padding:20px;
+}
+.book-loading.active{display:block;}
 
 @media (max-width: 1024px){
     .reader-toolbar{padding:6px 12px;gap:6px 8px;}
@@ -284,6 +404,7 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
             <button onclick="toggleWritingMode()">縦横切替</button>
             <button onclick="changeFontSize(1)">拡大</button>
             <button onclick="changeFontSize(-1)">縮小</button>
+            <button id="book-mode-btn" onclick="toggleBookMode()">本モード</button>
             <button id="page-mode-btn" onclick="togglePageMode()">めくりモード</button>
             <button id="translate-toggle-btn" onclick="toggleTranslationView()">翻訳で読む</button>
             <div class="lang-group">
@@ -306,7 +427,13 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
             <span id="page-indicator">1 / 1</span>
             <button onclick="turnPage(1)">次のページ ›</button>
         </div>
-        <div id="reader-body" class="reader-content"><div id="reader-flow"></div></div>
+        <div id="reader-body" class="reader-content">
+            <div id="reader-flow"></div>
+        </div>
+        <div id="book-stage" class="book-stage">
+            <div id="book-container" class="book-container"></div>
+        </div>
+        <div id="book-loading" class="book-loading">本を組み立て中...</div>
     </div>
 </div>
 
@@ -350,11 +477,14 @@ const FETCH_TIMEOUT_API = 8000;
 const FETCH_TIMEOUT_BOOK = 90000;
 const CATALOG_CACHE_KEY = 'aozora_catalog_v3';
 const AOZORA_TEXT_MIRROR = 'https://raw.githubusercontent.com/aozorahack/aozorabunko_text/master/cards';
-
-/* 書籍の処理フォーマットバージョン */
 const BOOK_FORMAT_VERSION = 3;
 
-/* マーカー用制御文字 */
+const INITIAL_FONT_SIZE_JA = 18;
+const INITIAL_FONT_SIZE_EN = 15;
+const MIN_FONT_SIZE = 12;
+const MAX_FONT_SIZE_JA = 36;
+const MAX_FONT_SIZE_EN = 32;
+
 const MK_WARI   = '\x01WARI\x01';
 const MK_WARI_E = '\x01WARIEND\x01';
 const MK_BOLD   = '\x01BOLD\x01';
@@ -369,9 +499,16 @@ const MK_SUB    = '\x01SUB\x01';
 const MK_SUB_E  = '\x01SUBEND\x01';
 const MK_BR     = '\x01BR\x01';
 
+/* 本モードパラメータ */
+const BOOK_STRIPS = 10;
+const BOOK_K = 170;
+const BOOK_C = 26;
+const BOOK_ASPECT = 0.72;
+const BOOK_DRAG_THRESHOLD = 6;
+
 let maji_de_db = null;
 let db_closing = false;
-let current_font_size = 18;
+let current_font_size = INITIAL_FONT_SIZE_JA;
 let is_vertical_mode = false;
 let v_project_cache = {};
 let current_source = 'gutenberg';
@@ -393,6 +530,21 @@ let translation_generation = {};
 let page_recompute_timer = null;
 let bookmark_save_timer = null;
 let pending_page_restore = null;
+let readerHtmlCache = { bookId: null, original: null, translated: null };
+
+/* 本モード状態 */
+let bookMode = false;
+const bookState = {
+    sheets: [],
+    flippedCount: 0,
+    rafId: null,
+    lastT: 0,
+    pageW: 0,
+    pageH: 0,
+    isVertical: false,
+    rightBound: false,
+    drag: null
+};
 
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
@@ -427,7 +579,6 @@ function decodeJapaneseText(buf){
     try{ utf8 = new TextDecoder('utf-8').decode(buf); }catch(e){ utf8 = ''; }
     const sjisBad = (sjis.match(/\uFFFD/g) || []).length;
     const utf8Bad = (utf8.match(/\uFFFD/g) || []).length;
-    console.log(`[青空文庫] デコード判定: SJIS置換=${sjisBad} UTF8置換=${utf8Bad}`);
     if(utf8Bad === 0 && sjisBad > 0) return utf8;
     if(sjisBad === 0 && utf8Bad > 0) return sjis;
     return sjisBad <= utf8Bad ? sjis : utf8;
@@ -521,7 +672,6 @@ function getBookFromDB(bookId){
         rq.onerror = ()=>reject(rq.error);
     });
 }
-
 function getAllBooksFromDB(){
     return safeDBOp(["books"], "readonly", (tx, resolve, reject)=>{
         const rq = tx.objectStore("books").getAll();
@@ -529,7 +679,6 @@ function getAllBooksFromDB(){
         rq.onerror = ()=>reject(rq.error);
     });
 }
-
 function saveBookToDB(book){
     return safeDBOp(["books"], "readwrite", (tx, resolve, reject)=>{
         tx.objectStore("books").put(book);
@@ -537,7 +686,6 @@ function saveBookToDB(book){
         tx.onerror = ()=>reject(tx.error);
     });
 }
-
 function getCacheFromDB(key){
     return safeDBOp(["cache"], "readonly", (tx, resolve, reject)=>{
         const rq = tx.objectStore("cache").get(key);
@@ -545,7 +693,6 @@ function getCacheFromDB(key){
         rq.onerror = ()=>reject(rq.error);
     });
 }
-
 function saveCacheToDB(key, value){
     return safeDBOp(["cache"], "readwrite", (tx, resolve, reject)=>{
         tx.objectStore("cache").put({key, value, savedAt: new Date().toISOString()});
@@ -556,17 +703,17 @@ function saveCacheToDB(key, value){
 
 function checkChosakukenSafe(y){ if(!y) return false; return (new Date().getFullYear() - y) >= 80; }
 
-/* ============================================================
-   要更新判定
-   ============================================================ */
 function isBookOutdated(book){
     if(!book.rawParas || !Array.isArray(book.rawParas) || !book.rawParas.length) return false;
     return (book.formatVersion || 0) < BOOK_FORMAT_VERSION;
 }
 
-/* ============================================================
-   傍点・傍線のCSSクラス割り当て
-   ============================================================ */
+function isJapaneseBook(book){
+    if(!book) return true;
+    const lang = book.sourceLang || 'ja';
+    return lang === 'ja';
+}
+
 function emphClassFor(type){
     switch(type){
         case '傍点':       return 'boten';
@@ -583,9 +730,6 @@ function emphClassFor(type){
     }
 }
 
-/* ============================================================
-   青空文庫注記の解釈（フェーズ1+2+3）
-   ============================================================ */
 function buildAozoraParagraphs(rawParas){
     const result = [];
     let indentRange = 0;
@@ -598,7 +742,6 @@ function buildAozoraParagraphs(rawParas){
         let alignCenter = false;
         let m;
 
-        /* --- 罫囲み --- */
         let keigakomiHere = keigakomiRange;
         if(text.includes('［＃罫囲み］')){
             keigakomiRange = true;
@@ -611,14 +754,12 @@ function buildAozoraParagraphs(rawParas){
             text = text.replace(/［＃罫囲み終わり］/g, '');
         }
 
-        /* --- 見出し --- */
         const hm = text.match(/［＃「(.+?)」は(大|中|小)見出し］/);
         if(hm){
             tag = hm[2] === '大' ? 'h2' : hm[2] === '中' ? 'h3' : 'h4';
             text = text.replace(/［＃「.+?」は(?:大|中|小)見出し］/g, '');
         }
 
-        /* --- 字下げ範囲 --- */
         while((m = text.match(/［＃ここから(\d+)字下げ］/))){
             indentRange = parseInt(m[1], 10);
             indent = indentRange;
@@ -638,20 +779,17 @@ function buildAozoraParagraphs(rawParas){
             text = text.replace(m[0], '');
         }
 
-        /* --- 中央寄せ --- */
         if(/［＃(?:中央寄せ|中央揃え|ページの左右中央)］/.test(text)){
             alignCenter = true;
             text = text.replace(/［＃(?:中央寄せ|中央揃え|ページの左右中央)］/g, '');
         }
 
-        /* --- 傍点・傍線（対象文字列を保持） --- */
         const emphTargets = [];
         while((m = text.match(/［＃「(.+?)」に(二重丸傍点|白丸傍点|丸傍点|蛇の目傍点|二重傍線|傍点|傍線|破線|波線|鎖線)］/))){
             emphTargets.push({text: m[1], type: m[2]});
             text = text.replace(m[0], '');
         }
 
-        /* --- インライン要素をマーカー化 --- */
         text = text.replace(/［＃割[り]?注］([\s\S]*?)［＃割[り]?注終わり］/g, (_, c)=>MK_WARI + c + MK_WARI_E);
         text = text.replace(/［＃太字］([\s\S]*?)［＃太字終わり］/g, (_, c)=>MK_BOLD + c + MK_BOLD_E);
         text = text.replace(/［＃斜体］([\s\S]*?)［＃斜体終わり］/g, (_, c)=>MK_ITAL + c + MK_ITAL_E);
@@ -659,24 +797,18 @@ function buildAozoraParagraphs(rawParas){
         text = text.replace(/［＃上付き小文字］([\s\S]*?)［＃上付き小文字終わり］/g, (_, c)=>MK_SUP + c + MK_SUP_E);
         text = text.replace(/［＃下付き小文字］([\s\S]*?)［＃下付き小文字終わり］/g, (_, c)=>MK_SUB + c + MK_SUB_E);
 
-        /* --- 改ページ・改段・改行 --- */
         text = text.replace(/［＃(?:改ページ|改丁|改段|本文中改ページ)］/g, '');
         text = text.replace(/［＃改行］/g, MK_BR);
-
-        /* --- 残りの注記を削除 --- */
         text = text.replace(/［＃[^］]*］/g, '');
 
         if(!text.trim()) continue;
 
-        /* --- クラス --- */
         const classes = [];
         if(indent > 0) classes.push('indent-' + Math.min(indent, 10));
         if(alignCenter) classes.push('align-center');
         if(keigakomiHere) classes.push('keigakomi');
 
-        /* --- HTML化 --- */
         let html = escapeHtml(text);
-
         html = html.replace(/\x01WARI\x01([\s\S]*?)\x01WARIEND\x01/g, (_, c)=>`<span class="warichu">${c}</span>`);
         html = html.replace(/\x01BOLD\x01([\s\S]*?)\x01BOLDEND\x01/g, (_, c)=>`<strong>${c}</strong>`);
         html = html.replace(/\x01ITAL\x01([\s\S]*?)\x01ITALEND\x01/g, (_, c)=>`<em>${c}</em>`);
@@ -685,36 +817,26 @@ function buildAozoraParagraphs(rawParas){
         html = html.replace(/\x01SUB\x01([\s\S]*?)\x01SUBEND\x01/g, (_, c)=>`<sub>${c}</sub>`);
         html = html.replace(/\x01BR\x01/g, '<br>');
 
-        /* ルビ */
         html = html.replace(/｜([^｜《》\n]+?)《([^》\n]+)》/g, '<ruby>$1<rt>$2</rt></ruby>');
         html = html.replace(/([一-龥々]+)《([^》\n]+)》/g, '<ruby>$1<rt>$2</rt></ruby>');
 
-        /* 傍点・傍線（対象文字列の最後の出現に適用） */
         for(const tgt of emphTargets){
             const escTgt = escapeHtml(tgt.text);
             const idx = html.lastIndexOf(escTgt);
             if(idx < 0) continue;
             const cls = emphClassFor(tgt.type);
-            html = html.slice(0, idx)
-                 + `<em class="${cls}">${escTgt}</em>`
-                 + html.slice(idx + escTgt.length);
+            html = html.slice(0, idx) + `<em class="${cls}">${escTgt}</em>` + html.slice(idx + escTgt.length);
         }
 
-        /* plain text: マーカーを除去したもの */
         const plainText = text.replace(/\x01[A-Z]+\x01/g, '').replace(/\n/g, ' ').trim();
-
         result.push({tag, text: plainText, classes, html});
 
-        /* 罫囲み終了 */
         if(keigakomiEndHere) keigakomiRange = false;
     }
 
     return result;
 }
 
-/* ============================================================
-   再処理
-   ============================================================ */
 async function reprocessBook(bookId){
     const book = await getBookFromDB(bookId);
     if(!book) return {ok:false, reason:'本が見つかりません'};
@@ -728,23 +850,14 @@ async function reprocessBook(bookId){
     }).join('');
 
     const oldTexts = Array.isArray(book.translatedTexts) ? book.translatedTexts : [];
-    let newTexts;
-    if(oldTexts.length === newParas.length){
-        newTexts = oldTexts.slice();
-    } else {
-        newTexts = new Array(newParas.length).fill(null);
-    }
+    let newTexts = oldTexts.length === newParas.length ? oldTexts.slice() : new Array(newParas.length).fill(null);
 
     book.paragraphs = newParas;
     book.content = newCh;
     book.translatedTexts = newTexts;
     book.translationTotal = newParas.length;
-    if(book.source === 'aozora'){
-        book.translationStatus = 'done';
-        book.translationDone = newParas.length;
-    } else if(book.translationStatus === 'done'){
-        book.translationDone = newParas.length;
-    }
+    if(book.source === 'aozora'){ book.translationStatus = 'done'; book.translationDone = newParas.length; }
+    else if(book.translationStatus === 'done'){ book.translationDone = newParas.length; }
     book.formatVersion = BOOK_FORMAT_VERSION;
 
     await saveBookToDB(book);
@@ -755,18 +868,13 @@ async function reprocessAllBooks(onProgress){
     const books = await getAllBooksFromDB();
     const outdated = books.filter(b => isBookOutdated(b));
     if(!outdated.length) return {total:0, updated:0, failed:0};
-
     let updated = 0, failed = 0;
     for(let i=0; i<outdated.length; i++){
-        const b = outdated[i];
         try{
-            const r = await reprocessBook(b.id);
+            const r = await reprocessBook(outdated[i].id);
             if(r.ok && r.updated) updated++;
             else if(!r.ok) failed++;
-        }catch(e){
-            failed++;
-            console.warn('[再処理] 失敗:', b.id, e.message);
-        }
+        }catch(e){ failed++; }
         if(typeof onProgress === 'function') onProgress(i+1, outdated.length);
     }
     return {total: outdated.length, updated, failed};
@@ -783,15 +891,12 @@ async function handleReprocessOne(bookId){
     try{
         const r = await reprocessBook(bookId);
         if(r.ok){
-            if(r.skipped) showToast('再処理は不要です', 'info');
-            else showToast(`再処理完了（${r.paragraphCount}段落）`, 'success', 3000);
+            showToast(r.skipped ? '再処理は不要です' : `再処理完了（${r.paragraphCount}段落）`, r.skipped ? 'info' : 'success', 3000);
             loadBookshelf();
         } else {
             showToast('再処理失敗: ' + (r.reason || '不明'), 'error');
         }
-    }catch(e){
-        showToast('再処理失敗: ' + e.message, 'error');
-    }
+    }catch(e){ showToast('再処理失敗: ' + e.message, 'error'); }
 }
 window.handleReprocessOne = handleReprocessOne;
 
@@ -802,26 +907,14 @@ async function handleReprocessAll(){
         const r = await reprocessAllBooks((done, total)=>{
             if(btn) btn.textContent = `再処理中 ${done}/${total}...`;
         });
-        if(r.total === 0){
-            showToast('要更新の本はありません', 'info');
-        } else {
-            const msg = r.failed > 0
-                ? `${r.updated}/${r.total}件を再処理（失敗 ${r.failed}件）`
-                : `${r.updated}/${r.total}件を再処理しました`;
-            showToast(msg, r.failed > 0 ? 'warn' : 'success', 5000);
-        }
+        if(r.total === 0) showToast('要更新の本はありません', 'info');
+        else showToast(r.failed > 0 ? `${r.updated}/${r.total}件を再処理（失敗 ${r.failed}件）` : `${r.updated}/${r.total}件を再処理しました`, r.failed > 0 ? 'warn' : 'success', 5000);
         loadBookshelf();
-    }catch(e){
-        showToast('再処理エラー: ' + e.message, 'error');
-    }finally{
-        if(btn) btn.disabled = false;
-    }
+    }catch(e){ showToast('再処理エラー: ' + e.message, 'error'); }
+    finally{ if(btn) btn.disabled = false; }
 }
 window.handleReprocessAll = handleReprocessAll;
 
-/* ============================================================
-   検索ソース・モード切替
-   ============================================================ */
 function setSource(source){
     current_source = source;
     document.getElementById("source-gutenberg-btn").classList.toggle("active", source === "gutenberg");
@@ -844,9 +937,6 @@ function setSearchMode(mode){
 }
 window.setSearchMode = setSearchMode;
 
-/* ============================================================
-   外部API
-   ============================================================ */
 async function getAuthorEnglishNameFromWikipedia(jpName){
     if(/^[a-zA-Z0-9\s]+$/.test(jpName)) return null;
     try{
@@ -881,9 +971,6 @@ async function translateText(text, source, target){
     return text;
 }
 
-/* ============================================================
-   青空文庫カタログ
-   ============================================================ */
 async function fetchAozoraCatalog(){
     if(aozora_catalog_loading || aozora_catalog_ready) return;
     aozora_catalog_loading = true;
@@ -1036,9 +1123,6 @@ async function searchAozora(query){
     return results.slice(0, 100);
 }
 
-/* ============================================================
-   翻訳ヘルパ
-   ============================================================ */
 function splitTextRoughly(text, maxLen){
     const chunks = [];
     let rest = text;
@@ -1052,20 +1136,8 @@ function splitTextRoughly(text, maxLen){
     return chunks;
 }
 
-function splitTextByBytes(text, maxBytes){
-    const chunks = [];
-    let cur = '';
-    for(const ch of text){
-        if(new Blob([cur+ch]).size > maxBytes){ chunks.push(cur); cur = ch; }
-        else cur += ch;
-    }
-    if(cur) chunks.push(cur);
-    return chunks;
-}
-
 async function translateChunk(text, source, target){
     if(!text || !text.trim()) return {ok:true, text};
-
     for(const inst of shuffled(LINGVA_INSTANCES)){
         try{
             const url = `${inst}/api/v1/${source}/${target}/${encodeURIComponent(text)}`;
@@ -1075,28 +1147,11 @@ async function translateChunk(text, source, target){
             if(data && data.translation) return {ok:true, text:data.translation, endpoint:'Lingva'};
         }catch(e){}
     }
-
-    try{
-        const chunks = splitTextByBytes(text, 450);
-        let combined = '', anyOk = false;
-        for(const c of chunks){
-            const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(c)}&langpair=${encodeURIComponent(source+'|'+target)}`;
-            const res = await fetchWithTimeout(url, {cache:'no-store'}, FETCH_TIMEOUT_TRANSLATE);
-            if(!res.ok) continue;
-            const data = await res.json();
-            if(data && data.responseData && data.responseData.translatedText){
-                const t = data.responseData.translatedText;
-                if(!/MYMEMORY WARNING|INVALID|QUERY LENGTH/i.test(t)){ combined += t; anyOk = true; }
-            }
-            await sleep(150);
-        }
-        if(anyOk) return {ok:true, text:combined, endpoint:'MyMemory'};
-    }catch(e){}
-
     for(const inst of shuffled(LIBRETRANSLATE_INSTANCES)){
         try{
             const res = await fetchWithTimeout(`${inst}/translate`, {
-                method:'POST', headers:{'Content-Type':'application/json'},
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
                 body: JSON.stringify({q:text, source, target})
             }, FETCH_TIMEOUT_TRANSLATE);
             if(!res.ok) continue;
@@ -1104,7 +1159,6 @@ async function translateChunk(text, source, target){
             if(data && data.translatedText) return {ok:true, text:data.translatedText, endpoint:'LibreTranslate'};
         }catch(e){}
     }
-
     return {ok:false, error:'全翻訳APIが失敗しました'};
 }
 
@@ -1159,9 +1213,6 @@ function buildTranslatedHtml(book){
     return book.contentTranslated || book.content || "";
 }
 
-/* ============================================================
-   翻訳ジョブ
-   ============================================================ */
 async function startBackgroundTranslation(bookId){
     if(active_translation_jobs[bookId]) return;
     active_translation_jobs[bookId] = true;
@@ -1263,7 +1314,16 @@ function onTranslationTick(book){
         ima_yonderu_hon.translationTotal = book.translationTotal;
         ima_yonderu_hon.lastError = book.lastError;
         if(!ima_yonderu_hon.paragraphs) ima_yonderu_hon.paragraphs = book.paragraphs;
-        if(is_showing_translation){ applyTranslationToDom(book); if(is_page_mode) schedulePageRecompute(); }
+        if(is_showing_translation){
+            if(bookMode){
+                /* 本モード中は次回開いたときに再構築 */
+            } else {
+                applyTranslationToDom(book);
+                if(is_page_mode) schedulePageRecompute();
+            }
+        } else {
+            readerHtmlCache.translated = null;
+        }
         updateReaderTranslationLabel();
     }
     updateBookshelfRowStatus(book);
@@ -1326,9 +1386,6 @@ async function resumePendingTranslations(){
     }catch(e){}
 }
 
-/* ============================================================
-   ブックマーク
-   ============================================================ */
 function scheduleBookmarkSave(){
     if(!ima_yonderu_hon) return;
     clearTimeout(bookmark_save_timer);
@@ -1339,9 +1396,14 @@ async function saveBookmarkNow(){
     if(!ima_yonderu_hon) return;
     clearTimeout(bookmark_save_timer);
     const rb = document.getElementById('reader-body');
-    const bookmark = is_page_mode
-        ? {isPageMode:true, pageIndex: ima_no_page, scrollTop:0, scrollLeft:0}
-        : {isPageMode:false, pageIndex:0, scrollTop: rb.scrollTop, scrollLeft: rb.scrollLeft};
+    let bookmark;
+    if(bookMode){
+        bookmark = {isBookMode:true, sheetIndex: bookState.flippedCount, pageIndex: 0, scrollTop: 0, scrollLeft: 0};
+    } else if(is_page_mode){
+        bookmark = {isPageMode:true, pageIndex: ima_no_page, scrollTop:0, scrollLeft:0};
+    } else {
+        bookmark = {isPageMode:false, pageIndex:0, scrollTop: rb.scrollTop, scrollLeft: rb.scrollLeft};
+    }
     try{
         const book = await getBookFromDB(ima_yonderu_hon.id);
         if(!book) return;
@@ -1355,7 +1417,10 @@ function restoreBookmark(bookObj){
     const bm = bookObj.bookmark;
     if(!bm) return;
     const rb = document.getElementById('reader-body');
-    if(bm.isPageMode){
+    if(bm.isBookMode){
+        pending_page_restore = bm.sheetIndex || 0;
+        setTimeout(()=>{ if(!bookMode) toggleBookMode(); }, 50);
+    } else if(bm.isPageMode){
         pending_page_restore = bm.pageIndex || 0;
         setTimeout(()=>{ if(!is_page_mode) togglePageMode(); }, 50);
     } else {
@@ -1368,13 +1433,11 @@ function restoreBookmark(bookObj){
 
 async function closeReader(){
     try{ await saveBookmarkNow(); }catch(e){}
+    if(bookMode) exitBookMode(true);
     switchTab('bookshelf');
 }
 window.closeReader = closeReader;
 
-/* ============================================================
-   検索
-   ============================================================ */
 async function execSearch(){
     const q = document.getElementById("search-input").value.trim();
     const t = document.getElementById("results-table");
@@ -1399,7 +1462,7 @@ async function execSearchGutenberg(q_v){
     } else {
         setStatus("search-status", `Wikipediaで「${loose}」の英語表記を探り中...`, 'info');
         eng = await getAuthorEnglishNameFromWikipedia(loose);
-        if(eng){ setStatus("search-status", `Wikipediaで英語表記「${eng}」を発見！`, 'info'); }
+        if(eng) setStatus("search-status", `Wikipediaで英語表記「${eng}」を発見！`, 'info');
         else { setStatus("search-status", "Wikipediaにないので翻訳で英語化中...", 'info'); eng = await translateText(loose, 'ja', 'en'); setStatus("search-status", `翻訳結果「${eng}」でGutendexを検索中...`, 'info'); }
     }
     const clean = eng.replace(/[^\w\s]/gi,' ').replace(/\s+/g,' ').trim();
@@ -1438,9 +1501,6 @@ async function execSearchAozora(q_v){
     }catch(err){ setStatus("search-status", `検索エラー: ${err.message}`, 'error'); showToast('検索エラー: ' + err.message, 'error'); }
 }
 
-/* ============================================================
-   本文ダウンロード（Gutenberg）
-   ============================================================ */
 async function downloadAndSaveGutenberg(bookId){
     const rx = v_project_cache[bookId];
     if(!rx){ setStatus("search-status", "エラー: キャッシュなし", 'error'); showToast('ダウンロード失敗', 'error'); return; }
@@ -1519,9 +1579,6 @@ async function downloadAndSaveGutenberg(bookId){
 }
 window.downloadAndSaveGutenberg = downloadAndSaveGutenberg;
 
-/* ============================================================
-   本文ダウンロード（青空文庫）
-   ============================================================ */
 async function downloadAndSaveAozora(workId, personId, title, personName, zipName){
     const key = 'aozora_' + workId;
     setStatus("search-status", `「${title}」をダウンロード中...`, 'info');
@@ -1619,19 +1676,11 @@ async function downloadAndSaveAozora(workId, personId, title, personName, zipNam
 }
 window.downloadAndSaveAozora = downloadAndSaveAozora;
 
-/* ============================================================
-   本棚
-   ============================================================ */
 function updateReprocessButton(count){
     const btn = document.getElementById('reprocess-all-btn');
     if(!btn) return;
-    if(count > 0){
-        btn.style.display = 'inline-block';
-        btn.disabled = false;
-        btn.textContent = `要更新 ${count}件 / 一括再処理`;
-    } else {
-        btn.style.display = 'none';
-    }
+    if(count > 0){ btn.style.display = 'inline-block'; btn.disabled = false; btn.textContent = `要更新 ${count}件 / 一括再処理`; }
+    else { btn.style.display = 'none'; }
 }
 
 function loadBookshelf(){
@@ -1649,29 +1698,11 @@ function loadBookshelf(){
         const rq = tx.objectStore("books").getAll();
         rq.onsuccess = ()=>{
             const bks = rq.result;
-            if(!bks.length){
-                setStatus("bookshelf-status", "本棚は空っぽです", 'info');
-                t.style.display = "none";
-                updateReprocessButton(0);
-                resolve();
-                return;
-            }
+            if(!bks.length){ setStatus("bookshelf-status", "本棚は空っぽです", 'info'); t.style.display = "none"; updateReprocessButton(0); resolve(); return; }
             let filtered = bks;
             if(favOnly) filtered = filtered.filter(b=>b.favorite);
-            if(filter){
-                filtered = filtered.filter(b=>{
-                    const tt = (b.title || '').toLowerCase();
-                    const aa = (b.author || '').toLowerCase();
-                    return tt.includes(filter) || aa.includes(filter);
-                });
-            }
-            if(!filtered.length){
-                setStatus("bookshelf-status", "条件に一致する本がありません", 'info');
-                t.style.display = "none";
-                updateReprocessButton(0);
-                resolve();
-                return;
-            }
+            if(filter) filtered = filtered.filter(b=>{ const tt = (b.title || '').toLowerCase(); const aa = (b.author || '').toLowerCase(); return tt.includes(filter) || aa.includes(filter); });
+            if(!filtered.length){ setStatus("bookshelf-status", "条件に一致する本がありません", 'info'); t.style.display = "none"; updateReprocessButton(0); resolve(); return; }
             filtered.sort((a,b)=>(a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity));
 
             const outdatedCount = filtered.filter(b => isBookOutdated(b)).length;
@@ -1698,15 +1729,9 @@ function loadBookshelf(){
                 const total = b.translationTotal || (b.paragraphs ? b.paragraphs.length : 0);
                 const done = b.translationDone || 0;
                 const incomplete = b.paragraphs && b.paragraphs.length && done < total;
-                const retryBtn = incomplete
-                    ? `<button onclick="event.stopPropagation(); retryTranslation('${escapeHtml(b.id)}')">翻訳を再開</button>`
-                    : "";
-                const updateBadge = outdated
-                    ? `<span class="update-badge" title="新しい処理形式で読み直せます">⟳</span>`
-                    : "";
-                const reprocessBtn = outdated
-                    ? `<button onclick="event.stopPropagation(); handleReprocessOne('${escapeHtml(b.id)}')">新形式で再処理</button>`
-                    : "";
+                const retryBtn = incomplete ? `<button onclick="event.stopPropagation(); retryTranslation('${escapeHtml(b.id)}')">翻訳を再開</button>` : "";
+                const updateBadge = outdated ? `<span class="update-badge" title="新しい処理形式で読み直せます">⟳</span>` : "";
+                const reprocessBtn = outdated ? `<button onclick="event.stopPropagation(); handleReprocessOne('${escapeHtml(b.id)}')">新形式で再処理</button>` : "";
 
                 tr.innerHTML = `
                     <td class="id-cell">
@@ -1735,9 +1760,7 @@ function loadBookshelf(){
             resolve();
         };
         rq.onerror = ()=>reject(rq.error);
-    }).catch(e=>{
-        setStatus("bookshelf-status", "本棚読み込みエラー: " + e.message, 'error');
-    });
+    }).catch(e=>{ setStatus("bookshelf-status", "本棚読み込みエラー: " + e.message, 'error'); });
 }
 
 async function retryTranslation(bookId){
@@ -1760,7 +1783,6 @@ function handleRowDrop(ev, targetId, rowEl){
     swapBookOrder(drag_zaku_id, targetId);
     drag_zaku_id = null;
 }
-
 function swapBookOrder(idA, idB){
     safeDBOp(["books"], "readwrite", (tx, resolve)=>{
         const st = tx.objectStore("books");
@@ -1815,48 +1837,21 @@ function toggleFavorite(bookId){
     safeDBOp(["books"], "readwrite", (tx, resolve)=>{
         const st = tx.objectStore("books");
         const rq = st.get(bookId);
-        rq.onsuccess = ()=>{
-            const b = rq.result;
-            if(!b){ resolve(); return; }
-            b.favorite = !b.favorite;
-            st.put(b);
-        };
+        rq.onsuccess = ()=>{ const b = rq.result; if(!b){ resolve(); return; } b.favorite = !b.favorite; st.put(b); };
         tx.oncomplete = ()=>{ loadBookshelf(); resolve(); };
     }).catch(()=>{});
 }
 window.toggleFavorite = toggleFavorite;
 
-function confirmDeleteBook(bookId){
-    closeAllRowMenus();
-    delete_kill_confirm_id = bookId;
-    document.getElementById("confirm-modal").classList.add("active");
-}
+function confirmDeleteBook(bookId){ closeAllRowMenus(); delete_kill_confirm_id = bookId; document.getElementById("confirm-modal").classList.add("active"); }
 window.confirmDeleteBook = confirmDeleteBook;
-
-function closeConfirmModal(){
-    delete_kill_confirm_id = null;
-    document.getElementById("confirm-modal").classList.remove("active");
-}
+function closeConfirmModal(){ delete_kill_confirm_id = null; document.getElementById("confirm-modal").classList.remove("active"); }
 window.closeConfirmModal = closeConfirmModal;
-
-function executeConfirmedDelete(){
-    if(delete_kill_confirm_id === null) return;
-    const id = delete_kill_confirm_id;
-    deleteBook(id);
-    closeConfirmModal();
-}
+function executeConfirmedDelete(){ if(delete_kill_confirm_id === null) return; const id = delete_kill_confirm_id; deleteBook(id); closeConfirmModal(); }
 window.executeConfirmedDelete = executeConfirmedDelete;
 
-function readSavedBook(bookId){
-    getBookFromDB(bookId).then(b=>{ if(b) openReader(b); }).catch(()=>{});
-}
-
-function deleteBook(bookId){
-    safeDBOp(["books"], "readwrite", (tx, resolve)=>{
-        tx.objectStore("books").delete(bookId);
-        tx.oncomplete = ()=>{ loadBookshelf(); resolve(); };
-    }).catch(()=>{});
-}
+function readSavedBook(bookId){ getBookFromDB(bookId).then(b=>{ if(b) openReader(b); }).catch(()=>{}); }
+function deleteBook(bookId){ safeDBOp(["books"], "readwrite", (tx, resolve)=>{ tx.objectStore("books").delete(bookId); tx.oncomplete = ()=>{ loadBookshelf(); resolve(); }; }).catch(()=>{}); }
 
 /* ============================================================
    リーダー
@@ -1869,6 +1864,7 @@ function openReader(bookObj){
     ima_no_page = 0;
     pending_page_restore = null;
     is_showing_translation = false;
+    if(bookMode) exitBookMode(true);
     document.getElementById("reading-title").textContent = bookObj.title;
     const rb = document.getElementById("reader-body");
     rb.classList.remove("paged");
@@ -1876,6 +1872,12 @@ function openReader(bookObj){
     document.getElementById("page-mode-btn").textContent = "めくりモード";
     const ts = document.getElementById("target-lang-select");
     if(ts) ts.value = bookObj.targetLang || 'ja';
+
+    const isJa = isJapaneseBook(bookObj);
+    current_font_size = isJa ? INITIAL_FONT_SIZE_JA : INITIAL_FONT_SIZE_EN;
+    rb.style.fontSize = `${current_font_size}px`;
+
+    readerHtmlCache = { bookId: bookObj.id, original: null, translated: null };
     updateTranslationButtonLabel();
     renderReaderContent();
     updateReaderTranslationLabel();
@@ -1889,21 +1891,42 @@ function openReader(bookObj){
     }
 }
 
+function getOriginalHtml(){
+    if(!ima_yonderu_hon) return "";
+    if(readerHtmlCache.bookId !== ima_yonderu_hon.id) readerHtmlCache = { bookId: ima_yonderu_hon.id, original: null, translated: null };
+    if(readerHtmlCache.original === null) readerHtmlCache.original = buildOriginalHtml(ima_yonderu_hon);
+    return readerHtmlCache.original;
+}
+function getTranslatedHtml(){
+    if(!ima_yonderu_hon) return "";
+    if(readerHtmlCache.bookId !== ima_yonderu_hon.id) readerHtmlCache = { bookId: ima_yonderu_hon.id, original: null, translated: null };
+    if(readerHtmlCache.translated === null) readerHtmlCache.translated = buildTranslatedHtml(ima_yonderu_hon);
+    return readerHtmlCache.translated;
+}
 function renderReaderContent(){
     if(!ima_yonderu_hon) return;
+    if(bookMode) return;
     const flow = document.getElementById("reader-flow");
-    if(is_showing_translation){ flow.innerHTML = buildTranslatedHtml(ima_yonderu_hon); }
-    else { flow.innerHTML = buildOriginalHtml(ima_yonderu_hon); }
+    const html = is_showing_translation ? getTranslatedHtml() : getOriginalHtml();
+    const tpl = document.createElement('template');
+    tpl.innerHTML = html;
+    flow.replaceChildren(tpl.content);
     if(is_page_mode) requestAnimationFrame(()=>computePageLayout());
 }
-
 function toggleTranslationView(){
     if(!ima_yonderu_hon) return;
     const has = (ima_yonderu_hon.paragraphs && ima_yonderu_hon.paragraphs.length) || !!ima_yonderu_hon.contentTranslated;
     if(!has){ showToast('翻訳データがありません', 'warn'); return; }
     is_showing_translation = !is_showing_translation;
     updateTranslationButtonLabel();
-    renderReaderContent();
+    if(bookMode){
+        /* 本モード中は再構築 */
+        exitBookMode(true).then(()=>enterBookMode());
+        return;
+    }
+    const flow = document.getElementById("reader-flow");
+    flow.innerHTML = '<div class="loading-msg">切り替え中...</div>';
+    requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ renderReaderContent(); }); });
 }
 window.toggleTranslationView = toggleTranslationView;
 
@@ -1911,7 +1934,6 @@ function updateTranslationButtonLabel(){
     const btn = document.getElementById("translate-toggle-btn");
     if(btn) btn.textContent = is_showing_translation ? "原文で読む" : "翻訳で読む";
 }
-
 function updateReaderTranslationLabel(){
     const el = document.getElementById("translation-status-label");
     if(!el) return;
@@ -1952,8 +1974,10 @@ async function changeTargetLang(newLang){
     ima_yonderu_hon.lastError = null;
     await saveBookToDB(ima_yonderu_hon);
     is_showing_translation = true;
+    readerHtmlCache.translated = null;
     updateTranslationButtonLabel();
-    renderReaderContent();
+    if(bookMode){ exitBookMode(true).then(()=>enterBookMode()); }
+    else { renderReaderContent(); }
     updateReaderTranslationLabel();
     startBackgroundTranslation(ima_yonderu_hon.id);
     showToast(`翻訳先を「${LANGUAGE_NAMES[newLang] || newLang}」に変更`, 'info');
@@ -1961,9 +1985,10 @@ async function changeTargetLang(newLang){
 window.changeTargetLang = changeTargetLang;
 
 /* ============================================================
-   めくりモード
+   通常のめくりモード（列ベース）
    ============================================================ */
 function togglePageMode(){
+    if(bookMode) exitBookMode(true);
     is_page_mode = !is_page_mode;
     const rb = document.getElementById("reader-body");
     const flow = document.getElementById("reader-flow");
@@ -1972,20 +1997,29 @@ function togglePageMode(){
     rb.classList.toggle("paged", is_page_mode);
     nav.style.display = is_page_mode ? "flex" : "none";
     btn.textContent = is_page_mode ? "スクロールに戻す" : "めくりモード";
-    if(is_page_mode){ requestAnimationFrame(()=>computePageLayout()); }
-    else { flow.style.columnWidth = ""; flow.style.columnGap = ""; flow.style.columnFill = ""; rb.scrollLeft = 0; }
+    if(is_page_mode){
+        if(ima_yonderu_hon && isJapaneseBook(ima_yonderu_hon) && !is_vertical_mode){
+            is_vertical_mode = true;
+            rb.classList.add('vertical');
+        }
+        requestAnimationFrame(()=>computePageLayout());
+    } else {
+        flow.style.columnWidth = "";
+        flow.style.columnGap = "";
+        flow.style.columnFill = "";
+        rb.scrollLeft = 0;
+    }
     scheduleBookmarkSave();
 }
 window.togglePageMode = togglePageMode;
 
 function schedulePageRecompute(){
-    if(!is_page_mode) return;
+    if(!is_page_mode || bookMode) return;
     clearTimeout(page_recompute_timer);
     page_recompute_timer = setTimeout(()=>computePageLayout(ima_no_page), 500);
 }
-
 function computePageLayout(keep){
-    if(!is_page_mode) return;
+    if(!is_page_mode || bookMode) return;
     const rb = document.getElementById("reader-body");
     const flow = document.getElementById("reader-flow");
     const pw = rb.clientWidth;
@@ -1998,37 +2032,488 @@ function computePageLayout(keep){
     goToPage(target);
     if(pending_page_restore != null){ goToPage(pending_page_restore); pending_page_restore = null; }
 }
-
-function turnPage(d){ goToPage(ima_no_page + d); }
+function turnPage(d){ if(bookMode) return; goToPage(ima_no_page + d); }
 window.turnPage = turnPage;
-
 function goToPage(i){
+    if(bookMode) return;
     const rb = document.getElementById("reader-body");
     ima_no_page = Math.max(0, Math.min(zenbu_page_su - 1, i));
-    rb.scrollLeft = ima_no_page * (rb.clientWidth + gata_gap_haba);
+    const pageSize = rb.clientWidth + gata_gap_haba;
+    if(is_vertical_mode){ rb.scrollLeft = -ima_no_page * pageSize; }
+    else { rb.scrollLeft = ima_no_page * pageSize; }
     const ind = document.getElementById("page-indicator");
     if(ind) ind.textContent = `${ima_no_page + 1} / ${zenbu_page_su}`;
     scheduleBookmarkSave();
 }
 
 document.getElementById("reader-body").addEventListener("click", (ev)=>{
-    if(!is_page_mode) return;
+    if(bookMode || !is_page_mode) return;
     const rb = ev.currentTarget;
     const rect = rb.getBoundingClientRect();
     const x = (ev.clientX - rect.left) / rect.width;
-    if(x < 0.25) turnPage(-1);
-    else if(x > 0.75) turnPage(1);
+    if(is_vertical_mode){
+        if(x > 0.75) turnPage(-1);
+        else if(x < 0.25) turnPage(1);
+    } else {
+        if(x < 0.25) turnPage(-1);
+        else if(x > 0.75) turnPage(1);
+    }
+});
+document.getElementById("reader-body").addEventListener("scroll", ()=>{ if(is_page_mode || bookMode) return; scheduleBookmarkSave(); });
+document.addEventListener("keydown", (ev)=>{
+    if(bookMode){
+        if(ev.key === "ArrowRight"){
+            if(bookState.rightBound) goPrevSheet(); else goNextSheet();
+        }
+        if(ev.key === "ArrowLeft"){
+            if(bookState.rightBound) goNextSheet(); else goPrevSheet();
+        }
+        return;
+    }
+    if(!is_page_mode) return;
+    if(ev.key === "ArrowRight") turnPage(1);
+    if(ev.key === "ArrowLeft") turnPage(-1);
+});
+window.addEventListener("resize", ()=>{
+    if(bookMode){ /* 本モードは手動でリサイズ対応しない（次回開いたときに再構築） */ }
+    else if(is_page_mode) computePageLayout(ima_no_page);
 });
 
-document.getElementById("reader-body").addEventListener("scroll", ()=>{ if(is_page_mode) return; scheduleBookmarkSave(); });
-document.addEventListener("keydown", (ev)=>{ if(!is_page_mode) return; if(ev.key === "ArrowRight") turnPage(1); if(ev.key === "ArrowLeft") turnPage(-1); });
-window.addEventListener("resize", ()=>{ if(is_page_mode) computePageLayout(ima_no_page); });
+/* ============================================================
+   本モード（3Dめくりアニメーション）
+   ============================================================ */
+function buildParagraphHtml(p){
+    const pHtml = (p.html != null) ? p.html : escapeHtml(p.text);
+    const tag = p.tag || 'p';
+    const classes = (p.classes || []).join(' ');
+    const cls = classes ? ` class="${classes}"` : '';
+    return `<${tag}${cls}>${pHtml}</${tag}>`;
+}
+
+/* 段落をページに振り分け（測定ベース） */
+function paginateContent(paragraphs, pageW, pageH, fontSize, isVertical, fontFamily){
+    const measure = document.createElement('div');
+    measure.style.cssText = `
+        position:fixed;visibility:hidden;top:-10000px;left:-10000px;
+        width:${pageW}px;height:${pageH}px;
+        font-size:${fontSize}px;line-height:1.9;
+        padding:${isVertical ? '30px 40px' : '40px 30px 30px'};
+        box-sizing:border-box;
+        font-family:${fontFamily};
+        overflow:hidden;
+        ${isVertical ? 'writing-mode:vertical-rl;text-orientation:mixed;' : ''}
+    `;
+    document.body.appendChild(measure);
+
+    const pages = [];
+    let current = [];
+    let currentHtml = '';
+
+    const overflows = ()=>{
+        if(isVertical){
+            return measure.scrollWidth > pageW + 4;
+        }
+        return measure.scrollHeight > pageH + 4;
+    };
+
+    for(let i=0; i<paragraphs.length; i++){
+        const item = buildParagraphHtml(paragraphs[i]);
+        measure.innerHTML = currentHtml + item;
+        if(overflows() && current.length > 0){
+            pages.push(current);
+            current = [item];
+            currentHtml = item;
+        } else {
+            current.push(item);
+            currentHtml += item;
+        }
+    }
+    if(current.length) pages.push(current);
+    document.body.removeChild(measure);
+    return pages;
+}
+
+/* シート生成 */
+function createBookSheet(frontPageHtmls, backPageHtmls, sheetIndex, totalSheets, isVertical){
+    const el = document.createElement('div');
+    el.className = 'sheet';
+    el.style.zIndex = String(totalSheets - sheetIndex);
+
+    const stripH = bookState.pageH / BOOK_STRIPS;
+    const stripHCss = stripH + 0.7;
+    const strips = [];
+    const frontHtml = frontPageHtmls.join('');
+    const backHtml = backPageHtmls.join('');
+
+    for(let i=0; i<BOOK_STRIPS; i++){
+        const strip = document.createElement('div');
+        strip.className = 'strip';
+        strip.style.height = stripHCss + 'px';
+
+        const front = document.createElement('div');
+        front.className = 'face front';
+        const fc = document.createElement('div');
+        fc.className = 'book-page-content';
+        fc.style.top = (-i * stripH) + 'px';
+        fc.innerHTML = `<div class="book-page${isVertical ? ' vertical' : ''}">${frontHtml || '&nbsp;'}</div>`;
+        front.appendChild(fc);
+
+        const back = document.createElement('div');
+        back.className = 'face back';
+        const bc = document.createElement('div');
+        bc.className = 'book-page-content';
+        bc.style.top = (-i * stripH) + 'px';
+        bc.innerHTML = `<div class="book-page${isVertical ? ' vertical' : ''}">${backHtml || '&nbsp;'}</div>`;
+        back.appendChild(bc);
+
+        strip.appendChild(front);
+        strip.appendChild(back);
+        el.appendChild(strip);
+        strips.push(strip);
+    }
+    return {el, strips};
+}
+
+function updateBookSheet(s){
+    const p = s.flip;
+    if(bookState.rightBound){
+        s.el.style.transform = `rotateY(${(180 * p).toFixed(3)}deg)`;
+    } else {
+        s.el.style.transform = `rotateY(${(-180 * p).toFixed(3)}deg)`;
+    }
+
+    const curlAmount = Math.sin(p * Math.PI);
+    const CURL_MAX = 46;
+
+    let py = 0, pz = 0;
+    for(let i=0; i<BOOK_STRIPS; i++){
+        const u = BOOK_STRIPS === 1 ? 0 : i / (BOOK_STRIPS - 1);
+        const profile = u * u;
+        const A = CURL_MAX * profile * curlAmount;
+        const strip = s.strips[i];
+        strip.style.transform =
+            `translate3d(0, ${py.toFixed(3)}px, ${pz.toFixed(3)}px) ` +
+            `rotateX(${A.toFixed(3)}deg)`;
+        const rad = A * Math.PI / 180;
+        const stripH = bookState.pageH / BOOK_STRIPS;
+        py += stripH * Math.cos(rad);
+        pz += stripH * Math.sin(rad);
+    }
+}
+
+function updateBookShift(){
+    const totalW = bookState.pageW * 2;
+    const half = totalW / 2;
+    const closed = Math.max(0, 1 - bookState.flippedCount);
+    const shift = (bookState.rightBound ? 1 : -1) * (closed * half / 2);
+    document.getElementById('book-container').style.setProperty('--shift', shift + 'px');
+}
+
+function bookAnimationLoop(now){
+    const dt = Math.min(0.04, (now - bookState.lastT) / 1000);
+    bookState.lastT = now;
+    let active = false;
+    for(const s of bookState.sheets){
+        if(s.dragging){
+            updateBookSheet(s);
+            active = true;
+            continue;
+        }
+        const diff = s.target - s.flip;
+        if(Math.abs(diff) < 0.0008 && Math.abs(s.vel) < 0.0008){
+            if(s.flip !== s.target){
+                s.flip = s.target;
+                updateBookSheet(s);
+            }
+            s.vel = 0;
+            continue;
+        }
+        const acc = BOOK_K * diff - BOOK_C * s.vel;
+        s.vel += acc * dt;
+        s.flip += s.vel * dt;
+        if(s.flip < 0){ s.flip = 0; if(s.vel < 0) s.vel = 0; }
+        if(s.flip > 1){ s.flip = 1; if(s.vel > 0) s.vel = 0; }
+        updateBookSheet(s);
+        active = true;
+    }
+    bookState.rafId = active ? requestAnimationFrame(bookAnimationLoop) : null;
+}
+function startBookAnim(){
+    if(bookState.rafId) return;
+    bookState.lastT = performance.now();
+    bookState.rafId = requestAnimationFrame(bookAnimationLoop);
+}
+
+function goNextSheet(){
+    if(bookState.flippedCount >= bookState.sheets.length) return;
+    const s = bookState.sheets[bookState.flippedCount];
+    s.target = 1;
+    bookState.flippedCount++;
+    updateBookShift();
+    startBookAnim();
+    scheduleBookmarkSave();
+}
+function goPrevSheet(){
+    if(bookState.flippedCount <= 0) return;
+    bookState.flippedCount--;
+    const s = bookState.sheets[bookState.flippedCount];
+    s.target = 0;
+    updateBookShift();
+    startBookAnim();
+    scheduleBookmarkSave();
+}
+function goToSheet(idx){
+    const target = Math.max(0, Math.min(bookState.sheets.length, idx));
+    while(bookState.flippedCount > target){ goPrevSheet(); }
+    while(bookState.flippedCount < target){ goNextSheet(); }
+}
+window.goNextSheet = goNextSheet;
+window.goPrevSheet = goPrevSheet;
+
+/* ドラッグ／スワイプ */
+function bindBookDrag(){
+    const bookEl = document.getElementById('book-container');
+    bookEl.addEventListener('pointerdown', (e)=>{
+        if(e.pointerType === 'mouse' && e.button !== 0) return;
+        if(bookState.drag) return;
+        bookState.drag = {
+            id: e.pointerId,
+            x0: e.clientX, y0: e.clientY,
+            started: false, dead: false,
+            sheet: null, primary: 'x',
+            base: 0, t0: performance.now()
+        };
+        try{ bookEl.setPointerCapture(e.pointerId); }catch(_){}
+    });
+    bookEl.addEventListener('pointermove', (e)=>{
+        const drag = bookState.drag;
+        if(!drag || e.pointerId !== drag.id) return;
+        const dx = e.clientX - drag.x0;
+        const dy = e.clientY - drag.y0;
+        if(!drag.started){
+            if(Math.hypot(dx, dy) < BOOK_DRAG_THRESHOLD) return;
+            const primary = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+            const delta = primary === 'x' ? dx : dy;
+            let sheet;
+            if(delta < 0){
+                if(bookState.flippedCount >= bookState.sheets.length){ drag.dead = true; drag.started = true; return; }
+                sheet = bookState.sheets[bookState.flippedCount];
+            } else {
+                if(bookState.flippedCount <= 0){ drag.dead = true; drag.started = true; return; }
+                sheet = bookState.sheets[bookState.flippedCount - 1];
+            }
+            drag.sheet = sheet;
+            drag.primary = primary;
+            drag.base = sheet.flip;
+            drag.started = true;
+            sheet.dragging = true;
+            sheet.vel = 0;
+            bookEl.classList.add('grabbing');
+            startBookAnim();
+        }
+        if(drag.dead || !drag.sheet) return;
+        const delta = drag.primary === 'x' ? dx : dy;
+        const size = drag.primary === 'x' ? (bookState.pageW * 0.9) : (bookState.pageH * 0.9);
+        const progress = -delta / size;
+        const s = drag.sheet;
+        s.flip = Math.max(0, Math.min(1, drag.base + progress));
+        updateBookSheet(s);
+    });
+    const endDrag = (e, cancelled)=>{
+        const drag = bookState.drag;
+        if(!drag || e.pointerId !== drag.id) return;
+        bookState.drag = null;
+        bookEl.classList.remove('grabbing');
+        if(drag.sheet && !drag.dead){
+            const s = drag.sheet;
+            s.dragging = false;
+            const complete = s.flip > 0.5;
+            if(complete){
+                s.target = 1;
+                if(s.index === bookState.flippedCount) bookState.flippedCount++;
+            } else {
+                s.target = 0;
+                if(s.index === bookState.flippedCount - 1) bookState.flippedCount--;
+            }
+            updateBookShift();
+            startBookAnim();
+            scheduleBookmarkSave();
+            return;
+        }
+        if(!drag.started && !drag.dead && performance.now() - drag.t0 < 500){
+            const r = bookEl.getBoundingClientRect();
+            const cx = r.left + r.width / 2;
+            const isRightHalf = e.clientX > cx;
+            if(bookState.rightBound){
+                if(isRightHalf) goPrevSheet(); else goNextSheet();
+            } else {
+                if(isRightHalf) goNextSheet(); else goPrevSheet();
+            }
+        }
+    };
+    bookEl.addEventListener('pointerup', e=>endDrag(e, false));
+    bookEl.addEventListener('pointercancel', e=>endDrag(e, true));
+}
+
+async function enterBookMode(){
+    if(bookMode) return;
+    if(!ima_yonderu_hon || !ima_yonderu_hon.paragraphs || !ima_yonderu_hon.paragraphs.length){
+        showToast('この本は本文データがありません', 'warn');
+        return;
+    }
+    bookMode = true;
+
+    const rb = document.getElementById('reader-body');
+    const stage = document.getElementById('book-stage');
+    const loading = document.getElementById('book-loading');
+    const container = document.getElementById('book-container');
+
+    document.getElementById('reader-flow').style.display = 'none';
+    document.getElementById('page-nav').style.display = 'none';
+    stage.style.display = 'flex';
+    stage.classList.add('active');
+    loading.classList.add('active');
+    loading.style.display = 'block';
+    rb.classList.add('paged');
+    document.getElementById('book-mode-btn').textContent = '本モード解除';
+
+    // ページサイズ計算
+    const stageW = stage.clientWidth;
+    const stageH = stage.clientHeight;
+    const padX = 40, padY = 40;
+    const availW = Math.max(200, stageW - padX);
+    const availH = Math.max(280, stageH - padY);
+
+    let pageH, pageW;
+    const spreadAspect = BOOK_ASPECT * 2;
+    if(availW / availH >= spreadAspect){
+        pageH = availH;
+        pageW = pageH * BOOK_ASPECT;
+    } else {
+        pageW = availW / 2;
+        pageH = pageW / BOOK_ASPECT;
+        if(pageH > availH){
+            pageH = availH;
+            pageW = pageH * BOOK_ASPECT;
+        }
+    }
+    pageW = Math.floor(pageW);
+    pageH = Math.floor(pageH);
+
+    const isJa = isJapaneseBook(ima_yonderu_hon);
+    const isVertical = isJa;
+    const rightBound = isJa;
+
+    bookState.pageW = pageW;
+    bookState.pageH = pageH;
+    bookState.isVertical = isVertical;
+    bookState.rightBound = rightBound;
+    bookState.flippedCount = pending_page_restore != null ? pending_page_restore : 0;
+    bookState.sheets = [];
+    bookState.rafId = null;
+    bookState.drag = null;
+    pending_page_restore = null;
+
+    stage.classList.remove('left-bound', 'right-bound');
+    stage.classList.add(rightBound ? 'right-bound' : 'left-bound');
+    container.style.width = (pageW * 2) + 'px';
+    container.style.height = pageH + 'px';
+    container.innerHTML = '';
+
+    // ページング
+    const paragraphs = ima_yonderu_hon.paragraphs;
+    const visibleParagraphs = is_showing_translation
+        ? paragraphs.map((p, i)=>{
+            const t = (ima_yonderu_hon.translatedTexts || [])[i];
+            return {tag:p.tag, classes:p.classes, text: t != null ? t : p.text, html: escapeHtml(t != null ? t : p.text)};
+        })
+        : paragraphs;
+
+    const fontFamily = getComputedStyle(document.body).fontFamily;
+    let pages;
+    try{
+        pages = paginateContent(visibleParagraphs, pageW, pageH, current_font_size, isVertical, fontFamily);
+    }catch(e){
+        console.error('paginate error', e);
+        pages = [];
+        const chunkSize = 6;
+        for(let i=0;i<visibleParagraphs.length;i+=chunkSize){
+            pages.push(visibleParagraphs.slice(i, i+chunkSize).map(buildParagraphHtml));
+        }
+    }
+    if(!pages.length) pages.push([]);
+
+    const numSheets = Math.ceil(pages.length / 2);
+    for(let i=0; i<numSheets; i++){
+        const front = pages[i*2] || [];
+        const back = pages[i*2+1] || [];
+        const { el, strips } = createBookSheet(front, back, i, numSheets, isVertical);
+        const sheet = {
+            el, strips, index: i,
+            flip: 0, target: 0, vel: 0, dragging: false
+        };
+        container.appendChild(el);
+        bookState.sheets.push(sheet);
+    }
+
+    loading.classList.remove('active');
+    loading.style.display = 'none';
+
+    /* 復元 */
+    const restoreIdx = bookState.flippedCount;
+    bookState.flippedCount = 0;
+    for(const s of bookState.sheets){ s.flip = 0; s.target = 0; updateBookSheet(s); }
+    if(restoreIdx > 0){
+        for(let i=0; i<restoreIdx && i<bookState.sheets.length; i++){
+            bookState.sheets[i].flip = 1;
+            bookState.sheets[i].target = 1;
+            updateBookSheet(bookState.sheets[i]);
+        }
+        bookState.flippedCount = Math.min(restoreIdx, bookState.sheets.length);
+    }
+    updateBookShift();
+
+    // ドラッグバインド（初回のみ）
+    if(!container.dataset.dragBound){
+        bindBookDrag();
+        container.dataset.dragBound = '1';
+    }
+}
+
+async function exitBookMode(silent){
+    if(!bookMode) return;
+    bookMode = false;
+    const stage = document.getElementById('book-stage');
+    stage.classList.remove('active');
+    stage.style.display = 'none';
+    document.getElementById('reader-flow').style.display = '';
+    document.getElementById('book-container').innerHTML = '';
+    document.getElementById('book-mode-btn').textContent = '本モード';
+    const rb = document.getElementById('reader-body');
+    if(!is_page_mode){
+        rb.classList.remove('paged');
+        document.getElementById('page-nav').style.display = 'none';
+    } else {
+        document.getElementById('page-nav').style.display = 'flex';
+        requestAnimationFrame(()=>computePageLayout(ima_no_page));
+    }
+    bookState.sheets = [];
+}
+
+function toggleBookMode(){
+    if(bookMode) exitBookMode();
+    else enterBookMode();
+}
+window.toggleBookMode = toggleBookMode;
 
 /* ============================================================
    タブ切替・表示
    ============================================================ */
 function switchTab(tabName){
-    if(document.getElementById("reader-view").classList.contains("active")){ saveBookmarkNow().catch(()=>{}); }
+    if(document.getElementById("reader-view").classList.contains("active")){
+        saveBookmarkNow().catch(()=>{});
+    }
+    if(bookMode) exitBookMode(true);
     document.getElementById("reader-view").classList.remove("active");
     document.querySelectorAll(".view-panel").forEach(p=>p.classList.remove("active"));
     if(tabName === "search") document.getElementById("search-view").classList.add("active");
@@ -2040,13 +2525,24 @@ function toggleWritingMode(){
     const rb = document.getElementById("reader-body");
     is_vertical_mode = !is_vertical_mode;
     rb.classList.toggle("vertical", is_vertical_mode);
+    if(bookMode){
+        /* 本モード中は再構築 */
+        exitBookMode(true).then(()=>enterBookMode());
+        return;
+    }
     if(is_page_mode) computePageLayout(ima_no_page);
 }
 window.toggleWritingMode = toggleWritingMode;
 
 function changeFontSize(d){
-    current_font_size = Math.max(12, Math.min(36, current_font_size + d));
+    const isJa = ima_yonderu_hon ? isJapaneseBook(ima_yonderu_hon) : true;
+    const maxSize = isJa ? MAX_FONT_SIZE_JA : MAX_FONT_SIZE_EN;
+    current_font_size = Math.max(MIN_FONT_SIZE, Math.min(maxSize, current_font_size + d));
     document.getElementById("reader-body").style.fontSize = `${current_font_size}px`;
+    if(bookMode){
+        exitBookMode(true).then(()=>enterBookMode());
+        return;
+    }
     if(is_page_mode) computePageLayout(ima_no_page);
 }
 window.changeFontSize = changeFontSize;
@@ -2074,38 +2570,28 @@ function escapeHtml(str){
 window.onload = async ()=>{
     try{ await initDB(); }
     catch(err){ showToast('DB初期化失敗: ' + err.message, 'error', 15000); return; }
-
     resumePendingTranslations();
-
     setTimeout(async ()=>{
         try{
             const cached = await getCacheFromDB(CATALOG_CACHE_KEY);
-            if(cached && cached.value && cached.value.length > 100 && cached.value[0].zipName !== undefined){
-                console.log('[青空文庫] キャッシュ済みのため先読み不要');
-                return;
-            }
+            if(cached && cached.value && cached.value.length > 100 && cached.value[0].zipName !== undefined){ console.log('[青空文庫] キャッシュ済みのため先読み不要'); return; }
             console.log('[青空文庫] バックグラウンド先読み開始...');
             await fetchAozoraCatalog();
         }catch(e){ console.warn('[青空文庫] 先読み失敗:', e.message); }
     }, 2000);
-
     setTimeout(async ()=>{
         try{
             const count = await countOutdatedBooks();
-            if(count > 0){
-                showToast(`本棚に ${count}件 の「要更新」本があります。本棚タブの「一括再処理」で更新できます。`, 'info', 12000);
-            }
+            if(count > 0) showToast(`本棚に ${count}件 の「要更新」本があります。`, 'info', 12000);
         }catch(e){}
     }, 5000);
 };
-
 window.addEventListener('error', (ev)=>{
     const msg = ev.message || 'unknown';
     if(msg.includes('database connection is closing')) return;
     showErrorBanner('予期しないエラーが発生しました', msg);
     try{ showToast('予期しないエラー: ' + msg, 'error', 12000); }catch(e){}
 });
-
 window.addEventListener('unhandledrejection', (ev)=>{
     try{
         const msg = (ev.reason && ev.reason.message) ? ev.reason.message : String(ev.reason);
