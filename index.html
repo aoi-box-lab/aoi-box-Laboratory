@@ -107,12 +107,12 @@
         }
 
         .mode-toggle button {
-            padding: 10px 14px;
+            padding: 6px 10px;
             border: 1px solid var(--border-color);
             background: var(--card-bg);
             color: var(--text-color);
             cursor: pointer;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
         }
 
         .mode-toggle button:first-child {
@@ -128,6 +128,12 @@
             background: var(--accent-color);
             color: #fff;
             border-color: var(--accent-color);
+        }
+
+        /* 選ばれてない方のボタンをちゃんと「薄く」する。activeじゃない側は
+           opacityを落として、今どっちのモードなのか一目でわかるようにした */
+        .mode-toggle button:not(.active) {
+            opacity: 0.45;
         }
 
         .search-box input {
@@ -568,6 +574,35 @@ async function getOriginalTitleFromNDL(jpTitle)
     return null;
 }
 
+// 著者名専用の英語化システム。Google翻訳に直接名前を突っ込むと
+// 直訳になってそのまま返ってきたり変な逐語訳になったりで使い物にならなかったので、
+// まずWikipediaの言語間リンクから本人の英語表記を引っ張ってくる方式に変えた
+async function getAuthorEnglishNameFromWikipedia(jpName)
+{
+    if (/^[a-zA-Z0-9\s]+$/.test(jpName)) return null; // 既に英語ならそのまま使えばいい
+
+    try 
+    {
+        // generator=searchで一番近いページを探しつつ、同じリクエストでlanglinksも取る
+        const wiki_api = `https://ja.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(jpName)}&gsrlimit=1&prop=langlinks&lllang=en&format=json&origin=*`;
+        const res = await fetch(maji_de_proxy_base + encodeURIComponent(wiki_api));
+        const data = await res.json();
+
+        const pages = data && data.query && data.query.pages;
+        if (!pages) return null;
+
+        const page = Object.values(pages)[0];
+        const eng_title = page && page.langlinks && page.langlinks[0] && page.langlinks[0]["*"];
+
+        return eng_title || null;
+    } 
+    catch (err) 
+    {
+        console.warn("Wikipediaの言語間リンク取得コケた…", err);
+        return null;
+    }
+}
+
 // NDLで見つからなかった時のためのGoogle翻訳
 async function translateToEnglish(jpText)
 {
@@ -630,10 +665,21 @@ async function execSearch()
     }
     else
     {
-        // 著者名でNDLの原題検索やっても意味ないから、ここはワープしてGoogle翻訳に直行する
-        s_e.textContent = `著者名「${loose_jp_q}」を英語化中... ( ˘ω˘ )`;
-        eng_q = await translateToEnglish(loose_jp_q);
-        s_e.textContent = `翻訳結果「${eng_q}」でGutendexを索敵中...`;
+        // 著者名はGoogle翻訳に直接ぶち込んでも直訳になったり名前が崩れたりで
+        // 精度が雑すぎたので、まずWikipediaの言語間リンクから本人の英語表記を探す
+        s_e.textContent = `Wikipediaで「${loose_jp_q}」の英語表記を探り中... ( ｀・ω・´)`;
+        eng_q = await getAuthorEnglishNameFromWikipedia(loose_jp_q);
+
+        if (eng_q) 
+        {
+            s_e.textContent = `Wikipediaで英語表記「${eng_q}」を発見！Gutendexを索敵中...`;
+        } 
+        else 
+        {
+            s_e.textContent = "Wikipediaに無いからGoogle翻訳で英語化中... ( ˘ω˘ )";
+            eng_q = await translateToEnglish(loose_jp_q);
+            s_e.textContent = `翻訳結果「${eng_q}」でGutendexを索敵中...`;
+        }
     }
 
     // Gutendexは記号にクソ弱いので、アルファベットと数字以外をスペースにしてクリーンにする
