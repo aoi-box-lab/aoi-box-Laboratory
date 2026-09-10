@@ -1,133 +1,186 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>海外小説 邦題サーチ (ノーエラー単一HTML版)</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            max-width: 650px;
-            margin: 30px auto;
-            padding: 20px;
-            background-color: #f0f2f5;
-            color: #333;
-        }
-        .card {
-            background: #fff;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
-        .input-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        input[type="text"] {
-            flex: 1;
-            padding: 12px;
-            font-size: 16px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-        }
-        button {
-            padding: 12px 20px;
-            font-size: 16px;
-            background-color: #0066cc;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-        button:hover { background-color: #0052a3; }
-        #result_box {
-            margin-top: 20px;
-            line-height: 1.6;
-        }
-        .res-item {
-            background: #fafafa;
-            border-left: 4px solid #0066cc;
-            padding: 12px;
-            margin-bottom: 12px;
-            border-radius: 0 6px 6px 0;
-        }
-        .res-title { font-weight: bold; color: #1a0dab; }
-        .res-snippet { font-size: 14px; color: #555; margin-top: 4px; }
-        .highlight { background-color: #fff3cd; font-weight: bold; padding: 0 2px; }
-        .error { color: #d9534f; font-weight: bold; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>邦題 → 原題</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#0f1115;color:#e6e8ec;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.6}
+  .wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px}
+  h1{font-size:20px;margin:0 0 16px;font-weight:600}
+  .bar{display:flex;gap:8px}
+  input{flex:1;padding:12px 14px;font-size:16px;background:#171a21;border:1px solid #2a2f3a;border-radius:8px;color:#e6e8ec;outline:none}
+  input:focus{border-color:#5b8cff}
+  button{padding:12px 20px;font-size:15px;font-weight:600;background:#5b8cff;border:0;border-radius:8px;color:#fff;cursor:pointer}
+  button:hover{background:#7aa2ff}
+  button:disabled{opacity:.5;cursor:default}
+  .status{margin-top:18px;font-size:14px;color:#8b93a7;min-height:20px}
+  .status.err{color:#ff7a7a}
+  .card{background:#171a21;border:1px solid #2a2f3a;border-radius:10px;padding:16px;margin-top:12px}
+  .ja{font-size:15px;font-weight:600}
+  .orig{margin-top:8px;font-size:18px;font-weight:700;color:#ffd66b;word-break:break-word}
+  .orig.none{color:#8b93a7;font-weight:400;font-size:14px}
+  .meta{margin-top:8px;font-size:13px;color:#8b93a7}
+  .meta span{margin-right:12px}
+  a{color:#5b8cff;font-size:12px;text-decoration:none}
+  a:hover{text-decoration:underline}
+  details{margin-top:24px;font-size:13px;color:#8b93a7}
+  summary{cursor:pointer}
+  pre{background:#0b0d11;border:1px solid #2a2f3a;border-radius:8px;padding:12px;overflow:auto;max-height:360px;font-size:12px;color:#b7bfd0}
+</style>
 </head>
 <body>
-
-<div class="card">
-    <h2>海外小説 邦題サーチ (単一HTML・公式API版)</h2>
-    <p>原題を入力したらWikipedia全体の本文から言及（スニペット）を探すよ ┌(┌ .w.)┐</p>
-    
-    <div class="input-group">
-        <input type="text" id="target_book" placeholder="例: White Knights や 白衣の騎士団">
-        <button onclick="maji_de_safe_search()">検索実行</button>
-    </div>
-
-    <div id="result_box">ここに検索結果が出るよ (｀・ω・´)</div>
+<div class="wrap">
+  <h1>邦題 → 原題 検索</h1>
+  <div class="bar">
+    <input id="q" placeholder="例：白衣の騎士団" autofocus>
+    <button id="go">検索</button>
+  </div>
+  <div class="status" id="s"></div>
+  <div id="r"></div>
+  <details>
+    <summary>生のXML</summary>
+    <pre id="raw">（未検索）</pre>
+  </details>
 </div>
 
 <script>
-// プロキシ不要！Wikipedia公式API（CORS完全許可）を叩く処理
-async function maji_de_safe_search() 
-{
-    let inputStr = document.getElementById("target_book").value.trim();
-    let resBox = document.getElementById("result_box");
+const PROXIES = [
+  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  u => 'https://corsproxy.io/?' + encodeURIComponent(u),
+  u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
+  u => u,
+];
 
-    if (!inputStr) {
-        resBox.innerHTML = "<p class='error'>何か単語いれてくれめんす… (´・ω・`)</p>";
-        return;
+const $q = document.getElementById('q');
+const $go = document.getElementById('go');
+const $s = document.getElementById('s');
+const $r = document.getElementById('r');
+const $raw = document.getElementById('raw');
+
+$go.onclick = run;
+$q.onkeydown = e => { if (e.key === 'Enter') run(); };
+
+async function run() {
+  const title = $q.value.trim();
+  if (!title) return;
+  $go.disabled = true;
+  $s.className = 'status';
+  $s.textContent = '検索中…';
+  $r.innerHTML = '';
+  $raw.textContent = '';
+
+  const api = 'https://ndlsearch.ndl.go.jp/api/opensearch?title='
+    + encodeURIComponent(title) + '&cnt=10';
+
+  let xml = null, lastErr = null;
+  for (const p of PROXIES) {
+    try {
+      const res = await fetch(p(api));
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const t = await res.text();
+      if (!t || t.length < 50) throw new Error('empty');
+      xml = t;
+      break;
+    } catch (e) { lastErr = e; }
+  }
+
+  if (!xml) {
+    $s.className = 'status err';
+    $s.textContent = '取得失敗：' + (lastErr ? lastErr.message : 'unknown');
+    $go.disabled = false;
+    return;
+  }
+
+  $raw.textContent = xml;
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  if (doc.querySelector('parsererror')) {
+    $s.className = 'status err';
+    $s.textContent = 'XMLパース失敗';
+    $go.disabled = false;
+    return;
+  }
+
+  const items = [...doc.getElementsByTagName('item')];
+  if (!items.length) {
+    $s.textContent = '見つかりませんでした';
+    $go.disabled = false;
+    return;
+  }
+  $s.textContent = items.length + ' 件';
+
+  items.forEach(it => $r.appendChild(render(it)));
+  $go.disabled = false;
+}
+
+function txt(parent, tag) {
+  const el = parent.getElementsByTagName(tag)[0];
+  return el ? el.textContent.trim() : '';
+}
+
+function render(item) {
+  const jaTitle = txt(item, 'title');
+  const creator = txt(item, 'creator');
+  const publisher = txt(item, 'publisher');
+  const date = txt(item, 'date');
+  const link = txt(item, 'link');
+
+  const all = item.textContent;
+  const orig = extractOriginal(all, jaTitle);
+
+  const c = document.createElement('div');
+  c.className = 'card';
+
+  const j = document.createElement('div');
+  j.className = 'ja';
+  j.textContent = jaTitle || '(タイトル不明)';
+  c.appendChild(j);
+
+  const o = document.createElement('div');
+  o.className = 'orig' + (orig ? '' : ' none');
+  o.textContent = orig ? '原題： ' + orig : '原題： 情報なし';
+  c.appendChild(o);
+
+  const m = document.createElement('div');
+  m.className = 'meta';
+  [creator, publisher, date].filter(Boolean).forEach(t => {
+    const s = document.createElement('span');
+    s.textContent = t;
+    m.appendChild(s);
+  });
+  c.appendChild(m);
+
+  if (link && /^https?:/.test(link)) {
+    const a = document.createElement('a');
+    a.href = link; a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = 'NDLサーチで開く →';
+    c.appendChild(a);
+  }
+  return c;
+}
+
+function extractOriginal(text, jaTitle) {
+  const pats = [
+    /原タイトル\s*[:：]\s*([^\n\r]+)/,
+    /原題\s*[:：]\s*([^\n\r]+)/,
+    /Original title\s*[:：]\s*([^\n\r]+)/i,
+    /別書名\s*[:：]\s*([^\n\r]+)/,
+  ];
+  for (const p of pats) {
+    const m = text.match(p);
+    if (m) {
+      const cand = m[1].trim().replace(/[。．.\s]+$/, '');
+      if (cand && cand !== jaTitle) return cand;
     }
-
-    resBox.innerHTML = "<p>Wikipedia本文を全文探索中… ┌(┌  .w.)┐</p>";
-
-    // Wikipediaの「本文全文検索API」（origin=*をつけるとCORSエラーが絶対に起きない公式仕様）
-    let wikiApiUrl = `https://ja.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(inputStr)}&utf8=&format=json&origin=*`;
-
-    try 
-    {
-        let response = await fetch(wikiApiUrl);
-        if (!response.ok) throw new Error("API応答エラー");
-        
-        let data = await response.json();
-        let searchResults = data.query?.search;
-
-        if (!searchResults || searchResults.length === 0) {
-            resBox.innerHTML = "<p class='error'>Wikipedia全体探したけどヒットしなかったわ… (´・ω・`)</p>";
-            return;
-        }
-
-        let outputHtml = "<h3>Wikipedia本文での言及スニペット:</h3>";
-
-        searchResults.forEach(item => {
-            let pageTitle = item.title;
-            // APIから返ってくるHTMLタグ付きのスニペット
-            let snippet = item.snippet;
-
-            outputHtml += `
-                <div class="res-item">
-                    <div class="res-title"><a href="https://ja.wikipedia.org/wiki/${encodeURIComponent(pageTitle)}" target="_blank">${pageTitle}</a></div>
-                    <div class="res-snippet">...${snippet}...</div>
-                </div>
-            `;
-        });
-
-        resBox.innerHTML = outputHtml;
-
-    } 
-    catch (e) 
-    {
-        // ここ通る時はオフラインの時くらい
-        console.error("通信エラーでおかしいんだが:", e);
-        resBox.innerHTML = "<p class='error'>通信エラー起きたわ！ネット繋がってるか？？( ;∀;)</p>";
-    }
+  }
+  const latin = text.match(/[A-Z][A-Za-z'’\-]+(?:\s+(?:of|the|and|in|a|an|to|[A-Z][A-Za-z'’\-]+)){2,}/g);
+  if (latin && latin.length) {
+    latin.sort((a, b) => b.length - a.length);
+    return latin[0].trim();
+  }
+  return null;
 }
 </script>
-
 </body>
 </html>
