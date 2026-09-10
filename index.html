@@ -14,425 +14,159 @@
     --border-color:#e0e0e0;
     --font-family:'Georgia','Yu Mincho','Hiragino Mincho ProN',serif;
 }
-body.dark-mode{
-    --bg-color:#1a1a1a;
-    --text-color:#d1d1d1;
-    --accent-color:#6b8cce;
-    --card-bg:#282828;
-    --border-color:#404040;
-}
-body.sepia-mode{
-    --bg-color:#f4ecd8;
-    --text-color:#5b4636;
-    --accent-color:#8c6d53;
-    --card-bg:#fbf0d9;
-    --border-color:#e2d7c0;
-}
+body.dark-mode{--bg-color:#1a1a1a;--text-color:#d1d1d1;--accent-color:#6b8cce;--card-bg:#282828;--border-color:#404040;}
+body.sepia-mode{--bg-color:#f4ecd8;--text-color:#5b4636;--accent-color:#8c6d53;--card-bg:#fbf0d9;--border-color:#e2d7c0;}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
-body{
-    background-color:var(--bg-color);
-    color:var(--text-color);
-    font-family:var(--font-family);
-    transition:background-color .3s,color .3s;
-    height:100vh;
-    display:flex;
-    flex-direction:column;
-    overflow:hidden;
-}
-header{
-    flex-shrink:0;
-    position:relative;
-    z-index:100;
-    padding:12px 20px;
-    background-color:var(--card-bg);
-    border-bottom:1px solid var(--border-color);
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-}
+body{background-color:var(--bg-color);color:var(--text-color);font-family:var(--font-family);transition:background-color .3s,color .3s;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{flex-shrink:0;position:relative;z-index:100;padding:12px 20px;background-color:var(--card-bg);border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center}
 h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
-.nav-buttons button{
-    background:none;
-    border:1px solid var(--border-color);
-    color:var(--text-color);
-    padding:6px 12px;
-    margin-left:8px;
-    border-radius:4px;
-    cursor:pointer;
-}
-.container{
-    flex:1;
-    min-height:0;
-    display:flex;
-    flex-direction:column;
-    overflow:hidden;
-    position:relative;
-}
-.view-panel{
-    flex:1;
-    min-height:0;
-    padding:20px;
-    overflow-y:auto;
-    display:none;
-}
+.nav-buttons button{background:none;border:1px solid var(--border-color);color:var(--text-color);padding:6px 12px;margin-left:8px;border-radius:4px;cursor:pointer}
+.container{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.view-panel{flex:1;min-height:0;padding:20px;overflow-y:auto;display:none}
 .view-panel.active{display:block}
-.search-box{
-    display:flex;
-    gap:10px;
-    max-width:800px;
-    margin:0 auto 20px auto;
-    align-items:center;
-    flex-wrap:wrap;
-}
+.search-box{display:flex;gap:10px;max-width:800px;margin:0 auto 20px auto;align-items:center;flex-wrap:wrap}
 .source-toggle{display:flex;flex-shrink:0}
-.source-toggle button{
-    padding:8px 14px;
-    border:1px solid var(--border-color);
-    background:var(--card-bg);
-    color:var(--text-color);
-    cursor:pointer;
-    font-size:.85rem;
-}
+.source-toggle button{padding:8px 14px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);cursor:pointer;font-size:.85rem}
 .source-toggle button:first-child{border-radius:4px 0 0 4px}
 .source-toggle button:last-child{border-radius:0 4px 4px 0;border-left:none}
 .source-toggle button.active{background:var(--accent-color);color:#fff;border-color:var(--accent-color)}
 .source-toggle button:not(.active){opacity:.45}
 .mode-toggle{display:flex;flex-shrink:0}
-.mode-toggle button{
-    padding:6px 10px;
-    border:1px solid var(--border-color);
-    background:var(--card-bg);
-    color:var(--text-color);
-    cursor:pointer;
-    font-size:.8rem;
-}
+.mode-toggle button{padding:6px 10px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);cursor:pointer;font-size:.8rem}
 .mode-toggle button:first-child{border-radius:4px 0 0 4px}
 .mode-toggle button:last-child{border-radius:0 4px 4px 0;border-left:none}
 .mode-toggle button.active{background:var(--accent-color);color:#fff;border-color:var(--accent-color)}
 .mode-toggle button:not(.active){opacity:.45}
-.search-box input{
-    flex:1;
-    min-width:180px;
-    padding:10px 14px;
-    border:1px solid var(--border-color);
-    border-radius:4px;
-    background:var(--card-bg);
-    color:var(--text-color);
-    font-size:1rem;
-}
-.search-box button{
-    padding:10px 20px;
-    background:var(--accent-color);
-    color:#fff;
-    border:none;
-    border-radius:4px;
-    cursor:pointer;
-}
-.results-table{
-    width:100%;
-    border-collapse:collapse;
-    background:var(--card-bg);
-    box-shadow:0 2px 5px rgba(0,0,0,.05);
-}
-.results-table th,.results-table td{
-    padding:12px 15px;
-    text-align:left;
-    border-bottom:1px solid var(--border-color);
-}
+.search-box input{flex:1;min-width:180px;padding:10px 14px;border:1px solid var(--border-color);border-radius:4px;background:var(--card-bg);color:var(--text-color);font-size:1rem}
+.search-box button{padding:10px 20px;background:var(--accent-color);color:#fff;border:none;border-radius:4px;cursor:pointer}
+.results-table{width:100%;border-collapse:collapse;background:var(--card-bg);box-shadow:0 2px 5px rgba(0,0,0,.05)}
+.results-table th,.results-table td{padding:12px 15px;text-align:left;border-bottom:1px solid var(--border-color)}
 .results-table th{background-color:rgba(0,0,0,.03);font-weight:bold}
 .results-table tr:hover{background-color:rgba(0,0,0,.02);cursor:pointer}
 .id-cell{display:flex;align-items:center;gap:10px}
-.drag-handle{
-    display:flex;
-    flex-direction:column;
-    gap:3px;
-    width:16px;
-    cursor:grab;
-    flex-shrink:0;
-}
+.drag-handle{display:flex;flex-direction:column;gap:3px;width:16px;cursor:grab;flex-shrink:0}
 .drag-handle:active{cursor:grabbing}
 .drag-handle .bar{height:2px;background:var(--text-color);opacity:.4;border-radius:1px}
 .results-table tr.drag-over-row{outline:2px dashed var(--accent-color);outline-offset:-2px}
 .menu-wrap{position:relative;display:inline-block}
-.dots-btn{
-    background:none;
-    border:none;
-    font-size:1.3rem;
-    line-height:1;
-    cursor:pointer;
-    color:var(--text-color);
-    padding:4px 10px;
-}
-.row-menu{
-    display:none;
-    position:fixed;
-    background:var(--card-bg);
-    border:1px solid var(--border-color);
-    border-radius:6px;
-    box-shadow:0 4px 16px rgba(0,0,0,.25);
-    z-index:5000;
-    min-width:180px;
-    overflow:hidden;
-}
+.dots-btn{background:none;border:none;font-size:1.3rem;line-height:1;cursor:pointer;color:var(--text-color);padding:4px 10px}
+.row-menu{display:none;position:fixed;background:var(--card-bg);border:1px solid var(--border-color);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:5000;min-width:180px;overflow:hidden}
 .row-menu.active{display:block}
-.row-menu button{
-    display:block;
-    width:100%;
-    text-align:left;
-    padding:10px 14px;
-    background:none;
-    border:none;
-    cursor:pointer;
-    color:var(--text-color);
-    font-size:.9rem;
-}
+.row-menu button{display:block;width:100%;text-align:left;padding:10px 14px;background:none;border:none;cursor:pointer;color:var(--text-color);font-size:.9rem}
 .row-menu button:hover{background:rgba(0,0,0,.05)}
-#reader-view{
-    flex:1;
-    min-height:0;
-    display:none;
-    flex-direction:column;
-    height:100%;
-    position:relative;
-}
+#reader-view{flex:1;min-height:0;display:none;flex-direction:column;height:100%;position:relative}
 #reader-view.active{display:flex}
-.reader-toolbar{
-    flex-shrink:0;
-    padding:8px 20px;
-    background:var(--card-bg);
-    border-bottom:1px solid var(--border-color);
-    display:flex;
-    gap:10px;
-    align-items:center;
-    font-size:.9rem;
-    flex-wrap:wrap;
-}
-.reader-toolbar button{
-    padding:4px 10px;
-    border:1px solid var(--border-color);
-    background:var(--card-bg);
-    color:var(--text-color);
-    border-radius:4px;
-    cursor:pointer;
-}
-.reader-toolbar select{
-    padding:4px 8px;
-    border:1px solid var(--border-color);
-    background:var(--card-bg);
-    color:var(--text-color);
-    border-radius:4px;
-    cursor:pointer;
-    font-size:.9rem;
-}
-.reader-toolbar .lang-group{
-    display:flex;
-    align-items:center;
-    gap:4px;
-    padding:2px 8px;
-    border-left:1px solid var(--border-color);
-    margin-left:4px;
-}
-.reader-content{
-    flex:1;
-    min-height:0;
-    padding:40px;
-    overflow:auto;
-    line-height:1.8;
-    font-size:1.1rem;
-    max-width:900px;
-    margin:0 auto;
-    width:100%;
-}
-.reader-content.vertical{
-    writing-mode:vertical-rl;
-    text-orientation:mixed;
-    max-width:none;
-    height:100%;
-    padding:40px 60px;
-}
+.reader-toolbar{flex-shrink:0;padding:8px 20px;background:var(--card-bg);border-bottom:1px solid var(--border-color);display:flex;gap:10px;align-items:center;font-size:.9rem;flex-wrap:wrap}
+.reader-toolbar button{padding:4px 10px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);border-radius:4px;cursor:pointer}
+.reader-toolbar select{padding:4px 8px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);border-radius:4px;cursor:pointer;font-size:.9rem}
+.reader-toolbar .lang-group{display:flex;align-items:center;gap:4px;padding:2px 8px;border-left:1px solid var(--border-color);margin-left:4px}
+.reader-content{flex:1;min-height:0;padding:40px;overflow:auto;line-height:1.8;font-size:1.1rem;max-width:900px;margin:0 auto;width:100%}
+.reader-content.vertical{writing-mode:vertical-rl;text-orientation:mixed;max-width:none;height:100%;padding:40px 60px}
 #reader-body.paged{overflow:hidden;scroll-behavior:smooth;cursor:pointer}
 #reader-flow{height:100%}
-#page-nav{
-    display:none;
-    justify-content:center;
-    align-items:center;
-    gap:20px;
-    padding:8px;
-    background:var(--card-bg);
-    border-bottom:1px solid var(--border-color);
-    font-size:.9rem;
-}
-#page-nav button{
-    padding:4px 14px;
-    border:1px solid var(--border-color);
-    background:var(--card-bg);
-    color:var(--text-color);
-    border-radius:4px;
-    cursor:pointer;
-}
-.status-msg{
-    text-align:center;
-    padding:20px;
-    font-size:.95rem;
-    opacity:.8;
-    font-weight:bold;
-}
+#page-nav{display:none;justify-content:center;align-items:center;gap:20px;padding:8px;background:var(--card-bg);border-bottom:1px solid var(--border-color);font-size:.9rem}
+#page-nav button{padding:4px 14px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);border-radius:4px;cursor:pointer}
+.status-msg{text-align:center;padding:20px;font-size:.95rem;opacity:.8;font-weight:bold}
 .status-msg.error{color:#d9534f}
 .status-msg.success{color:#4caf50}
 .status-msg.info{color:var(--accent-color)}
 .trans-badge{font-size:.8rem;color:var(--accent-color);white-space:nowrap}
 .trans-badge.error{color:#d9534f}
 .trans-badge.done{color:#4caf50}
-.bookshelf-filters{
-    display:flex;
-    gap:12px;
-    max-width:700px;
-    margin:0 auto 16px auto;
-    align-items:center;
-    flex-wrap:wrap;
-}
-.bookshelf-filters input[type="text"]{
-    flex:1;
-    min-width:180px;
-    padding:8px 12px;
-    border:1px solid var(--border-color);
-    border-radius:4px;
-    background:var(--card-bg);
-    color:var(--text-color);
-    font-size:.95rem;
-}
-.bookshelf-filters label{
-    display:flex;
-    align-items:center;
-    gap:6px;
-    font-size:.9rem;
-    cursor:pointer;
-    white-space:nowrap;
-}
-.modal-overlay{
-    display:none;
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,.45);
-    z-index:9000;
-    align-items:center;
-    justify-content:center;
-}
+.update-badge{display:inline-block;font-size:.8rem;color:#f0ad4e;font-weight:bold;margin-right:6px;cursor:help}
+.bookshelf-filters{display:flex;gap:12px;max-width:700px;margin:0 auto 16px auto;align-items:center;flex-wrap:wrap}
+.bookshelf-filters input[type="text"]{flex:1;min-width:180px;padding:8px 12px;border:1px solid var(--border-color);border-radius:4px;background:var(--card-bg);color:var(--text-color);font-size:.95rem}
+.bookshelf-filters label{display:flex;align-items:center;gap:6px;font-size:.9rem;cursor:pointer;white-space:nowrap}
+.reprocess-all-btn{padding:8px 14px;border:1px solid #f0ad4e;background:#f0ad4e;color:#fff;border-radius:4px;cursor:pointer;font-size:.9rem;font-weight:bold;white-space:nowrap}
+.reprocess-all-btn:hover{background:#ec971f;border-color:#ec971f}
+.reprocess-all-btn:disabled{opacity:.6;cursor:default}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;align-items:center;justify-content:center}
 .modal-overlay.active{display:flex}
-.modal-box{
-    background:var(--card-bg);
-    color:var(--text-color);
-    padding:26px 30px;
-    border-radius:8px;
-    max-width:320px;
-    width:90%;
-    text-align:center;
-    box-shadow:0 8px 24px rgba(0,0,0,.2);
-}
+.modal-box{background:var(--card-bg);color:var(--text-color);padding:26px 30px;border-radius:8px;max-width:320px;width:90%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 .modal-box p{margin-bottom:20px;line-height:1.6}
 .modal-buttons{display:flex;gap:10px;justify-content:center}
-.modal-buttons button{
-    padding:8px 20px;
-    border-radius:4px;
-    border:1px solid var(--border-color);
-    cursor:pointer;
-    background:var(--card-bg);
-    color:var(--text-color);
-    font-size:.9rem;
-}
+.modal-buttons button{padding:8px 20px;border-radius:4px;border:1px solid var(--border-color);cursor:pointer;background:var(--card-bg);color:var(--text-color);font-size:.9rem}
 .modal-buttons button.danger{background:#d9534f;color:#fff;border-color:#d9534f}
-.toast-container{
-    position:fixed;
-    top:60px;
-    right:16px;
-    z-index:10000;
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-    max-width:380px;
-    pointer-events:none;
-}
-.toast{
-    background:var(--card-bg);
-    color:var(--text-color);
-    border:1px solid var(--border-color);
-    border-left:4px solid var(--accent-color);
-    border-radius:6px;
-    padding:10px 14px;
-    box-shadow:0 4px 14px rgba(0,0,0,.2);
-    font-size:.88rem;
-    line-height:1.5;
-    animation:slideIn .25s ease;
-    pointer-events:auto;
-    word-break:break-word;
-}
+.toast-container{position:fixed;top:60px;right:16px;z-index:10000;display:flex;flex-direction:column;gap:8px;max-width:380px;pointer-events:none}
+.toast{background:var(--card-bg);color:var(--text-color);border:1px solid var(--border-color);border-left:4px solid var(--accent-color);border-radius:6px;padding:10px 14px;box-shadow:0 4px 14px rgba(0,0,0,.2);font-size:.88rem;line-height:1.5;animation:slideIn .25s ease;pointer-events:auto;word-break:break-word}
 .toast.error{border-left-color:#d9534f}
 .toast.success{border-left-color:#4caf50}
 .toast.warn{border-left-color:#f0ad4e}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-#reading-title{
-    margin-left:auto;
-    font-weight:bold;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-}
+#reading-title{margin-left:auto;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .close-reader-btn{margin-left:15px}
 .header-title-wrap{display:flex;align-items:center;gap:10px;}
-#header-spinner{
-    display:none;
-    width:14px;
-    height:14px;
-    border:2px solid var(--border-color);
-    border-top-color:var(--accent-color);
-    border-radius:50%;
-    animation:spin .8s linear infinite;
-    flex-shrink:0;
-}
+#header-spinner{display:none;width:14px;height:14px;border:2px solid var(--border-color);border-top-color:var(--accent-color);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
 #header-spinner.active{display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
-#error-banner{
-    display:none;
-    position:fixed;
-    top:0;
-    left:0;
-    right:0;
-    z-index:99999;
-    background:#d9534f;
-    color:#fff;
-    padding:12px 44px 12px 16px;
-    font-family:system-ui,'Yu Gothic',sans-serif;
-    font-size:.9rem;
-    line-height:1.55;
-    box-shadow:0 2px 10px rgba(0,0,0,.35);
-    word-break:break-word;
-    max-height:40vh;
-    overflow-y:auto;
-}
+#error-banner{display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:#d9534f;color:#fff;padding:12px 44px 12px 16px;font-family:system-ui,'Yu Gothic',sans-serif;font-size:.9rem;line-height:1.55;box-shadow:0 2px 10px rgba(0,0,0,.35);word-break:break-word;max-height:40vh;overflow-y:auto}
 #error-banner.active{display:block}
-#error-banner .eb-close{
-    position:absolute;
-    top:6px;
-    right:8px;
-    background:none;
-    border:none;
-    color:#fff;
-    font-size:1.5rem;
-    line-height:1;
-    cursor:pointer;
-    padding:2px 8px;
-    border-radius:4px;
-}
+#error-banner .eb-close{position:absolute;top:6px;right:8px;background:none;border:none;color:#fff;font-size:1.5rem;line-height:1;cursor:pointer;padding:2px 8px;border-radius:4px}
 #error-banner .eb-close:hover{background:rgba(255,255,255,.18)}
 #error-banner .eb-title{font-weight:bold;margin-right:6px}
-#error-banner .eb-detail{
-    opacity:.9;
-    font-size:.82rem;
-    margin-top:4px;
-    font-family:monospace;
-    white-space:pre-wrap;
-}
+#error-banner .eb-detail{opacity:.9;font-size:.82rem;margin-top:4px;font-family:monospace;white-space:pre-wrap}
+
+/* ============================================================
+   青空文庫注記対応（フェーズ1+2+3）
+   ============================================================ */
+.reader-content h2{font-size:1.5rem;margin:1.8em 0 .8em;text-align:center;font-weight:bold;line-height:1.4}
+.reader-content h3{font-size:1.25rem;margin:1.5em 0 .7em;font-weight:bold;line-height:1.4}
+.reader-content h4{font-size:1.08rem;margin:1.2em 0 .5em;font-weight:bold;line-height:1.4}
+.reader-content .align-center{text-align:center;}
+.reader-content ruby rt{font-size:.55em;letter-spacing:0;line-height:1}
+.reader-content .indent-1{padding-left:1em}
+.reader-content .indent-2{padding-left:2em}
+.reader-content .indent-3{padding-left:3em}
+.reader-content .indent-4{padding-left:4em}
+.reader-content .indent-5{padding-left:5em}
+.reader-content .indent-6{padding-left:6em}
+.reader-content .indent-7{padding-left:7em}
+.reader-content .indent-8{padding-left:8em}
+.reader-content .indent-9{padding-left:9em}
+.reader-content .indent-10{padding-left:10em}
+.reader-content.vertical .indent-1{padding-left:0;padding-top:1em}
+.reader-content.vertical .indent-2{padding-left:0;padding-top:2em}
+.reader-content.vertical .indent-3{padding-left:0;padding-top:3em}
+.reader-content.vertical .indent-4{padding-left:0;padding-top:4em}
+.reader-content.vertical .indent-5{padding-left:0;padding-top:5em}
+.reader-content.vertical .indent-6{padding-left:0;padding-top:6em}
+.reader-content.vertical .indent-7{padding-left:0;padding-top:7em}
+.reader-content.vertical .indent-8{padding-left:0;padding-top:8em}
+.reader-content.vertical .indent-9{padding-left:0;padding-top:9em}
+.reader-content.vertical .indent-10{padding-left:0;padding-top:10em}
+
+/* 傍点（フェーズ2） */
+.reader-content .boten{font-style:normal;text-emphasis:filled dot;-webkit-text-emphasis:filled dot;}
+.reader-content .boten-maru{font-style:normal;text-emphasis:filled circle;-webkit-text-emphasis:filled circle;}
+.reader-content .boten-shiromaru{font-style:normal;text-emphasis:open circle;-webkit-text-emphasis:open circle;}
+.reader-content .boten-double{font-style:normal;text-emphasis:double-circle;-webkit-text-emphasis:double-circle;}
+.reader-content .boten-snake{font-style:normal;text-emphasis:open dot;-webkit-text-emphasis:open dot;}
+
+/* 傍線（フェーズ3） */
+.reader-content .boten-line{text-decoration:underline;font-style:normal;}
+.reader-content .boten-doubleline{text-decoration:underline double;font-style:normal;}
+.reader-content .boten-dash{text-decoration:underline dashed;font-style:normal;}
+.reader-content .boten-wave{text-decoration:underline wavy;font-style:normal;}
+.reader-content .boten-chain{text-decoration:underline dashed;font-style:normal;}
+
+/* 割注（フェーズ2） */
+.reader-content .warichu{font-size:.68em;line-height:1;padding:0 .1em;vertical-align:middle;}
+
+/* 罫囲み（フェーズ3） */
+.reader-content .keigakomi{border:1px solid currentColor;padding:.4em .9em;margin:.3em 0;border-radius:2px;}
+
+/* 縦中横（フェーズ3） */
+.reader-content .tate-chu-yoko{text-combine-upright:all;-webkit-text-combine:horizontal;}
+
+/* 太字・斜体（フェーズ3） */
+.reader-content strong{font-weight:bold;}
+.reader-content em{font-style:italic;}
+
+/* 上付き・下付き（フェーズ3） */
+.reader-content sup{font-size:.7em;vertical-align:super;line-height:0;}
+.reader-content sub{font-size:.7em;vertical-align:sub;line-height:0;}
+
 @media (max-width: 1024px){
     .reader-toolbar{padding:6px 12px;gap:6px 8px;}
     .reader-toolbar button{padding:4px 9px;font-size:.85rem}
@@ -453,19 +187,13 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
     .reader-toolbar button{padding:5px 9px;font-size:.78rem}
     .reader-toolbar select{padding:3px 6px;font-size:.78rem}
     .reader-toolbar .lang-group{border-left:none;margin-left:0;padding:2px 4px;}
-    #reading-title{
-        order:-1;
-        flex:1 1 100%;
-        margin-left:0;
-        padding:0 0 6px 0;
-        border-bottom:1px solid var(--border-color);
-        font-size:.88rem;
-    }
+    #reading-title{order:-1;flex:1 1 100%;margin-left:0;padding:0 0 6px 0;border-bottom:1px solid var(--border-color);font-size:.88rem;}
     .close-reader-btn{margin-left:auto}
     .reader-content{padding:22px 18px;font-size:1rem}
     .reader-content.vertical{padding:22px 34px}
     .bookshelf-filters{flex-direction:column;align-items:stretch;gap:8px;}
     .bookshelf-filters input[type="text"]{min-width:0}
+    .reprocess-all-btn{width:100%}
 }
 @media (max-width: 480px){
     header{flex-direction:column;align-items:stretch;gap:8px;padding:10px 12px;}
@@ -481,14 +209,7 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
     .results-table th, .results-table td{padding:8px;font-size:.82rem;white-space:normal;}
     .reader-toolbar{padding:6px 8px;gap:4px;}
     .reader-toolbar button{padding:5px 8px;font-size:.75rem;}
-    .reader-toolbar .lang-group{
-        order:99;
-        flex:1 1 100%;
-        justify-content:center;
-        border-top:1px solid var(--border-color);
-        padding-top:6px;
-        margin-top:2px;
-    }
+    .reader-toolbar .lang-group{order:99;flex:1 1 100%;justify-content:center;border-top:1px solid var(--border-color);padding-top:6px;margin-top:2px;}
     #page-nav{gap:12px;padding:8px 10px;font-size:.84rem;}
     #page-nav button{padding:5px 12px;font-size:.82rem}
     .reader-content{padding:18px 14px;font-size:.98rem;line-height:1.85}
@@ -547,6 +268,7 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
         <div class="bookshelf-filters">
             <input type="text" id="bookshelf-search" placeholder="タイトル・著者で絞り込み" oninput="loadBookshelf()">
             <label><input type="checkbox" id="bookshelf-fav-only" onchange="loadBookshelf()"> ★ お気に入りのみ</label>
+            <button id="reprocess-all-btn" class="reprocess-all-btn" style="display:none;" onclick="handleReprocessAll()">要更新 0件</button>
         </div>
         <div id="bookshelf-status" class="status-msg"></div>
         <table class="results-table" id="bookshelf-table" style="display:none;">
@@ -601,42 +323,21 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
 
 <script>
 const LINGVA_INSTANCES = [
-    'https://lingva.ml',
-    'https://translate.igna.wtf',
-    'https://translate.plausibility.cloud',
-    'https://lingva.lunar.icu',
-    'https://translate.projectsegfau.lt',
-    'https://translate.garudalinux.org',
-    'https://translate.dr460nf1r3.org',
-    'https://translate.jae.fi'
+    'https://lingva.ml','https://translate.igna.wtf','https://translate.plausibility.cloud',
+    'https://lingva.lunar.icu','https://translate.projectsegfau.lt','https://translate.garudalinux.org',
+    'https://translate.dr460nf1r3.org','https://translate.jae.fi'
 ];
-const LIBRETRANSLATE_INSTANCES = [
-    'https://libretranslate.com',
-    'https://translate.cutie.dating'
-];
-
-/* ============================================================
-   CORSプロキシ
-   ============================================================ */
+const LIBRETRANSLATE_INSTANCES = ['https://libretranslate.com','https://translate.cutie.dating'];
 const CORS_PROXIES = {
     codetabs:   (u)=> 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
     allorigins: (u)=> 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
     aoi:        (u)=> 'https://aoi-box-lab.idosenpai.workers.dev/?url=' + encodeURIComponent(u)
 };
-
-/* ============================================================
-   青空文庫カタログ取得元
-   card.json が動いているため、ZIP候補は削除
-   ============================================================ */
 const AOZORA_CATALOG_SOURCES = [
     { name: 'card.json', url: 'https://raw.githubusercontent.com/takahashim/aozora_json_scrape/master/card.json', proxy: null, type: 'json' }
 ];
-
 const AOZORA_CSV_FILENAME = "list_person_all_extended_utf8.csv";
-const LANGUAGE_NAMES = {
-    'ja':'日本語','en':'英語','zh':'中国語','ko':'韓国語','fr':'フランス語',
-    'de':'ドイツ語','es':'スペイン語','it':'イタリア語','pt':'ポルトガル語','ru':'ロシア語'
-};
+const LANGUAGE_NAMES = {'ja':'日本語','en':'英語','zh':'中国語','ko':'韓国語','fr':'フランス語','de':'ドイツ語','es':'スペイン語','it':'イタリア語','pt':'ポルトガル語','ru':'ロシア語'};
 const INITIAL_PARALLELISM = 32;
 const WORKER_DELAY_MS = 10;
 const MAX_RETRY_PER_PARAGRAPH = 20;
@@ -649,6 +350,24 @@ const FETCH_TIMEOUT_API = 8000;
 const FETCH_TIMEOUT_BOOK = 90000;
 const CATALOG_CACHE_KEY = 'aozora_catalog_v3';
 const AOZORA_TEXT_MIRROR = 'https://raw.githubusercontent.com/aozorahack/aozorabunko_text/master/cards';
+
+/* 書籍の処理フォーマットバージョン */
+const BOOK_FORMAT_VERSION = 3;
+
+/* マーカー用制御文字 */
+const MK_WARI   = '\x01WARI\x01';
+const MK_WARI_E = '\x01WARIEND\x01';
+const MK_BOLD   = '\x01BOLD\x01';
+const MK_BOLD_E = '\x01BOLDEND\x01';
+const MK_ITAL   = '\x01ITAL\x01';
+const MK_ITAL_E = '\x01ITALEND\x01';
+const MK_TATE   = '\x01TATE\x01';
+const MK_TATE_E = '\x01TATEEND\x01';
+const MK_SUP    = '\x01SUP\x01';
+const MK_SUP_E  = '\x01SUPEND\x01';
+const MK_SUB    = '\x01SUB\x01';
+const MK_SUB_E  = '\x01SUBEND\x01';
+const MK_BR     = '\x01BR\x01';
 
 let maji_de_db = null;
 let db_closing = false;
@@ -675,9 +394,7 @@ let page_recompute_timer = null;
 let bookmark_save_timer = null;
 let pending_page_restore = null;
 
-function sleep(ms){
-    return new Promise(r=>setTimeout(r,ms));
-}
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
 async function fetchWithTimeout(url, options, timeoutMs){
     const controller = new AbortController();
@@ -698,11 +415,6 @@ function shuffled(arr){
     return a;
 }
 
-/* ============================================================
-   日本語テキストの自動デコード
-   Shift_JIS / UTF-8 両方でデコードし、置換文字 (U+FFFD) が
-   少ない方を採用。BOMがあれば UTF-8 と確定。
-   ============================================================ */
 function decodeJapaneseText(buf){
     if(buf.byteLength >= 3){
         const b0 = buf[0], b1 = buf[1], b2 = buf[2];
@@ -711,16 +423,8 @@ function decodeJapaneseText(buf){
         }
     }
     let sjis = '', utf8 = '';
-    try{
-        sjis = new TextDecoder('shift_jis').decode(buf);
-    }catch(e){
-        sjis = '';
-    }
-    try{
-        utf8 = new TextDecoder('utf-8').decode(buf);
-    }catch(e){
-        utf8 = '';
-    }
+    try{ sjis = new TextDecoder('shift_jis').decode(buf); }catch(e){ sjis = ''; }
+    try{ utf8 = new TextDecoder('utf-8').decode(buf); }catch(e){ utf8 = ''; }
     const sjisBad = (sjis.match(/\uFFFD/g) || []).length;
     const utf8Bad = (utf8.match(/\uFFFD/g) || []).length;
     console.log(`[青空文庫] デコード判定: SJIS置換=${sjisBad} UTF8置換=${utf8Bad}`);
@@ -729,15 +433,8 @@ function decodeJapaneseText(buf){
     return sjisBad <= utf8Bad ? sjis : utf8;
 }
 
-function showHeaderSpinner(){
-    const el = document.getElementById('header-spinner');
-    if(el) el.classList.add('active');
-}
-
-function hideHeaderSpinner(){
-    const el = document.getElementById('header-spinner');
-    if(el) el.classList.remove('active');
-}
+function showHeaderSpinner(){ const el = document.getElementById('header-spinner'); if(el) el.classList.add('active'); }
+function hideHeaderSpinner(){ const el = document.getElementById('header-spinner'); if(el) el.classList.remove('active'); }
 
 function showErrorBanner(msg, detail){
     const banner = document.getElementById('error-banner');
@@ -773,9 +470,6 @@ function setStatus(elId, msg, type){
     if(type) el.classList.add(type);
 }
 
-/* ============================================================
-   IndexedDB
-   ============================================================ */
 function initDB(){
     return new Promise((resolve, reject)=>{
         const req = indexedDB.open("YamabikoDB", 2);
@@ -787,32 +481,18 @@ function initDB(){
         req.onsuccess = (e)=>{
             maji_de_db = e.target.result;
             db_closing = false;
-            maji_de_db.onversionchange = ()=>{
-                db_closing = true;
-                try{ maji_de_db.close(); }catch(_){}
-                maji_de_db = null;
-            };
-            maji_de_db.onclose = ()=>{
-                db_closing = true;
-                maji_de_db = null;
-            };
+            maji_de_db.onversionchange = ()=>{ db_closing = true; try{ maji_de_db.close(); }catch(_){} maji_de_db = null; };
+            maji_de_db.onclose = ()=>{ db_closing = true; maji_de_db = null; };
             resolve(maji_de_db);
         };
         req.onerror = (e)=>reject(e.target.error);
-        req.onblocked = ()=>{
-            showToast('他のタブでヤマビコが開かれています。そちらを閉じて再読み込みしてください。', 'warn', 12000);
-        };
+        req.onblocked = ()=>showToast('他のタブでヤマビコが開かれています。そちらを閉じて再読み込みしてください。', 'warn', 12000);
     });
 }
 
 async function ensureDB(){
     if(maji_de_db && !db_closing){
-        try{
-            maji_de_db.transaction(["books"],"readonly").abort();
-            return maji_de_db;
-        }catch(e){
-            maji_de_db = null;
-        }
+        try{ maji_de_db.transaction(["books"],"readonly").abort(); return maji_de_db; }catch(e){ maji_de_db = null; }
     }
     await initDB();
     return maji_de_db;
@@ -822,16 +502,11 @@ async function safeDBOp(storeNames, mode, fn){
     await ensureDB();
     return new Promise((resolve, reject)=>{
         let tx;
-        try{
-            tx = maji_de_db.transaction(storeNames, mode);
-        }catch(e){
+        try{ tx = maji_de_db.transaction(storeNames, mode); }
+        catch(e){
             initDB().then(()=>{
-                try{
-                    const tx2 = maji_de_db.transaction(storeNames, mode);
-                    fn(tx2, resolve, reject);
-                }catch(e2){
-                    reject(e2);
-                }
+                try{ const tx2 = maji_de_db.transaction(storeNames, mode); fn(tx2, resolve, reject); }
+                catch(e2){ reject(e2); }
             }).catch(reject);
             return;
         }
@@ -879,10 +554,270 @@ function saveCacheToDB(key, value){
     });
 }
 
-function checkChosakukenSafe(y){
-    if(!y) return false;
-    return (new Date().getFullYear() - y) >= 80;
+function checkChosakukenSafe(y){ if(!y) return false; return (new Date().getFullYear() - y) >= 80; }
+
+/* ============================================================
+   要更新判定
+   ============================================================ */
+function isBookOutdated(book){
+    if(!book.rawParas || !Array.isArray(book.rawParas) || !book.rawParas.length) return false;
+    return (book.formatVersion || 0) < BOOK_FORMAT_VERSION;
 }
+
+/* ============================================================
+   傍点・傍線のCSSクラス割り当て
+   ============================================================ */
+function emphClassFor(type){
+    switch(type){
+        case '傍点':       return 'boten';
+        case '丸傍点':     return 'boten-maru';
+        case '白丸傍点':   return 'boten-shiromaru';
+        case '二重丸傍点': return 'boten-double';
+        case '蛇の目傍点': return 'boten-snake';
+        case '傍線':       return 'boten-line';
+        case '二重傍線':   return 'boten-doubleline';
+        case '破線':       return 'boten-dash';
+        case '波線':       return 'boten-wave';
+        case '鎖線':       return 'boten-chain';
+        default:           return 'boten';
+    }
+}
+
+/* ============================================================
+   青空文庫注記の解釈（フェーズ1+2+3）
+   ============================================================ */
+function buildAozoraParagraphs(rawParas){
+    const result = [];
+    let indentRange = 0;
+    let keigakomiRange = false;
+
+    for(const raw of rawParas){
+        let text = raw;
+        let tag = 'p';
+        let indent = indentRange;
+        let alignCenter = false;
+        let m;
+
+        /* --- 罫囲み --- */
+        let keigakomiHere = keigakomiRange;
+        if(text.includes('［＃罫囲み］')){
+            keigakomiRange = true;
+            keigakomiHere = true;
+            text = text.replace(/［＃罫囲み］/g, '');
+        }
+        let keigakomiEndHere = false;
+        if(text.includes('［＃罫囲み終わり］')){
+            keigakomiEndHere = true;
+            text = text.replace(/［＃罫囲み終わり］/g, '');
+        }
+
+        /* --- 見出し --- */
+        const hm = text.match(/［＃「(.+?)」は(大|中|小)見出し］/);
+        if(hm){
+            tag = hm[2] === '大' ? 'h2' : hm[2] === '中' ? 'h3' : 'h4';
+            text = text.replace(/［＃「.+?」は(?:大|中|小)見出し］/g, '');
+        }
+
+        /* --- 字下げ範囲 --- */
+        while((m = text.match(/［＃ここから(\d+)字下げ］/))){
+            indentRange = parseInt(m[1], 10);
+            indent = indentRange;
+            text = text.replace(m[0], '');
+        }
+        while((m = text.match(/［＃ここで字下げ終わり］/))){
+            indent = indentRange;
+            indentRange = 0;
+            text = text.replace(m[0], '');
+        }
+        while((m = text.match(/［＃(\d+)字下げ］/))){
+            indent = Math.max(indent, parseInt(m[1], 10));
+            text = text.replace(m[0], '');
+        }
+        while((m = text.match(/［＃地から(\d+)字上げ］/))){
+            indent = Math.max(indent, parseInt(m[1], 10));
+            text = text.replace(m[0], '');
+        }
+
+        /* --- 中央寄せ --- */
+        if(/［＃(?:中央寄せ|中央揃え|ページの左右中央)］/.test(text)){
+            alignCenter = true;
+            text = text.replace(/［＃(?:中央寄せ|中央揃え|ページの左右中央)］/g, '');
+        }
+
+        /* --- 傍点・傍線（対象文字列を保持） --- */
+        const emphTargets = [];
+        while((m = text.match(/［＃「(.+?)」に(二重丸傍点|白丸傍点|丸傍点|蛇の目傍点|二重傍線|傍点|傍線|破線|波線|鎖線)］/))){
+            emphTargets.push({text: m[1], type: m[2]});
+            text = text.replace(m[0], '');
+        }
+
+        /* --- インライン要素をマーカー化 --- */
+        text = text.replace(/［＃割[り]?注］([\s\S]*?)［＃割[り]?注終わり］/g, (_, c)=>MK_WARI + c + MK_WARI_E);
+        text = text.replace(/［＃太字］([\s\S]*?)［＃太字終わり］/g, (_, c)=>MK_BOLD + c + MK_BOLD_E);
+        text = text.replace(/［＃斜体］([\s\S]*?)［＃斜体終わり］/g, (_, c)=>MK_ITAL + c + MK_ITAL_E);
+        text = text.replace(/［＃縦中横］([\s\S]*?)［＃縦中横終わり］/g, (_, c)=>MK_TATE + c + MK_TATE_E);
+        text = text.replace(/［＃上付き小文字］([\s\S]*?)［＃上付き小文字終わり］/g, (_, c)=>MK_SUP + c + MK_SUP_E);
+        text = text.replace(/［＃下付き小文字］([\s\S]*?)［＃下付き小文字終わり］/g, (_, c)=>MK_SUB + c + MK_SUB_E);
+
+        /* --- 改ページ・改段・改行 --- */
+        text = text.replace(/［＃(?:改ページ|改丁|改段|本文中改ページ)］/g, '');
+        text = text.replace(/［＃改行］/g, MK_BR);
+
+        /* --- 残りの注記を削除 --- */
+        text = text.replace(/［＃[^］]*］/g, '');
+
+        if(!text.trim()) continue;
+
+        /* --- クラス --- */
+        const classes = [];
+        if(indent > 0) classes.push('indent-' + Math.min(indent, 10));
+        if(alignCenter) classes.push('align-center');
+        if(keigakomiHere) classes.push('keigakomi');
+
+        /* --- HTML化 --- */
+        let html = escapeHtml(text);
+
+        html = html.replace(/\x01WARI\x01([\s\S]*?)\x01WARIEND\x01/g, (_, c)=>`<span class="warichu">${c}</span>`);
+        html = html.replace(/\x01BOLD\x01([\s\S]*?)\x01BOLDEND\x01/g, (_, c)=>`<strong>${c}</strong>`);
+        html = html.replace(/\x01ITAL\x01([\s\S]*?)\x01ITALEND\x01/g, (_, c)=>`<em>${c}</em>`);
+        html = html.replace(/\x01TATE\x01([\s\S]*?)\x01TATEEND\x01/g, (_, c)=>`<span class="tate-chu-yoko">${c}</span>`);
+        html = html.replace(/\x01SUP\x01([\s\S]*?)\x01SUPEND\x01/g, (_, c)=>`<sup>${c}</sup>`);
+        html = html.replace(/\x01SUB\x01([\s\S]*?)\x01SUBEND\x01/g, (_, c)=>`<sub>${c}</sub>`);
+        html = html.replace(/\x01BR\x01/g, '<br>');
+
+        /* ルビ */
+        html = html.replace(/｜([^｜《》\n]+?)《([^》\n]+)》/g, '<ruby>$1<rt>$2</rt></ruby>');
+        html = html.replace(/([一-龥々]+)《([^》\n]+)》/g, '<ruby>$1<rt>$2</rt></ruby>');
+
+        /* 傍点・傍線（対象文字列の最後の出現に適用） */
+        for(const tgt of emphTargets){
+            const escTgt = escapeHtml(tgt.text);
+            const idx = html.lastIndexOf(escTgt);
+            if(idx < 0) continue;
+            const cls = emphClassFor(tgt.type);
+            html = html.slice(0, idx)
+                 + `<em class="${cls}">${escTgt}</em>`
+                 + html.slice(idx + escTgt.length);
+        }
+
+        /* plain text: マーカーを除去したもの */
+        const plainText = text.replace(/\x01[A-Z]+\x01/g, '').replace(/\n/g, ' ').trim();
+
+        result.push({tag, text: plainText, classes, html});
+
+        /* 罫囲み終了 */
+        if(keigakomiEndHere) keigakomiRange = false;
+    }
+
+    return result;
+}
+
+/* ============================================================
+   再処理
+   ============================================================ */
+async function reprocessBook(bookId){
+    const book = await getBookFromDB(bookId);
+    if(!book) return {ok:false, reason:'本が見つかりません'};
+    if(!isBookOutdated(book)) return {ok:true, skipped:true};
+
+    const newParas = buildAozoraParagraphs(book.rawParas);
+    const newCh = newParas.map(p=>{
+        const cls = (p.classes && p.classes.length) ? ` class="${p.classes.join(' ')}"` : '';
+        const inner = (p.html != null) ? p.html : escapeHtml(p.text);
+        return `<${p.tag}${cls}>${inner}</${p.tag}>`;
+    }).join('');
+
+    const oldTexts = Array.isArray(book.translatedTexts) ? book.translatedTexts : [];
+    let newTexts;
+    if(oldTexts.length === newParas.length){
+        newTexts = oldTexts.slice();
+    } else {
+        newTexts = new Array(newParas.length).fill(null);
+    }
+
+    book.paragraphs = newParas;
+    book.content = newCh;
+    book.translatedTexts = newTexts;
+    book.translationTotal = newParas.length;
+    if(book.source === 'aozora'){
+        book.translationStatus = 'done';
+        book.translationDone = newParas.length;
+    } else if(book.translationStatus === 'done'){
+        book.translationDone = newParas.length;
+    }
+    book.formatVersion = BOOK_FORMAT_VERSION;
+
+    await saveBookToDB(book);
+    return {ok:true, updated:true, paragraphCount: newParas.length};
+}
+
+async function reprocessAllBooks(onProgress){
+    const books = await getAllBooksFromDB();
+    const outdated = books.filter(b => isBookOutdated(b));
+    if(!outdated.length) return {total:0, updated:0, failed:0};
+
+    let updated = 0, failed = 0;
+    for(let i=0; i<outdated.length; i++){
+        const b = outdated[i];
+        try{
+            const r = await reprocessBook(b.id);
+            if(r.ok && r.updated) updated++;
+            else if(!r.ok) failed++;
+        }catch(e){
+            failed++;
+            console.warn('[再処理] 失敗:', b.id, e.message);
+        }
+        if(typeof onProgress === 'function') onProgress(i+1, outdated.length);
+    }
+    return {total: outdated.length, updated, failed};
+}
+
+async function countOutdatedBooks(){
+    const books = await getAllBooksFromDB();
+    return books.filter(b => isBookOutdated(b)).length;
+}
+
+async function handleReprocessOne(bookId){
+    closeAllRowMenus();
+    showToast('再処理中...', 'info', 3000);
+    try{
+        const r = await reprocessBook(bookId);
+        if(r.ok){
+            if(r.skipped) showToast('再処理は不要です', 'info');
+            else showToast(`再処理完了（${r.paragraphCount}段落）`, 'success', 3000);
+            loadBookshelf();
+        } else {
+            showToast('再処理失敗: ' + (r.reason || '不明'), 'error');
+        }
+    }catch(e){
+        showToast('再処理失敗: ' + e.message, 'error');
+    }
+}
+window.handleReprocessOne = handleReprocessOne;
+
+async function handleReprocessAll(){
+    const btn = document.getElementById('reprocess-all-btn');
+    if(btn){ btn.disabled = true; btn.textContent = '再処理中...'; }
+    try{
+        const r = await reprocessAllBooks((done, total)=>{
+            if(btn) btn.textContent = `再処理中 ${done}/${total}...`;
+        });
+        if(r.total === 0){
+            showToast('要更新の本はありません', 'info');
+        } else {
+            const msg = r.failed > 0
+                ? `${r.updated}/${r.total}件を再処理（失敗 ${r.failed}件）`
+                : `${r.updated}/${r.total}件を再処理しました`;
+            showToast(msg, r.failed > 0 ? 'warn' : 'success', 5000);
+        }
+        loadBookshelf();
+    }catch(e){
+        showToast('再処理エラー: ' + e.message, 'error');
+    }finally{
+        if(btn) btn.disabled = false;
+    }
+}
+window.handleReprocessAll = handleReprocessAll;
 
 /* ============================================================
    検索ソース・モード切替
@@ -910,7 +845,7 @@ function setSearchMode(mode){
 window.setSearchMode = setSearchMode;
 
 /* ============================================================
-   外部API経由のメタ情報取得
+   外部API
    ============================================================ */
 async function getAuthorEnglishNameFromWikipedia(jpName){
     if(/^[a-zA-Z0-9\s]+$/.test(jpName)) return null;
@@ -947,13 +882,12 @@ async function translateText(text, source, target){
 }
 
 /* ============================================================
-   青空文庫カタログ取得
+   青空文庫カタログ
    ============================================================ */
 async function fetchAozoraCatalog(){
     if(aozora_catalog_loading || aozora_catalog_ready) return;
     aozora_catalog_loading = true;
     showHeaderSpinner();
-
     try{
         const cached = await getCacheFromDB(CATALOG_CACHE_KEY);
         if(cached && cached.value && cached.value.length > 100 && cached.value[0].zipName !== undefined){
@@ -976,15 +910,9 @@ async function fetchAozoraCatalog(){
             console.log(`[青空文庫] ${src.name} から取得中...`);
             const fetchUrl = src.proxy ? CORS_PROXIES[src.proxy](src.url) : src.url;
             const res = await fetchWithTimeout(fetchUrl, { cache: 'no-store' }, FETCH_TIMEOUT_BOOK);
-            if(!res.ok){
-                lastErr = `${src.name}: HTTP ${res.status}`;
-                continue;
-            }
+            if(!res.ok){ lastErr = `${src.name}: HTTP ${res.status}`; continue; }
             const text = await res.text();
-            if(!text || text.length < 10000){
-                lastErr = `${src.name}: 短すぎる`;
-                continue;
-            }
+            if(!text || text.length < 10000){ lastErr = `${src.name}: 短すぎる`; continue; }
             const json = JSON.parse(text);
             catalog = parseAozoraCardJson(json);
             console.log(`[青空文庫] ${src.name} 成功 (${catalog.length}件)`);
@@ -997,7 +925,6 @@ async function fetchAozoraCatalog(){
     if(!catalog || !catalog.length){
         aozora_catalog_loading = false;
         hideHeaderSpinner();
-        console.error('[青空文庫] 全ソース失敗:', lastErr);
         showErrorBanner('青空文庫カタログの取得に失敗しました。', `最終エラー: ${lastErr}`);
         return;
     }
@@ -1052,10 +979,7 @@ function parseAozoraCardJson(json){
     for(const card of arr){
         try{
             if(!firstLogged){
-                try{
-                    const sample = JSON.stringify(card);
-                    console.log('[青空文庫] card.json サンプル:', sample.slice(0, 800));
-                }catch(e){}
+                try{ console.log('[青空文庫] card.json サンプル:', JSON.stringify(card).slice(0, 800)); }catch(e){}
                 firstLogged = true;
             }
             const t = card.title || {};
@@ -1066,11 +990,7 @@ function parseAozoraCardJson(json){
             if(!workId || !title) continue;
             const zipName = extractZipFilename(card);
             catalog.push({
-                workId,
-                title,
-                personId,
-                personName,
-                zipName,
+                workId, title, personId, personName, zipName,
                 cardUrl: personId && workId ? `https://www.aozora.gr.jp/cards/${personId}/card${workId}.html` : '',
                 htmlUrl: ''
             });
@@ -1087,16 +1007,8 @@ function parseCSVLine(line){
     for(let i=0;i<line.length;i++){
         const ch = line[i];
         if(inQ){
-            if(ch === '"'){
-                if(i+1 < line.length && line[i+1] === '"'){
-                    cur += '"';
-                    i++;
-                } else {
-                    inQ = false;
-                }
-            } else {
-                cur += ch;
-            }
+            if(ch === '"'){ if(i+1 < line.length && line[i+1] === '"'){ cur += '"'; i++; } else inQ = false; }
+            else cur += ch;
         } else {
             if(ch === '"') inQ = true;
             else if(ch === ','){ result.push(cur); cur = ''; }
@@ -1111,13 +1023,8 @@ async function searchAozora(query){
     if(!aozora_catalog_ready){
         if(!aozora_catalog_loading) fetchAozoraCatalog();
         let waited = 0;
-        while(!aozora_catalog_ready && waited < 90000){
-            await sleep(300);
-            waited += 300;
-        }
-        if(!aozora_catalog_ready){
-            throw new Error('青空文庫カタログの読み込みが完了していません。');
-        }
+        while(!aozora_catalog_ready && waited < 90000){ await sleep(300); waited += 300; }
+        if(!aozora_catalog_ready) throw new Error('青空文庫カタログの読み込みが完了していません。');
     }
     const q = query.toLowerCase();
     let results;
@@ -1149,12 +1056,8 @@ function splitTextByBytes(text, maxBytes){
     const chunks = [];
     let cur = '';
     for(const ch of text){
-        if(new Blob([cur+ch]).size > maxBytes){
-            chunks.push(cur);
-            cur = ch;
-        } else {
-            cur += ch;
-        }
+        if(new Blob([cur+ch]).size > maxBytes){ chunks.push(cur); cur = ch; }
+        else cur += ch;
     }
     if(cur) chunks.push(cur);
     return chunks;
@@ -1183,10 +1086,7 @@ async function translateChunk(text, source, target){
             const data = await res.json();
             if(data && data.responseData && data.responseData.translatedText){
                 const t = data.responseData.translatedText;
-                if(!/MYMEMORY WARNING|INVALID|QUERY LENGTH/i.test(t)){
-                    combined += t;
-                    anyOk = true;
-                }
+                if(!/MYMEMORY WARNING|INVALID|QUERY LENGTH/i.test(t)){ combined += t; anyOk = true; }
             }
             await sleep(150);
         }
@@ -1196,8 +1096,7 @@ async function translateChunk(text, source, target){
     for(const inst of shuffled(LIBRETRANSLATE_INSTANCES)){
         try{
             const res = await fetchWithTimeout(`${inst}/translate`, {
-                method:'POST',
-                headers:{'Content-Type':'application/json'},
+                method:'POST', headers:{'Content-Type':'application/json'},
                 body: JSON.stringify({q:text, source, target})
             }, FETCH_TIMEOUT_TRANSLATE);
             if(!res.ok) continue;
@@ -1227,12 +1126,21 @@ function buildBidirectionalQueue(total){
     let f = 0, b = total - 1;
     while(f <= b){
         if(f === b){ q.push(f); break; }
-        q.push(f);
-        q.push(b);
-        f++;
-        b--;
+        q.push(f); q.push(b); f++; b--;
     }
     return q;
+}
+
+function buildOriginalHtml(book){
+    if(book.paragraphs && book.paragraphs.length){
+        return book.paragraphs.map((p, i)=>{
+            const classes = (p.classes || []).slice();
+            const cls = classes.length ? ` class="${classes.join(' ')}"` : '';
+            const inner = (p.html != null) ? p.html : escapeHtml(p.text);
+            return `<${p.tag}${cls} data-pidx="${i}">${inner}</${p.tag}>`;
+        }).join('');
+    }
+    return book.content || "";
 }
 
 function buildTranslatedHtml(book){
@@ -1241,8 +1149,12 @@ function buildTranslatedHtml(book){
         return book.paragraphs.map((p, i)=>{
             const t = texts[i];
             const isUn = (t == null);
-            return `<${p.tag} data-pidx="${i}"${isUn?' class="untranslated"':''}>${escapeHtml(isUn ? p.text : t)}</${p.tag}>`;
-        }).join("");
+            const classes = (p.classes || []).slice();
+            if(isUn) classes.push('untranslated');
+            const cls = classes.length ? ` class="${classes.join(' ')}"` : '';
+            const inner = escapeHtml(isUn ? p.text : t);
+            return `<${p.tag}${cls} data-pidx="${i}">${inner}</${p.tag}>`;
+        }).join('');
     }
     return book.contentTranslated || book.content || "";
 }
@@ -1255,20 +1167,16 @@ async function startBackgroundTranslation(bookId){
     active_translation_jobs[bookId] = true;
     const myGen = (translation_generation[bookId]||0) + 1;
     translation_generation[bookId] = myGen;
-
     let bookTitleForToast = '';
     try{
         const book = await getBookFromDB(bookId);
         if(!book || !book.paragraphs || !book.paragraphs.length) return;
         bookTitleForToast = book.title;
-
         const total = book.paragraphs.length;
         if(!Array.isArray(book.translatedTexts) || book.translatedTexts.length !== total){
             const old = Array.isArray(book.translatedTexts) ? book.translatedTexts : [];
             const fixed = new Array(total).fill(null);
-            for(let i=0;i<total;i++){
-                if(old[i] != null) fixed[i] = old[i];
-            }
+            for(let i=0;i<total;i++){ if(old[i] != null) fixed[i] = old[i]; }
             book.translatedTexts = fixed;
         }
         const already = book.translatedTexts.filter(t=>t != null).length;
@@ -1279,18 +1187,14 @@ async function startBackgroundTranslation(bookId){
             onTranslationTick(book);
             return;
         }
-
         const srcLang = book.sourceLang || 'en';
         const tgtLang = book.targetLang || 'ja';
-
         book.translationStatus = "translating";
         book.translationTotal = total;
         book.translationDone = already;
         delete book.lastError;
-
         const queue = buildBidirectionalQueue(total).filter(i=>book.translatedTexts[i] == null);
         let qi = 0, lastSave = 0, fails = 0, para = INITIAL_PARALLELISM;
-
         const worker = async (worker_id)=>{
             while(true){
                 if(translation_generation[bookId] !== myGen) return;
@@ -1306,42 +1210,28 @@ async function startBackgroundTranslation(bookId){
                         book.translatedTexts[idx] = r.text;
                         book.translationDone = (book.translationDone||0) + 1;
                         onTranslationTick(book);
-                        if(Date.now() - lastSave > 1500){
-                            lastSave = Date.now();
-                            saveBookToDB(book);
-                        }
-                        ok = true;
-                        break;
+                        if(Date.now() - lastSave > 1500){ lastSave = Date.now(); saveBookToDB(book); }
+                        ok = true; break;
                     }
                     lastErr = r.error || 'unknown';
                     await sleep(Math.min(50*(attempt+1), 250));
                 }
-                if(ok){
-                    fails = 0;
-                } else {
+                if(ok){ fails = 0; }
+                else{
                     fails++;
                     book.lastError = `段落${idx}: ${lastErr}`;
                     if(fails >= FAILS_TO_DROP_CONCURRENCY){
-                        if(para > MIN_PARALLELISM){
-                            const prev = para;
-                            para = para === 32 ? 16 : MIN_PARALLELISM;
-                            fails = 0;
-                            showToast(`翻訳が不安定なため並列度を${prev}→${para}に下げます`, 'warn', 8000);
-                        } else {
-                            fails = 0;
-                        }
+                        if(para > MIN_PARALLELISM){ const prev = para; para = para === 32 ? 16 : MIN_PARALLELISM; fails = 0; showToast(`翻訳が不安定なため並列度を${prev}→${para}に下げます`, 'warn', 8000); }
+                        else fails = 0;
                     }
                 }
                 await sleep(WORKER_DELAY_MS);
             }
         };
-
         const workers = [];
         for(let i=0;i<INITIAL_PARALLELISM;i++) workers.push(worker(i));
         await Promise.all(workers);
-
         if(translation_generation[bookId] !== myGen) return;
-
         book.translationDone = book.translatedTexts.filter(t=>t != null).length;
         if(book.translationDone >= total){
             book.translationStatus = "done";
@@ -1357,18 +1247,11 @@ async function startBackgroundTranslation(bookId){
         try{
             if(translation_generation[bookId] === myGen){
                 const b = await getBookFromDB(bookId);
-                if(b){
-                    b.translationStatus = "error";
-                    b.lastError = err.message;
-                    await saveBookToDB(b);
-                    onTranslationTick(b);
-                }
+                if(b){ b.translationStatus = "error"; b.lastError = err.message; await saveBookToDB(b); onTranslationTick(b); }
             }
         }catch(e){}
     }finally{
-        if(translation_generation[bookId] === myGen){
-            active_translation_jobs[bookId] = false;
-        }
+        if(translation_generation[bookId] === myGen) active_translation_jobs[bookId] = false;
     }
 }
 
@@ -1380,10 +1263,7 @@ function onTranslationTick(book){
         ima_yonderu_hon.translationTotal = book.translationTotal;
         ima_yonderu_hon.lastError = book.lastError;
         if(!ima_yonderu_hon.paragraphs) ima_yonderu_hon.paragraphs = book.paragraphs;
-        if(is_showing_translation){
-            applyTranslationToDom(book);
-            if(is_page_mode) schedulePageRecompute();
-        }
+        if(is_showing_translation){ applyTranslationToDom(book); if(is_page_mode) schedulePageRecompute(); }
         updateReaderTranslationLabel();
     }
     updateBookshelfRowStatus(book);
@@ -1441,10 +1321,7 @@ async function resumePendingTranslations(){
         });
         if(pending.length > 0){
             showToast(`未完了の翻訳 ${pending.length}件 を再開します`, 'info');
-            pending.forEach(b=>{
-                active_translation_jobs[b.id] = false;
-                startBackgroundTranslation(b.id);
-            });
+            pending.forEach(b=>{ active_translation_jobs[b.id] = false; startBackgroundTranslation(b.id); });
         }
     }catch(e){}
 }
@@ -1455,9 +1332,7 @@ async function resumePendingTranslations(){
 function scheduleBookmarkSave(){
     if(!ima_yonderu_hon) return;
     clearTimeout(bookmark_save_timer);
-    bookmark_save_timer = setTimeout(()=>{
-        saveBookmarkNow();
-    }, BOOKMARK_SAVE_DEBOUNCE_MS);
+    bookmark_save_timer = setTimeout(()=>saveBookmarkNow(), BOOKMARK_SAVE_DEBOUNCE_MS);
 }
 
 async function saveBookmarkNow(){
@@ -1482,9 +1357,7 @@ function restoreBookmark(bookObj){
     const rb = document.getElementById('reader-body');
     if(bm.isPageMode){
         pending_page_restore = bm.pageIndex || 0;
-        setTimeout(()=>{
-            if(!is_page_mode) togglePageMode();
-        }, 50);
+        setTimeout(()=>{ if(!is_page_mode) togglePageMode(); }, 50);
     } else {
         requestAnimationFrame(()=>{
             rb.scrollTop = bm.scrollTop || 0;
@@ -1526,24 +1399,15 @@ async function execSearchGutenberg(q_v){
     } else {
         setStatus("search-status", `Wikipediaで「${loose}」の英語表記を探り中...`, 'info');
         eng = await getAuthorEnglishNameFromWikipedia(loose);
-        if(eng){
-            setStatus("search-status", `Wikipediaで英語表記「${eng}」を発見！Gutendexを検索中...`, 'info');
-        } else {
-            setStatus("search-status", "Wikipediaにないので翻訳で英語化中...", 'info');
-            eng = await translateText(loose, 'ja', 'en');
-            setStatus("search-status", `翻訳結果「${eng}」でGutendexを検索中...`, 'info');
-        }
+        if(eng){ setStatus("search-status", `Wikipediaで英語表記「${eng}」を発見！`, 'info'); }
+        else { setStatus("search-status", "Wikipediaにないので翻訳で英語化中...", 'info'); eng = await translateText(loose, 'ja', 'en'); setStatus("search-status", `翻訳結果「${eng}」でGutendexを検索中...`, 'info'); }
     }
     const clean = eng.replace(/[^\w\s]/gi,' ').replace(/\s+/g,' ').trim();
     try{
         const api = `https://gutendex.com/books/?search=${encodeURIComponent(clean)}`;
         const res = await fetchWithTimeout(CORS_PROXIES.aoi(api), {}, FETCH_TIMEOUT_API);
         const data = await res.json();
-        if(!data.results || !data.results.length){
-            setStatus("search-status", "Gutendexに該当する作品が見つかりませんでした", 'error');
-            showToast('検索結果0件', 'warn');
-            return;
-        }
+        if(!data.results || !data.results.length){ setStatus("search-status", "見つかりませんでした", 'error'); showToast('検索結果0件', 'warn'); return; }
         setStatus("search-status", `見つかりました (${data.results.length}件)`, 'success');
         t.style.display = "table";
         data.results.forEach((b)=>{
@@ -1551,20 +1415,10 @@ async function execSearchGutenberg(q_v){
             const a = b.authors[0] || {name:"不明", death_year:null};
             const safe = checkChosakukenSafe(a.death_year);
             const tr = document.createElement("tr");
-            tr.innerHTML = `
-                <td>${b.id}</td>
-                <td>${escapeHtml(b.title)}</td>
-                <td>${escapeHtml(a.name)}</td>
-                <td>${safe
-                    ? `<button onclick="downloadAndSaveGutenberg(${b.id})">保存・読む</button>`
-                    : `<span style="color:red;font-size:.8rem;">保護期間内</span>`}</td>
-            `;
+            tr.innerHTML = `<td>${b.id}</td><td>${escapeHtml(b.title)}</td><td>${escapeHtml(a.name)}</td><td>${safe ? `<button onclick="downloadAndSaveGutenberg(${b.id})">保存・読む</button>` : `<span style="color:red;font-size:.8rem;">保護期間内</span>`}</td>`;
             tb.appendChild(tr);
         });
-    }catch(err){
-        setStatus("search-status", `検索エラー: ${err.message}`, 'error');
-        showToast('検索エラー: ' + err.message, 'error');
-    }
+    }catch(err){ setStatus("search-status", `検索エラー: ${err.message}`, 'error'); showToast('検索エラー: ' + err.message, 'error'); }
 }
 
 async function execSearchAozora(q_v){
@@ -1573,27 +1427,15 @@ async function execSearchAozora(q_v){
     if(!aozora_catalog_ready) setStatus("search-status", "青空文庫カタログを読み込み中...", 'info');
     try{
         const results = await searchAozora(q_v);
-        if(!results.length){
-            setStatus("search-status", "青空文庫に該当する作品が見つかりませんでした", 'error');
-            showToast('検索結果0件', 'warn');
-            return;
-        }
+        if(!results.length){ setStatus("search-status", "見つかりませんでした", 'error'); showToast('検索結果0件', 'warn'); return; }
         setStatus("search-status", `見つかりました (${results.length}件)`, 'success');
         t.style.display = "table";
         results.forEach((item)=>{
             const tr = document.createElement("tr");
-            tr.innerHTML = `
-                <td>${escapeHtml(item.workId)}</td>
-                <td>${escapeHtml(item.title)}</td>
-                <td>${escapeHtml(item.personName)}</td>
-                <td><button onclick="downloadAndSaveAozora('${escapeHtml(item.workId)}','${escapeHtml(item.personId)}','${escapeHtml(item.title)}','${escapeHtml(item.personName)}','${escapeHtml(item.zipName||'')}')">保存・読む</button></td>
-            `;
+            tr.innerHTML = `<td>${escapeHtml(item.workId)}</td><td>${escapeHtml(item.title)}</td><td>${escapeHtml(item.personName)}</td><td><button onclick="downloadAndSaveAozora('${escapeHtml(item.workId)}','${escapeHtml(item.personId)}','${escapeHtml(item.title)}','${escapeHtml(item.personName)}','${escapeHtml(item.zipName||'')}')">保存・読む</button></td>`;
             tb.appendChild(tr);
         });
-    }catch(err){
-        setStatus("search-status", `検索エラー: ${err.message}`, 'error');
-        showToast('検索エラー: ' + err.message, 'error');
-    }
+    }catch(err){ setStatus("search-status", `検索エラー: ${err.message}`, 'error'); showToast('検索エラー: ' + err.message, 'error'); }
 }
 
 /* ============================================================
@@ -1601,43 +1443,26 @@ async function execSearchAozora(q_v){
    ============================================================ */
 async function downloadAndSaveGutenberg(bookId){
     const rx = v_project_cache[bookId];
-    if(!rx){
-        setStatus("search-status", "エラー: キャッシュがありません", 'error');
-        showToast('ダウンロード失敗', 'error');
-        return;
-    }
+    if(!rx){ setStatus("search-status", "エラー: キャッシュなし", 'error'); showToast('ダウンロード失敗', 'error'); return; }
     setStatus("search-status", `作品ID:${bookId} をダウンロード中...`, 'info');
     showToast(`ダウンロード開始: ${rx.title}`, 'info');
     try{
         const urls = [
-            rx.formats["text/html; charset=utf-8"],
-            rx.formats["text/html"],
+            rx.formats["text/html; charset=utf-8"], rx.formats["text/html"],
             `https://www.gutenberg.org/cache/epub/${bookId}/pg${bookId}-images.html`,
-            rx.formats["text/plain; charset=utf-8"],
-            rx.formats["text/plain"],
+            rx.formats["text/plain; charset=utf-8"], rx.formats["text/plain"],
             `https://www.gutenberg.org/cache/epub/${bookId}/pg${bookId}.txt.utf8`
         ].filter(Boolean);
-        if(!urls.length){
-            throw new Error('読める形式のURLが存在しません');
-        }
+        if(!urls.length) throw new Error('読める形式のURLが存在しません');
         let ok = null, rt = "", final_url = "", lastErr = '';
         for(const u of urls){
             try{
                 const r = await fetchWithTimeout(CORS_PROXIES.aoi(u), {}, FETCH_TIMEOUT_BOOK);
-                if(r.ok){
-                    ok = r;
-                    rt = await r.text();
-                    final_url = u;
-                    break;
-                } else {
-                    lastErr = `HTTP ${r.status}`;
-                }
-            }catch(e){
-                lastErr = e.message;
-            }
+                if(r.ok){ ok = r; rt = await r.text(); final_url = u; break; }
+                else lastErr = `HTTP ${r.status}`;
+            }catch(e){ lastErr = e.message; }
         }
         if(!ok) throw new Error(`全URL取得失敗（最後: ${lastErr}）`);
-
         let paras = [];
         if(final_url.includes("html") || final_url.includes("htm")){
             const d = new DOMParser().parseFromString(rt, "text/html");
@@ -1646,22 +1471,25 @@ async function downloadAndSaveGutenberg(bookId){
             if(pe.length){
                 pe.forEach(px=>{
                     const tx = px.textContent.trim();
-                    if(tx) paras.push({tag: px.tagName.toLowerCase(), text: tx});
+                    if(tx) paras.push({tag: px.tagName.toLowerCase(), text: tx, classes: [], html: escapeHtml(tx)});
                 });
             } else {
-                paras.push({tag:"p", text: d.body.textContent.trim()});
+                const tx = d.body.textContent.trim();
+                paras.push({tag:"p", text: tx, classes: [], html: escapeHtml(tx)});
             }
         } else {
             rt.split("\n").forEach(l=>{
-                if(l.trim()) paras.push({tag:"p", text: l.trim()});
+                if(l.trim()) paras.push({tag:"p", text: l.trim(), classes: [], html: escapeHtml(l.trim())});
             });
         }
         if(!paras.length) throw new Error('段落0個');
-
-        const ch = paras.map(p=>`<${p.tag}>${escapeHtml(p.text)}</${p.tag}>`).join("");
+        const ch = paras.map(p=>{
+            const cls = (p.classes && p.classes.length) ? ` class="${p.classes.join(' ')}"` : '';
+            const inner = (p.html != null) ? p.html : escapeHtml(p.text);
+            return `<${p.tag}${cls}>${inner}</${p.tag}>`;
+        }).join("");
         const an = rx.authors[0] ? rx.authors[0].name : "不明";
         const srcLang = (Array.isArray(rx.languages) && rx.languages.length) ? rx.languages[0] : 'en';
-
         const bd = {
             id: 'gutenberg_' + bookId,
             title: rx.title,
@@ -1679,24 +1507,20 @@ async function downloadAndSaveGutenberg(bookId){
             source: 'gutenberg',
             savedAt: new Date().toISOString(),
             sortOrder: Date.now(),
-            favorite: false
+            favorite: false,
+            formatVersion: BOOK_FORMAT_VERSION
         };
         await saveBookToDB(bd);
         setStatus("search-status", "保存完了！裏で翻訳を進めます", 'success');
         showToast(`「${rx.title}」保存完了（${paras.length}段落）`, 'success');
         openReader(bd);
         startBackgroundTranslation(bd.id);
-    }catch(err){
-        setStatus("search-status", `ダウンロード失敗: ${err.message}`, 'error');
-        showToast('ダウンロード失敗: ' + err.message, 'error');
-    }
+    }catch(err){ setStatus("search-status", `ダウンロード失敗: ${err.message}`, 'error'); showToast('ダウンロード失敗: ' + err.message, 'error'); }
 }
 window.downloadAndSaveGutenberg = downloadAndSaveGutenberg;
 
 /* ============================================================
    本文ダウンロード（青空文庫）
-   - decodeJapaneseText() で Shift_JIS/UTF-8 自動判別
-   - 本文抽出は「最大チャンク方式」（--- 区切りの最大ブロック）
    ============================================================ */
 async function downloadAndSaveAozora(workId, personId, title, personName, zipName){
     const key = 'aozora_' + workId;
@@ -1713,27 +1537,15 @@ async function downloadAndSaveAozora(workId, personId, title, personName, zipNam
             ];
             for(const apiUrl of apiCandidates){
                 try{
-                    console.log('[青空文庫] ファイル一覧取得:', apiUrl);
                     const apiRes = await fetchWithTimeout(apiUrl, {}, FETCH_TIMEOUT_API);
-                    if(!apiRes.ok){
-                        console.warn('[青空文庫] API失敗:', apiRes.status);
-                        continue;
-                    }
+                    if(!apiRes.ok) continue;
                     const files = await apiRes.json();
                     if(!Array.isArray(files)) continue;
                     const zipTarget = files.find(f => f.name && f.name.startsWith(String(workId) + '_') && f.name.endsWith('.zip'));
-                    if(zipTarget){
-                        finalZipName = zipTarget.name;
-                        break;
-                    }
+                    if(zipTarget){ finalZipName = zipTarget.name; break; }
                     const dirTarget = files.find(f => f.name && f.name.startsWith(String(workId) + '_'));
-                    if(dirTarget){
-                        finalZipName = dirTarget.name + '.zip';
-                        break;
-                    }
-                }catch(e){
-                    console.warn('[青空文庫] API例外:', e.message);
-                }
+                    if(dirTarget){ finalZipName = dirTarget.name + '.zip'; break; }
+                }catch(e){}
             }
         }
 
@@ -1749,40 +1561,30 @@ async function downloadAndSaveAozora(workId, personId, title, personName, zipNam
         let lastErr = '';
         for(const url of candidates){
             try{
-                console.log('[青空文庫] テキスト取得:', url);
                 const res = await fetchWithTimeout(url, {}, FETCH_TIMEOUT_BOOK);
-                if(!res.ok){
-                    lastErr = `HTTP ${res.status}`;
-                    continue;
-                }
+                if(!res.ok){ lastErr = `HTTP ${res.status}`; continue; }
                 const buf = await res.arrayBuffer();
-                if(buf.byteLength < 100){
-                    lastErr = '空';
-                    continue;
-                }
+                if(buf.byteLength < 100){ lastErr = '空'; continue; }
                 txt = decodeJapaneseText(buf);
-                console.log('[青空文庫] デコード後の先頭200字:', txt.slice(0, 200).replace(/\n/g, '\\n'));
                 break;
-            }catch(e){
-                lastErr = e.message;
-            }
+            }catch(e){ lastErr = e.message; }
         }
         if(!txt) throw new Error(`テキスト取得失敗: ${lastErr}`);
 
-        /* --- 本文抽出: 最大チャンク方式 --- */
         const chunks = txt.split(/^-{5,}\s*$/m).map(s=>s.trim()).filter(s=>s.length > 0);
-        console.log(`[青空文庫] 区切りチャンク数: ${chunks.length}, 各サイズ: ${chunks.map(c=>c.length).join(',')}`);
         let body = '';
-        for(const c of chunks){
-            if(c.length > body.length) body = c;
-        }
+        for(const c of chunks){ if(c.length > body.length) body = c; }
         if(!body) body = txt;
 
         const rawParas = body.split(/\n\n+/).map(s=>s.trim()).filter(s=>s.length > 0);
         if(!rawParas.length) throw new Error('本文の段落が0個でした');
 
-        const paras = rawParas.map(text => ({tag:"p", text}));
-        const ch = paras.map(p=>`<${p.tag}>${escapeHtml(p.text)}</${p.tag}>`).join("");
+        const paras = buildAozoraParagraphs(rawParas);
+        const ch = paras.map(p=>{
+            const cls = (p.classes && p.classes.length) ? ` class="${p.classes.join(' ')}"` : '';
+            const inner = (p.html != null) ? p.html : escapeHtml(p.text);
+            return `<${p.tag}${cls}>${inner}</${p.tag}>`;
+        }).join("");
 
         const bd = {
             id: key,
@@ -1791,6 +1593,7 @@ async function downloadAndSaveAozora(workId, personId, title, personName, zipNam
             content: ch,
             contentTranslated: "",
             paragraphs: paras,
+            rawParas: rawParas,
             translatedTexts: new Array(paras.length).fill(null),
             translationStatus: "done",
             translationDone: paras.length,
@@ -1801,7 +1604,8 @@ async function downloadAndSaveAozora(workId, personId, title, personName, zipNam
             source: 'aozora',
             savedAt: new Date().toISOString(),
             sortOrder: Date.now(),
-            favorite: false
+            favorite: false,
+            formatVersion: BOOK_FORMAT_VERSION
         };
 
         await saveBookToDB(bd);
@@ -1818,6 +1622,18 @@ window.downloadAndSaveAozora = downloadAndSaveAozora;
 /* ============================================================
    本棚
    ============================================================ */
+function updateReprocessButton(count){
+    const btn = document.getElementById('reprocess-all-btn');
+    if(!btn) return;
+    if(count > 0){
+        btn.style.display = 'inline-block';
+        btn.disabled = false;
+        btn.textContent = `要更新 ${count}件 / 一括再処理`;
+    } else {
+        btn.style.display = 'none';
+    }
+}
+
 function loadBookshelf(){
     const s = document.getElementById("bookshelf-status");
     const t = document.getElementById("bookshelf-table");
@@ -1836,6 +1652,7 @@ function loadBookshelf(){
             if(!bks.length){
                 setStatus("bookshelf-status", "本棚は空っぽです", 'info');
                 t.style.display = "none";
+                updateReprocessButton(0);
                 resolve();
                 return;
             }
@@ -1851,14 +1668,20 @@ function loadBookshelf(){
             if(!filtered.length){
                 setStatus("bookshelf-status", "条件に一致する本がありません", 'info');
                 t.style.display = "none";
+                updateReprocessButton(0);
                 resolve();
                 return;
             }
             filtered.sort((a,b)=>(a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity));
+
+            const outdatedCount = filtered.filter(b => isBookOutdated(b)).length;
+            updateReprocessButton(outdatedCount);
+
             s.textContent = "";
             t.style.display = "table";
 
             filtered.forEach(b=>{
+                const outdated = isBookOutdated(b);
                 const tr = document.createElement("tr");
                 tr.draggable = true;
                 tr.ondragstart = (e)=>handleDragStart(e, b.id);
@@ -1878,6 +1701,12 @@ function loadBookshelf(){
                 const retryBtn = incomplete
                     ? `<button onclick="event.stopPropagation(); retryTranslation('${escapeHtml(b.id)}')">翻訳を再開</button>`
                     : "";
+                const updateBadge = outdated
+                    ? `<span class="update-badge" title="新しい処理形式で読み直せます">⟳</span>`
+                    : "";
+                const reprocessBtn = outdated
+                    ? `<button onclick="event.stopPropagation(); handleReprocessOne('${escapeHtml(b.id)}')">新形式で再処理</button>`
+                    : "";
 
                 tr.innerHTML = `
                     <td class="id-cell">
@@ -1888,11 +1717,12 @@ function loadBookshelf(){
                     </td>
                     <td>${fav}${escapeHtml(b.title)}</td>
                     <td>${escapeHtml(b.author)}</td>
-                    <td><span class="trans-badge ${stCls}" data-status-for="${escapeHtml(b.id)}"${errTitle}>${st}</span></td>
+                    <td>${updateBadge}<span class="trans-badge ${stCls}" data-status-for="${escapeHtml(b.id)}"${errTitle}>${st}</span></td>
                     <td onclick="event.stopPropagation()">
                         <div class="menu-wrap">
                             <button class="dots-btn" onclick="toggleRowMenu(event, '${escapeHtml(b.id)}')">⋮</button>
                             <div class="row-menu" id="menu-${escapeHtml(b.id)}">
+                                ${reprocessBtn}
                                 ${retryBtn}
                                 <button onclick="toggleFavorite('${escapeHtml(b.id)}')">${b.favorite ? "お気に入り解除" : "お気に入りに追加"}</button>
                                 <button onclick="confirmDeleteBook('${escapeHtml(b.id)}')" style="color:#d9534f;">削除</button>
@@ -1913,10 +1743,7 @@ function loadBookshelf(){
 async function retryTranslation(bookId){
     closeAllRowMenus();
     const book = await getBookFromDB(bookId);
-    if(!book || !book.paragraphs){
-        showToast('翻訳データがないため再開できません', 'error');
-        return;
-    }
+    if(!book || !book.paragraphs){ showToast('翻訳データなし', 'error'); return; }
     active_translation_jobs[bookId] = false;
     showToast('翻訳を再開します', 'info');
     startBackgroundTranslation(bookId);
@@ -1924,16 +1751,8 @@ async function retryTranslation(bookId){
 }
 window.retryTranslation = retryTranslation;
 
-function handleDragStart(ev, bookId){
-    drag_zaku_id = bookId;
-    ev.dataTransfer.effectAllowed = "move";
-}
-
-function handleDragOver(ev, rowEl){
-    ev.preventDefault();
-    rowEl.classList.add("drag-over-row");
-}
-
+function handleDragStart(ev, bookId){ drag_zaku_id = bookId; ev.dataTransfer.effectAllowed = "move"; }
+function handleDragOver(ev, rowEl){ ev.preventDefault(); rowEl.classList.add("drag-over-row"); }
 function handleRowDrop(ev, targetId, rowEl){
     ev.preventDefault();
     rowEl.classList.remove("drag-over-row");
@@ -1951,21 +1770,14 @@ function swapBookOrder(idA, idB){
             const rqB = st.get(idB);
             rqB.onsuccess = ()=>{
                 const b = rqB.result;
-                if(!a || !b){
-                    resolve();
-                    return;
-                }
+                if(!a || !b){ resolve(); return; }
                 const tmp = a.sortOrder ?? 0;
                 a.sortOrder = b.sortOrder ?? 0;
                 b.sortOrder = tmp;
-                st.put(a);
-                st.put(b);
+                st.put(a); st.put(b);
             };
         };
-        tx.oncomplete = ()=>{
-            loadBookshelf();
-            resolve();
-        };
+        tx.oncomplete = ()=>{ loadBookshelf(); resolve(); };
     }).catch(()=>{});
 }
 
@@ -1977,7 +1789,7 @@ function toggleRowMenu(ev, bookId){
     if(opening){
         const btn = ev.currentTarget;
         const rect = btn.getBoundingClientRect();
-        const w = 180;
+        const w = 200;
         let left = rect.right - w;
         if(left < 8) left = 8;
         menu.style.position = "fixed";
@@ -2005,17 +1817,11 @@ function toggleFavorite(bookId){
         const rq = st.get(bookId);
         rq.onsuccess = ()=>{
             const b = rq.result;
-            if(!b){
-                resolve();
-                return;
-            }
+            if(!b){ resolve(); return; }
             b.favorite = !b.favorite;
             st.put(b);
         };
-        tx.oncomplete = ()=>{
-            loadBookshelf();
-            resolve();
-        };
+        tx.oncomplete = ()=>{ loadBookshelf(); resolve(); };
     }).catch(()=>{});
 }
 window.toggleFavorite = toggleFavorite;
@@ -2042,18 +1848,13 @@ function executeConfirmedDelete(){
 window.executeConfirmedDelete = executeConfirmedDelete;
 
 function readSavedBook(bookId){
-    getBookFromDB(bookId).then(b=>{
-        if(b) openReader(b);
-    }).catch(()=>{});
+    getBookFromDB(bookId).then(b=>{ if(b) openReader(b); }).catch(()=>{});
 }
 
 function deleteBook(bookId){
     safeDBOp(["books"], "readwrite", (tx, resolve)=>{
         tx.objectStore("books").delete(bookId);
-        tx.oncomplete = ()=>{
-            loadBookshelf();
-            resolve();
-        };
+        tx.oncomplete = ()=>{ loadBookshelf(); resolve(); };
     }).catch(()=>{});
 }
 
@@ -2084,28 +1885,22 @@ function openReader(bookObj){
     if(bookObj.paragraphs && bookObj.paragraphs.length){
         const total = bookObj.translationTotal || bookObj.paragraphs.length;
         const done = bookObj.translationDone || 0;
-        if(done < total){
-            active_translation_jobs[bookObj.id] = false;
-            startBackgroundTranslation(bookObj.id);
-        }
+        if(done < total){ active_translation_jobs[bookObj.id] = false; startBackgroundTranslation(bookObj.id); }
     }
 }
 
 function renderReaderContent(){
     if(!ima_yonderu_hon) return;
     const flow = document.getElementById("reader-flow");
-    if(is_showing_translation) flow.innerHTML = buildTranslatedHtml(ima_yonderu_hon);
-    else flow.innerHTML = ima_yonderu_hon.content || "";
+    if(is_showing_translation){ flow.innerHTML = buildTranslatedHtml(ima_yonderu_hon); }
+    else { flow.innerHTML = buildOriginalHtml(ima_yonderu_hon); }
     if(is_page_mode) requestAnimationFrame(()=>computePageLayout());
 }
 
 function toggleTranslationView(){
     if(!ima_yonderu_hon) return;
     const has = (ima_yonderu_hon.paragraphs && ima_yonderu_hon.paragraphs.length) || !!ima_yonderu_hon.contentTranslated;
-    if(!has){
-        showToast('翻訳データがありません', 'warn');
-        return;
-    }
+    if(!has){ showToast('翻訳データがありません', 'warn'); return; }
     is_showing_translation = !is_showing_translation;
     updateTranslationButtonLabel();
     renderReaderContent();
@@ -2120,36 +1915,26 @@ function updateTranslationButtonLabel(){
 function updateReaderTranslationLabel(){
     const el = document.getElementById("translation-status-label");
     if(!el) return;
-    if(!ima_yonderu_hon){
-        el.textContent = "";
-        return;
-    }
+    if(!ima_yonderu_hon){ el.textContent = ""; return; }
     const b = ima_yonderu_hon;
     el.classList.remove('error','done');
     if(b.translationStatus === "translating"){
         const done = b.translationDone || 0;
         const total = b.translationTotal || (b.paragraphs ? b.paragraphs.length : 0);
         el.textContent = `翻訳中 ${done}/${total}`;
-    } else if(b.translationStatus === "done"){
-        el.textContent = "翻訳完了";
-        el.classList.add('done');
-    } else if(b.translationStatus === "error"){
+    } else if(b.translationStatus === "done"){ el.textContent = "翻訳完了"; el.classList.add('done'); }
+    else if(b.translationStatus === "error"){
         const done = b.translationDone || 0;
         const total = b.translationTotal || (b.paragraphs ? b.paragraphs.length : 0);
         el.textContent = `翻訳失敗 ${done}/${total}${b.lastError ? ' - ' + b.lastError : ''}`;
         el.classList.add('error');
-    } else {
-        el.textContent = "";
-    }
+    } else el.textContent = "";
 }
 
 async function changeTargetLang(newLang){
     if(!ima_yonderu_hon) return;
     if(ima_yonderu_hon.targetLang === newLang) return;
-    if(!ima_yonderu_hon.paragraphs || !ima_yonderu_hon.paragraphs.length){
-        showToast('翻訳データなし', 'warn');
-        return;
-    }
+    if(!ima_yonderu_hon.paragraphs || !ima_yonderu_hon.paragraphs.length){ showToast('翻訳データなし', 'warn'); return; }
     const src = ima_yonderu_hon.sourceLang || 'en';
     if(src === newLang){
         showToast('原文と同じ言語です', 'warn');
@@ -2187,14 +1972,8 @@ function togglePageMode(){
     rb.classList.toggle("paged", is_page_mode);
     nav.style.display = is_page_mode ? "flex" : "none";
     btn.textContent = is_page_mode ? "スクロールに戻す" : "めくりモード";
-    if(is_page_mode){
-        requestAnimationFrame(()=>computePageLayout());
-    } else {
-        flow.style.columnWidth = "";
-        flow.style.columnGap = "";
-        flow.style.columnFill = "";
-        rb.scrollLeft = 0;
-    }
+    if(is_page_mode){ requestAnimationFrame(()=>computePageLayout()); }
+    else { flow.style.columnWidth = ""; flow.style.columnGap = ""; flow.style.columnFill = ""; rb.scrollLeft = 0; }
     scheduleBookmarkSave();
 }
 window.togglePageMode = togglePageMode;
@@ -2217,15 +1996,10 @@ function computePageLayout(keep){
     zenbu_page_su = Math.max(1, Math.round(tw / (pw + gata_gap_haba)));
     const target = (typeof keep === "number") ? keep : 0;
     goToPage(target);
-    if(pending_page_restore != null){
-        goToPage(pending_page_restore);
-        pending_page_restore = null;
-    }
+    if(pending_page_restore != null){ goToPage(pending_page_restore); pending_page_restore = null; }
 }
 
-function turnPage(d){
-    goToPage(ima_no_page + d);
-}
+function turnPage(d){ goToPage(ima_no_page + d); }
 window.turnPage = turnPage;
 
 function goToPage(i){
@@ -2246,36 +2020,19 @@ document.getElementById("reader-body").addEventListener("click", (ev)=>{
     else if(x > 0.75) turnPage(1);
 });
 
-document.getElementById("reader-body").addEventListener("scroll", ()=>{
-    if(is_page_mode) return;
-    scheduleBookmarkSave();
-});
-
-document.addEventListener("keydown", (ev)=>{
-    if(!is_page_mode) return;
-    if(ev.key === "ArrowRight") turnPage(1);
-    if(ev.key === "ArrowLeft") turnPage(-1);
-});
-
-window.addEventListener("resize", ()=>{
-    if(is_page_mode) computePageLayout(ima_no_page);
-});
+document.getElementById("reader-body").addEventListener("scroll", ()=>{ if(is_page_mode) return; scheduleBookmarkSave(); });
+document.addEventListener("keydown", (ev)=>{ if(!is_page_mode) return; if(ev.key === "ArrowRight") turnPage(1); if(ev.key === "ArrowLeft") turnPage(-1); });
+window.addEventListener("resize", ()=>{ if(is_page_mode) computePageLayout(ima_no_page); });
 
 /* ============================================================
    タブ切替・表示
    ============================================================ */
 function switchTab(tabName){
-    if(document.getElementById("reader-view").classList.contains("active")){
-        saveBookmarkNow().catch(()=>{});
-    }
+    if(document.getElementById("reader-view").classList.contains("active")){ saveBookmarkNow().catch(()=>{}); }
     document.getElementById("reader-view").classList.remove("active");
     document.querySelectorAll(".view-panel").forEach(p=>p.classList.remove("active"));
-    if(tabName === "search"){
-        document.getElementById("search-view").classList.add("active");
-    } else if(tabName === "bookshelf"){
-        document.getElementById("bookshelf-view").classList.add("active");
-        loadBookshelf();
-    }
+    if(tabName === "search") document.getElementById("search-view").classList.add("active");
+    else if(tabName === "bookshelf"){ document.getElementById("bookshelf-view").classList.add("active"); loadBookshelf(); }
 }
 window.switchTab = switchTab;
 
@@ -2315,12 +2072,8 @@ function escapeHtml(str){
    起動処理
    ============================================================ */
 window.onload = async ()=>{
-    try{
-        await initDB();
-    }catch(err){
-        showToast('DB初期化失敗: ' + err.message, 'error', 15000);
-        return;
-    }
+    try{ await initDB(); }
+    catch(err){ showToast('DB初期化失敗: ' + err.message, 'error', 15000); return; }
 
     resumePendingTranslations();
 
@@ -2333,19 +2086,24 @@ window.onload = async ()=>{
             }
             console.log('[青空文庫] バックグラウンド先読み開始...');
             await fetchAozoraCatalog();
-        }catch(e){
-            console.warn('[青空文庫] 先読み失敗:', e.message);
-        }
+        }catch(e){ console.warn('[青空文庫] 先読み失敗:', e.message); }
     }, 2000);
+
+    setTimeout(async ()=>{
+        try{
+            const count = await countOutdatedBooks();
+            if(count > 0){
+                showToast(`本棚に ${count}件 の「要更新」本があります。本棚タブの「一括再処理」で更新できます。`, 'info', 12000);
+            }
+        }catch(e){}
+    }, 5000);
 };
 
 window.addEventListener('error', (ev)=>{
     const msg = ev.message || 'unknown';
     if(msg.includes('database connection is closing')) return;
     showErrorBanner('予期しないエラーが発生しました', msg);
-    try{
-        showToast('予期しないエラー: ' + msg, 'error', 12000);
-    }catch(e){}
+    try{ showToast('予期しないエラー: ' + msg, 'error', 12000); }catch(e){}
 });
 
 window.addEventListener('unhandledrejection', (ev)=>{
