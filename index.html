@@ -116,7 +116,6 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
     font-size: 0.8rem;
     padding: 8px 10px;
 }
-
 .results-table {
     width: 100%;
     border-collapse: collapse;
@@ -134,7 +133,6 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
 }
 .results-table th { background-color: rgba(0,0,0,0.03); font-weight: bold; }
 .results-table tr:hover { background-color: rgba(0,0,0,0.02); cursor: pointer; }
-
 .id-cell { display: flex; align-items: center; gap: 10px; }
 .drag-handle {
     display: flex;
@@ -173,7 +171,7 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
     border-radius: 6px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.25);
     z-index: 5000;
-    min-width: 170px;
+    min-width: 180px;
     overflow: hidden;
 }
 .row-menu.active { display: block; }
@@ -189,7 +187,6 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
     font-size: 0.9rem;
 }
 .row-menu button:hover { background: rgba(0,0,0,0.05); }
-
 #reader-view {
     flex: 1;
     display: none;
@@ -271,7 +268,6 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
 }
 .trans-badge.error { color: #d9534f; }
 .trans-badge.done { color: #4caf50; }
-
 .modal-overlay {
     display: none;
     position: fixed;
@@ -304,8 +300,6 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
     font-size: 0.9rem;
 }
 .modal-buttons button.danger { background: #d9534f; color: #fff; border-color: #d9534f; }
-
-/* トースト通知。エラー・進捗を画面右上に出す。コンソール見れない人向け */
 .toast-container {
     position: fixed;
     top: 60px;
@@ -338,7 +332,6 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
     from { transform: translateX(100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
 }
-/* ステータス欄の色分け */
 .status-msg.error { color: #d9534f; }
 .status-msg.success { color: #4caf50; }
 .status-msg.info { color: var(--accent-color); }
@@ -355,7 +348,6 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
 </header>
 
 <div class="container">
-    <!-- 検索タブ -->
     <div id="search-view" class="view-panel active">
         <div class="search-box">
             <div class="mode-toggle">
@@ -364,7 +356,7 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
             </div>
             <input type="text" id="search-input" placeholder="作品名（・がなくてもいけるようにした！）">
             <button onclick="execSearch()">検索実行</button>
-            <button class="secondary" onclick="runProxyTest()" title="プロキシと翻訳APIの疎通を確認">疎通テスト</button>
+            <button class="secondary" onclick="runProxyTest()" title="翻訳APIの疎通を確認">疎通テスト</button>
         </div>
         <div id="search-status" class="status-msg"></div>
         <table class="results-table" id="results-table" style="display:none;">
@@ -380,7 +372,6 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
         </table>
     </div>
 
-    <!-- 本棚タブ -->
     <div id="bookshelf-view" class="view-panel">
         <h2>保存済み作品</h2>
         <div id="bookshelf-status" class="status-msg"></div>
@@ -398,7 +389,6 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
         </table>
     </div>
 
-    <!-- 読書画面 -->
     <div id="reader-view">
         <div class="reader-toolbar">
             <button onclick="toggleWritingMode()">縦横切替</button>
@@ -424,7 +414,6 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
     </div>
 </div>
 
-<!-- 削除確認ポップアップ -->
 <div class="modal-overlay" id="confirm-modal">
     <div class="modal-box">
         <p>削除しますか？</p>
@@ -435,11 +424,32 @@ h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
     </div>
 </div>
 
-<!-- トースト通知の入れ物 -->
 <div class="toast-container" id="toast-container"></div>
 
 <script>
-const maji_de_proxy_base = "https://aoi-box-lab.idosenpai.workers.dev/?url=";
+/* ============================================================
+   翻訳エンジン・フォールバックチェーン
+   Safari/Firefox/Chrome すべてで動く CORS 対応 API のみ使用
+   ============================================================ */
+
+// Lingva Translate の公開インスタンス一覧
+// 必要に応じて追加・削除してください
+const LINGVA_INSTANCES = [
+    'https://lingva.ml',
+    'https://translate.igna.wtf',
+    'https://translate.plausibility.cloud',
+    'https://lingva.lunar.icu',
+    'https://translate.projectsegfau.lt',
+    'https://translate.garudalinux.org',
+    'https://translate.dr460nf1r3.org',
+    'https://translate.jae.fi'
+];
+
+// LibreTranslate の公開インスタンス（APIキー不要のもの）
+const LIBRETRANSLATE_INSTANCES = [
+    'https://libretranslate.com',
+    'https://translate.cutie.dating'
+];
 
 let maji_de_db = null;
 let current_font_size = 18;
@@ -461,25 +471,23 @@ let ima_yonderu_hon = null;
 let active_translation_jobs = {};
 let page_recompute_timer = null;
 
+// 翻訳の並列度と間隔（429回避のため控えめ）
 const TRANSLATION_CONCURRENCY = 3;
-const WORKER_DELAY_MS = 150;
-const MAX_CONSECUTIVE_FAILS = 15;
+const WORKER_DELAY_MS = 300;
+const MAX_CONSECUTIVE_FAILS = 20;
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 /* ===================== トースト通知 ===================== */
 function showToast(msg, type, duration) {
     type = type || 'info';
-    duration = duration || (type === 'error' ? 10000 : 5000);
-
+    duration = duration || (type === 'error' ? 12000 : 6000);
     const container = document.getElementById('toast-container');
     if (!container) return;
-
     const el = document.createElement('div');
     el.className = 'toast ' + type;
     el.textContent = msg;
     container.appendChild(el);
-
     setTimeout(() => {
         el.style.transition = 'opacity 0.3s, transform 0.3s';
         el.style.opacity = '0';
@@ -487,8 +495,6 @@ function showToast(msg, type, duration) {
         setTimeout(() => el.remove(), 320);
     }, duration);
 }
-
-// 検索・本棚のステータス欄も色付きで更新するためのヘルパー
 function setStatus(elId, msg, type) {
     const el = document.getElementById(elId);
     if (!el) return;
@@ -535,12 +541,10 @@ function saveBookToDB(book) {
         tx.onerror = () => reject(tx.error);
     });
 }
-
 function checkChosakukenSafe(authorDeathYear) {
     if (!authorDeathYear) return false;
     return (new Date().getFullYear() - authorDeathYear) >= 80;
 }
-
 function setSearchMode(mode) {
     search_mode_v = mode;
     document.getElementById("mode-title-btn").classList.toggle("active", mode === "title");
@@ -562,7 +566,6 @@ async function getOriginalTitleFromNDL(jpTitle) {
         const doc = parser.parseFromString(xml, 'application/xml');
         const items = [...doc.getElementsByTagName('item')];
         if (!items.length) return null;
-
         for (const item of items) {
             const text = item.textContent;
             const pats = [
@@ -584,7 +587,7 @@ async function getOriginalTitleFromNDL(jpTitle) {
                 return latin[0].trim();
             }
         }
-    } catch (err) { /* サイレント */ }
+    } catch (err) {}
     return null;
 }
 
@@ -596,12 +599,9 @@ async function getAuthorEnglishNameFromWikipedia(jpName) {
         const wiki_api = `https://ja.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(jpName)}&gsrlimit=5&prop=langlinks&lllang=en&format=json&origin=*&indexpageids=1`;
         const res = await fetch(maji_de_proxy_base + encodeURIComponent(wiki_api));
         const data = await res.json();
-
         const query = data && data.query;
         if (!query || !query.pages) return null;
-
         const ids = (query.pageids && query.pageids.length) ? query.pageids : Object.keys(query.pages);
-
         for (const id of ids) {
             const page = query.pages[id];
             if (!page) continue;
@@ -613,14 +613,18 @@ async function getAuthorEnglishNameFromWikipedia(jpName) {
     } catch (err) { return null; }
 }
 
+// 検索クエリ用の単発翻訳。フォールバックチェーンを使う
 async function translateToEnglish(jpText) {
     if (/^[a-zA-Z0-9\s]+$/.test(jpText)) return jpText;
-    try {
-        const nen_ryou = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=en&dt=t&q=${encodeURIComponent(jpText)}`;
-        const res = await fetch(maji_de_proxy_base + encodeURIComponent(nen_ryou));
-        const data = await res.json();
-        if (data && data[0] && data[0][0] && data[0][0][0]) return data[0][0][0];
-    } catch (err) { /* サイレント */ }
+    for (const instance of LINGVA_INSTANCES) {
+        try {
+            const url = `${instance}/api/v1/ja/en/${encodeURIComponent(jpText)}`;
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (data && data.translation) return data.translation;
+        } catch (e) {}
+    }
     return jpText;
 }
 
@@ -638,61 +642,80 @@ function splitTextRoughly(text, maxLen) {
     return chunks;
 }
 
-// 翻訳1チャンク。エラー時はコンソールに出さず、呼び出し側でハンドリングできるよう
-// 詳細メッセージ付きの {ok:false, error} 形式でも返せるようにした（互換のためnullも許容）
-async function translateChunkToJapanese(text, attempt) {
-    attempt = attempt || 0;
-    try {
-        const q_url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ja&dt=t&q=${encodeURIComponent(text)}`;
-        const res = await fetch(maji_de_proxy_base + encodeURIComponent(q_url), { cache: 'no-store' });
-
-        if (!res.ok) {
-            const errMsg = `翻訳API HTTP ${res.status}`;
-            if ((res.status === 429 || res.status >= 500) && attempt < 2) {
-                await sleep(400 * Math.pow(2, attempt));
-                return translateChunkToJapanese(text, attempt + 1);
-            }
-            return { ok: false, error: errMsg };
+// UTF-8バイト数でテキストを分割（MyMemoryの500バイト制限対策）
+function splitTextByBytes(text, maxBytes) {
+    const chunks = [];
+    let current = '';
+    for (const char of text) {
+        if (new Blob([current + char]).size > maxBytes) {
+            chunks.push(current);
+            current = char;
+        } else {
+            current += char;
         }
-
-        const raw = await res.text();
-        let data;
-        try {
-            data = JSON.parse(raw);
-        } catch (e) {
-            return { ok: false, error: 'レスポンスがJSONじゃない（プロキシエラーの可能性）' };
-        }
-
-        if (data && data[0] && Array.isArray(data[0])) {
-            return { ok: true, text: data[0].map(seg => seg[0]).join("") };
-        }
-        return { ok: false, error: '予期しないレスポンス形式' };
-    } catch (err) {
-        if (attempt < 2) {
-            await sleep(400 * Math.pow(2, attempt));
-            return translateChunkToJapanese(text, attempt + 1);
-        }
-        return { ok: false, error: 'ネットワークエラー: ' + err.message };
     }
+    if (current) chunks.push(current);
+    return chunks;
 }
 
-// 単一段落を翻訳。戻り値は {ok, text, error}
+// メイン翻訳処理。Lingva → MyMemory → LibreTranslate の順に試す
+async function translateChunkToJapanese(text) {
+    if (!text || !text.trim()) return { ok: true, text: text };
+
+    // === 1. Lingva（複数インスタンスを順番に試す）===
+    for (const instance of LINGVA_INSTANCES) {
+        try {
+            const url = `${instance}/api/v1/en/ja/${encodeURIComponent(text)}`;
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (data && data.translation) {
+                return { ok: true, text: data.translation, endpoint: 'Lingva(' + instance + ')' };
+            }
+        } catch (e) { /* 次のインスタンスへ */ }
+    }
+
+    // === 2. MyMemory（500バイト制限に注意）===
+    try {
+        const chunks = splitTextByBytes(text, 450);
+        let combined = '';
+        for (const chunk of chunks) {
+            const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=en|ja`;
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (data && data.responseData && data.responseData.translatedText) {
+                combined += data.responseData.translatedText;
+            }
+            await sleep(300);
+        }
+        if (combined) return { ok: true, text: combined, endpoint: 'MyMemory' };
+    } catch (e) { /* 次へ */ }
+
+    // === 3. LibreTranslate ===
+    for (const instance of LIBRETRANSLATE_INSTANCES) {
+        try {
+            const res = await fetch(`${instance}/translate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ q: text, source: 'en', target: 'ja' })
+            });
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (data && data.translatedText) {
+                return { ok: true, text: data.translatedText, endpoint: 'LibreTranslate(' + instance + ')' };
+            }
+        } catch (e) { /* 次のインスタンスへ */ }
+    }
+
+    return { ok: false, error: '全翻訳APIが失敗しました' };
+}
+
 async function translateParagraphToJapanese(text) {
     if (!text || !text.trim()) return { ok: true, text: text };
-    const MAX_LEN = 1500;
-    if (text.length <= MAX_LEN) return await translateChunkToJapanese(text);
-
-    const chunks = splitTextRoughly(text, MAX_LEN);
-    let out = "";
-    for (const c of chunks) {
-        const r = await translateChunkToJapanese(c);
-        if (!r.ok) return r;
-        out += r.text;
-    }
-    return { ok: true, text: out };
+    return await translateChunkToJapanese(text);
 }
 
-// 先頭と末尾から交互に取り出すキュー
 function buildBidirectionalQueue(total) {
     const q = [];
     let f = 0, b = total - 1;
@@ -761,7 +784,7 @@ async function startBackgroundTranslation(bookId) {
                     book.translatedTexts[idx] = r.text;
                     book.translationDone = (book.translationDone || 0) + 1;
                     onTranslationTick(book);
-                    if (Date.now() - last_save > 1000) {
+                    if (Date.now() - last_save > 1500) {
                         last_save = Date.now();
                         saveBookToDB(book);
                     }
@@ -774,7 +797,6 @@ async function startBackgroundTranslation(bookId) {
                         break;
                     }
                 }
-
                 await sleep(WORKER_DELAY_MS);
             }
         };
@@ -803,7 +825,7 @@ async function startBackgroundTranslation(bookId) {
         } else {
             book.translationStatus = "error";
             book.lastError = lastErrorMsg || '一部の段落が翻訳できませんでした';
-            showToast(`「${bookTitleForToast}」の翻訳が途中で止まりました: ${book.lastError}`, 'error');
+            showToast(`「${bookTitleForToast}」翻訳中断: ${book.lastError}`, 'error', 15000);
         }
 
         await saveBookToDB(book);
@@ -832,7 +854,6 @@ function onTranslationTick(book) {
         ima_yonderu_hon.translationTotal = book.translationTotal;
         ima_yonderu_hon.lastError = book.lastError;
         if (!ima_yonderu_hon.paragraphs) ima_yonderu_hon.paragraphs = book.paragraphs;
-
         if (is_showing_translation) {
             applyTranslationToDom(book);
             if (is_page_mode) schedulePageRecompute();
@@ -846,11 +867,9 @@ function applyTranslationToDom(book) {
     if (!ima_yonderu_hon || ima_yonderu_hon.id !== book.id) return;
     if (!is_showing_translation) return;
     if (!book.paragraphs) return;
-
     const flow = document.getElementById("reader-flow");
     const texts = book.translatedTexts || [];
     const children = flow.children;
-
     for (let i = 0; i < book.paragraphs.length && i < children.length; i++) {
         const el = children[i];
         if (texts[i] != null && el.classList.contains("untranslated")) {
@@ -867,9 +886,7 @@ function updateBookshelfRowStatus(book) {
     el.classList.remove('error', 'done');
     if (book.translationStatus === "error") el.classList.add('error');
     else if (book.translationStatus === "done") el.classList.add('done');
-    if (book.lastError && book.translationStatus === "error") {
-        el.title = book.lastError;
-    }
+    if (book.lastError && book.translationStatus === "error") el.title = book.lastError;
 }
 
 function formatTranslationStatus(book) {
@@ -905,9 +922,7 @@ async function execSearch() {
     const q_v = in_e.value.trim();
     const t_e = document.getElementById("results-table");
     const tb_e = document.getElementById("results-tbody");
-
     if (!q_v) return;
-
     tb_e.innerHTML = "";
     t_e.style.display = "none";
     v_project_cache = {};
@@ -921,7 +936,7 @@ async function execSearch() {
         if (eng_q) {
             setStatus("search-status", `NDLで原題「${eng_q}」を発見！Gutendexを検索中...`, 'info');
         } else {
-            setStatus("search-status", "NDLにないのでGoogle翻訳で英語化中...", 'info');
+            setStatus("search-status", "NDLにないので翻訳で英語化中...", 'info');
             eng_q = await translateToEnglish(loose_jp_q);
             setStatus("search-status", `翻訳結果「${eng_q}」でGutendexを検索中...`, 'info');
         }
@@ -931,34 +946,29 @@ async function execSearch() {
         if (eng_q) {
             setStatus("search-status", `Wikipediaで英語表記「${eng_q}」を発見！Gutendexを検索中...`, 'info');
         } else {
-            setStatus("search-status", "WikipediaにないのでGoogle翻訳で英語化中...", 'info');
+            setStatus("search-status", "Wikipediaにないので翻訳で英語化中...", 'info');
             eng_q = await translateToEnglish(loose_jp_q);
             setStatus("search-status", `翻訳結果「${eng_q}」でGutendexを検索中...`, 'info');
         }
     }
 
     let clean_eng_q = eng_q.replace(/[^\w\s]/gi, ' ').replace(/\s+/g, ' ').trim();
-
     try {
         const g_api = `https://gutendex.com/books/?search=${encodeURIComponent(clean_eng_q)}`;
         const res = await fetch(maji_de_proxy_base + encodeURIComponent(g_api));
         const data = await res.json();
-
         if (!data.results || data.results.length === 0) {
             setStatus("search-status", "Gutendexに該当する作品が見つかりませんでした", 'error');
             showToast('検索結果0件: Gutendexに該当作品なし', 'warn');
             return;
         }
-
         setStatus("search-status", `見つかりました (${data.results.length}件)`, 'success');
         t_e.style.display = "table";
-
         data.results.forEach((b) => {
             v_project_cache[b.id] = b;
             const a_a = b.authors[0] || { name: "不明", death_year: null };
             const d_y = a_a.death_year;
             const is_s = checkChosakukenSafe(d_y);
-
             const tr = document.createElement("tr");
             tr.innerHTML = `
                 <td>${b.id}</td>
@@ -982,13 +992,11 @@ async function execSearch() {
 /* ===================== ダウンロード ===================== */
 async function downloadAndSaveBook(bookId) {
     const rx_78 = v_project_cache[bookId];
-
     if (!rx_78) {
         setStatus("search-status", "エラー: キャッシュがありません", 'error');
         showToast('ダウンロード失敗: 内部キャッシュなし', 'error');
         return;
     }
-
     setStatus("search-status", `作品ID:${bookId} をダウンロード中...`, 'info');
     showToast(`ダウンロード開始: ${rx_78.title}`, 'info');
 
@@ -1007,12 +1015,10 @@ async function downloadAndSaveBook(bookId) {
             showToast('この作品はHTML/テキスト形式がありません', 'error');
             return;
         }
-
         let res_ok = null;
         let r_t = "";
         let final_url = "";
         let lastFetchErr = '';
-
         for (const u of funnel_urls) {
             try {
                 const tmp_r = await fetch(maji_de_proxy_base + encodeURIComponent(u));
@@ -1024,17 +1030,11 @@ async function downloadAndSaveBook(bookId) {
                 } else {
                     lastFetchErr = `HTTP ${tmp_r.status}`;
                 }
-            } catch (e) {
-                lastFetchErr = e.message;
-            }
+            } catch (e) { lastFetchErr = e.message; }
         }
-
-        if (!res_ok) {
-            throw new Error(`全URL取得失敗（最後のエラー: ${lastFetchErr}）`);
-        }
+        if (!res_ok) throw new Error(`全URL取得失敗（最後のエラー: ${lastFetchErr}）`);
 
         let paragraph_list = [];
-
         if (final_url.includes("html") || final_url.includes("htm")) {
             const p = new DOMParser();
             const d = p.parseFromString(r_t, "text/html");
@@ -1053,14 +1053,10 @@ async function downloadAndSaveBook(bookId) {
                 if (l.trim().length > 0) paragraph_list.push({ tag: "p", text: l.trim() });
             });
         }
-
-        if (paragraph_list.length === 0) {
-            throw new Error('本文の段落が0個でした（HTML構造が想定外）');
-        }
+        if (paragraph_list.length === 0) throw new Error('本文の段落が0個でした（HTML構造が想定外）');
 
         const c_h = paragraph_list.map(p => `<${p.tag}>${escapeHtml(p.text)}</${p.tag}>`).join("");
         const a_n = rx_78.authors[0] ? rx_78.authors[0].name : "不明";
-
         const bd = {
             id: bookId,
             title: rx_78.title,
@@ -1076,12 +1072,9 @@ async function downloadAndSaveBook(bookId) {
             sortOrder: Date.now(),
             favorite: false
         };
-
         await saveBookToDB(bd);
-
         setStatus("search-status", "保存完了！裏で翻訳を進めます", 'success');
         showToast(`「${rx_78.title}」保存完了（${paragraph_list.length}段落）。裏で翻訳開始`, 'success');
-
         openReader(bd);
         startBackgroundTranslation(bookId);
     } catch (err) {
@@ -1095,7 +1088,6 @@ function loadBookshelf() {
     const s_e = document.getElementById("bookshelf-status");
     const t_e = document.getElementById("bookshelf-table");
     const tb_e = document.getElementById("bookshelf-tbody");
-
     tb_e.innerHTML = "";
     s_e.textContent = "読み込み中...";
     s_e.classList.remove('error', 'success', 'info');
@@ -1103,7 +1095,6 @@ function loadBookshelf() {
     const tx = maji_de_db.transaction(["books"], "readonly");
     const st = tx.objectStore("books");
     const rq = st.getAll();
-
     rq.onsuccess = () => {
         const bks = rq.result;
         if (bks.length === 0) {
@@ -1111,7 +1102,6 @@ function loadBookshelf() {
             t_e.style.display = "none";
             return;
         }
-
         bks.sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity));
         s_e.textContent = "";
         t_e.style.display = "table";
@@ -1216,14 +1206,12 @@ function toggleRowMenu(ev, bookId) {
     const target_menu = document.getElementById(`menu-${bookId}`);
     const is_opening = !target_menu.classList.contains("active");
     closeAllRowMenus();
-
     if (is_opening) {
         const btn = ev.currentTarget;
         const rect = btn.getBoundingClientRect();
         const menu_w = 180;
         let left = rect.right - menu_w;
         if (left < 8) left = 8;
-
         target_menu.style.position = "fixed";
         target_menu.style.top = (rect.bottom + 4) + "px";
         target_menu.style.left = left + "px";
@@ -1268,14 +1256,12 @@ function executeConfirmedDelete() {
     deleteBook(delete_kill_confirm_id);
     closeConfirmModal();
 }
-
 function readSavedBook(bookId) {
     const tx = maji_de_db.transaction(["books"], "readonly");
     const st = tx.objectStore("books");
     const rq = st.get(bookId);
     rq.onsuccess = () => { if (rq.result) openReader(rq.result); };
 }
-
 function deleteBook(bookId) {
     const tx = maji_de_db.transaction(["books"], "readwrite");
     tx.objectStore("books").delete(bookId);
@@ -1285,17 +1271,14 @@ function deleteBook(bookId) {
 /* ===================== 読書画面 ===================== */
 function openReader(bookObj) {
     document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
-    const rv = document.getElementById("reader-view");
-    rv.classList.add("active");
+    document.getElementById("reader-view").classList.add("active");
 
     ima_yonderu_hon = bookObj;
     is_page_mode = false;
     ima_no_page = 0;
-
     is_showing_translation = (bookObj.translationStatus === "translating") && !!bookObj.paragraphs;
 
     document.getElementById("reading-title").textContent = bookObj.title;
-
     const rb = document.getElementById("reader-body");
     rb.classList.remove("paged");
     document.getElementById("page-nav").style.display = "none";
@@ -1304,11 +1287,9 @@ function openReader(bookObj) {
     updateTranslationButtonLabel();
     renderReaderContent();
     updateReaderTranslationLabel();
-
     rb.scrollTop = 0;
     rb.scrollLeft = 0;
 
-    // 止まってたら自動再開
     if (bookObj.paragraphs && (bookObj.translationStatus === "error" || bookObj.translationStatus === "translating")) {
         if (!active_translation_jobs[bookObj.id]) {
             startBackgroundTranslation(bookObj.id);
@@ -1319,13 +1300,11 @@ function openReader(bookObj) {
 function renderReaderContent() {
     if (!ima_yonderu_hon) return;
     const flow = document.getElementById("reader-flow");
-
     if (is_showing_translation) {
         flow.innerHTML = buildTranslatedHtml(ima_yonderu_hon);
     } else {
         flow.innerHTML = ima_yonderu_hon.content || "";
     }
-
     if (is_page_mode) requestAnimationFrame(() => computePageLayout());
 }
 
@@ -1353,7 +1332,6 @@ function updateReaderTranslationLabel() {
     const el = document.getElementById("translation-status-label");
     if (!el) return;
     if (!ima_yonderu_hon) { el.textContent = ""; return; }
-
     const b = ima_yonderu_hon;
     el.classList.remove('error', 'done');
     if (b.translationStatus === "translating") {
@@ -1379,11 +1357,9 @@ function togglePageMode() {
     const flow = document.getElementById("reader-flow");
     const page_nav = document.getElementById("page-nav");
     const mode_btn = document.getElementById("page-mode-btn");
-
     rb.classList.toggle("paged", is_page_mode);
     page_nav.style.display = is_page_mode ? "flex" : "none";
     mode_btn.textContent = is_page_mode ? "スクロールに戻す" : "めくりモード";
-
     if (is_page_mode) {
         requestAnimationFrame(() => computePageLayout());
     } else {
@@ -1484,22 +1460,17 @@ function escapeHtml(str) {
 
 /* ===================== プロキシ疎通テスト ===================== */
 async function runProxyTest() {
-    setStatus("search-status", "プロキシ疎通テスト実行中...", 'info');
-    showToast('プロキシ疎通テスト中...', 'info');
+    setStatus("search-status", "翻訳API疎通テスト実行中...", 'info');
+    showToast('翻訳API疎通テスト中...', 'info');
 
-    try {
-        const r = await translateChunkToJapanese("Hello world, this is a test.");
-        if (r && r.ok) {
-            setStatus("search-status", `テスト成功: 「${r.text}」`, 'success');
-            showToast(`疎通OK: 「${r.text}」`, 'success');
-        } else {
-            const errMsg = (r && r.error) ? r.error : '不明なエラー';
-            setStatus("search-status", `テスト失敗: ${errMsg}`, 'error');
-            showToast(`疎通NG: ${errMsg}`, 'error', 12000);
-        }
-    } catch (err) {
-        setStatus("search-status", `テスト例外: ${err.message}`, 'error');
-        showToast(`疎通テスト例外: ${err.message}`, 'error', 12000);
+    const result = await translateChunkToJapanese("Hello world, this is a test.");
+    if (result && result.ok) {
+        setStatus("search-status", `テスト成功 (${result.endpoint}): 「${result.text}」`, 'success');
+        showToast(`疎通OK (${result.endpoint}): 「${result.text}」`, 'success');
+    } else {
+        const errMsg = (result && result.error) ? result.error : '不明なエラー';
+        setStatus("search-status", `テスト失敗: ${errMsg}`, 'error');
+        showToast(`疎通NG: ${errMsg}`, 'error', 12000);
     }
 }
 window.runProxyTest = runProxyTest;
@@ -1515,7 +1486,6 @@ window.onload = async () => {
     resumePendingTranslations();
 };
 
-// 念のためグローバルエラーもトーストで拾う
 window.addEventListener('error', (ev) => {
     try { showToast('予期しないエラー: ' + (ev.message || 'unknown'), 'error', 12000); } catch (e) {}
 });
