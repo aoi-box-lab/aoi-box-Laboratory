@@ -87,6 +87,175 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
 .toast.success{border-left-color:#4caf50}
 .toast.warn{border-left-color:#f0ad4e}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ============================================================
+   レスポンシブ対応
+   ============================================================ */
+
+/* --- 通常時のツールバー右寄せ（旧インラインstyleの代替） --- */
+#reading-title{
+    margin-left:auto;
+    font-weight:bold;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+.close-reader-btn{margin-left:15px}
+
+/* ============================================================
+   タブレット / PC半窓（〜1024px）
+   ============================================================ */
+@media (max-width: 1024px){
+    .reader-toolbar{
+        padding:6px 12px;
+        gap:6px 8px;
+    }
+    .reader-toolbar button{padding:4px 9px;font-size:.85rem}
+    .reader-toolbar select{padding:3px 6px;font-size:.85rem}
+    .reader-toolbar .lang-group{padding:2px 6px;margin-left:0}
+    #reading-title{font-size:.9rem;max-width:35%}
+}
+
+/* ============================================================
+   スマホ横 / タブレット縦（〜768px）
+   ============================================================ */
+@media (max-width: 768px){
+    header{padding:10px 14px}
+    h1{font-size:1.05rem;letter-spacing:1px}
+    .nav-buttons button{padding:5px 12px;font-size:.85rem;margin-left:6px}
+
+    .view-panel{padding:14px}
+
+    /* --- 検索欄：入力欄を最上段へ --- */
+    .search-box{
+        gap:8px;
+        max-width:100%;
+        margin-bottom:14px;
+    }
+    .search-box input{
+        flex:1 1 100%;
+        order:-1;
+        min-width:0;
+    }
+    .search-box > button{padding:8px 16px;font-size:.9rem}
+
+    /* --- 結果テーブル --- */
+    .results-table th, .results-table td{
+        padding:9px 10px;
+        font-size:.86rem;
+    }
+
+    /* --- 読書ツールバー：タイトルを独立行に --- */
+    .reader-toolbar{
+        padding:6px 10px;
+        gap:5px 6px;
+        font-size:.82rem;
+    }
+    .reader-toolbar button{padding:5px 9px;font-size:.78rem}
+    .reader-toolbar select{padding:3px 6px;font-size:.78rem}
+    .reader-toolbar .lang-group{
+        border-left:none;
+        margin-left:0;
+        padding:2px 4px;
+    }
+    #reading-title{
+        order:-1;
+        flex:1 1 100%;
+        margin-left:0;
+        padding:0 0 6px 0;
+        border-bottom:1px solid var(--border-color);
+        font-size:.88rem;
+    }
+    .close-reader-btn{margin-left:auto}
+
+    .reader-content{padding:22px 18px;font-size:1rem}
+    .reader-content.vertical{padding:22px 34px}
+
+    .bookshelf-filters{
+        flex-direction:column;
+        align-items:stretch;
+        gap:8px;
+    }
+    .bookshelf-filters input[type="text"]{min-width:0}
+}
+
+/* ============================================================
+   スマホ縦（〜480px）
+   ============================================================ */
+@media (max-width: 480px){
+    /* --- ヘッダーを縦積みに --- */
+    header{
+        flex-direction:column;
+        align-items:stretch;
+        gap:8px;
+        padding:10px 12px;
+    }
+    h1{text-align:center;font-size:1rem}
+    .nav-buttons{display:flex;gap:8px}
+    .nav-buttons button{
+        flex:1;
+        margin:0;
+        padding:8px 0;
+        font-size:.9rem;
+    }
+
+    .view-panel{padding:10px}
+
+    /* --- 検索欄を完全縦積み --- */
+    .search-box{
+        flex-direction:column;
+        align-items:stretch;
+        gap:8px;
+    }
+    .search-box input{width:100%}
+    .search-box > button{width:100%}
+    .source-toggle, .mode-toggle{align-self:center}
+
+    /* --- 結果テーブルを折り返し許容に --- */
+    .results-table th, .results-table td{
+        padding:8px;
+        font-size:.82rem;
+        white-space:normal;
+    }
+
+    /* --- 読書ツールバー：翻訳先を最下段に --- */
+    .reader-toolbar{
+        padding:6px 8px;
+        gap:4px;
+    }
+    .reader-toolbar button{
+        padding:5px 8px;
+        font-size:.75rem;
+    }
+    .reader-toolbar .lang-group{
+        order:99;
+        flex:1 1 100%;
+        justify-content:center;
+        border-top:1px solid var(--border-color);
+        padding-top:6px;
+        margin-top:2px;
+    }
+    #page-nav{
+        gap:12px;
+        padding:8px 10px;
+        font-size:.84rem;
+    }
+    #page-nav button{padding:5px 12px;font-size:.82rem}
+
+    .reader-content{padding:18px 14px;font-size:.98rem;line-height:1.85}
+    .reader-content.vertical{padding:18px 26px}
+
+    .modal-box{padding:22px 20px}
+
+    /* --- トーストを下部に --- */
+    .toast-container{
+        top:auto;
+        bottom:16px;
+        left:16px;
+        right:16px;
+        max-width:none;
+    }
+}
 </style>
 </head>
 <body>
@@ -156,8 +325,8 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
             <button onclick="setTheme('sepia')">Sepia</button>
             <button onclick="setTheme('dark')">Dark</button>
             <span id="translation-status-label" class="trans-badge"></span>
-            <span id="reading-title" style="margin-left:auto;font-weight:bold;"></span>
-            <button onclick="closeReader()" style="margin-left:15px;">閉じる</button>
+            <span id="reading-title"></span>
+            <button onclick="closeReader()" class="close-reader-btn">閉じる</button>
         </div>
         <div id="page-nav">
             <button onclick="turnPage(-1)">‹ 前のページ</button>
@@ -189,7 +358,7 @@ const LINGVA_INSTANCES = [
 const LIBRETRANSLATE_INSTANCES = ['https://libretranslate.com','https://translate.cutie.dating'];
 const AOZORA_CSV_ZIP_URL = "https://www.aozora.gr.jp/index_pages/list_person_all_extended_utf8.zip";
 const AOZORA_CSV_FILENAME = "list_person_all_extended_utf8.csv";
-const AOZORA_HTML_BASE = "https://raw.githubusercontent.com/aozorabunko/aozorabunko/master/cards";
+const NDL_OPENSEARCH = 'https://ndlsearch.ndl.go.jp/api/opensearch';
 const LANGUAGE_NAMES = {'ja':'日本語','en':'英語','zh':'中国語','ko':'韓国語','fr':'フランス語','de':'ドイツ語','es':'スペイン語','it':'イタリア語','pt':'ポルトガル語','ru':'ロシア語'};
 const INITIAL_PARALLELISM = 32;
 const WORKER_DELAY_MS = 10;
@@ -365,8 +534,8 @@ function setSource(source){
     document.getElementById("source-aozora-btn").classList.toggle("active", source==="aozora");
     const in_e = document.getElementById("search-input");
     in_e.placeholder = search_mode_v==="title"
-        ? (source==="aozora"?"作品名で検索（青空文庫）":"作品名（・がなくてもいけるようにした！）")
-        : (source==="aozora"?"著者名で検索（青空文庫）":"著者名（フルネームじゃなくても多分いける）");
+        ? (source==="aozora"?"作品名で検索（青空文庫 / NDLサーチ）":"作品名（・がなくてもいけるようにした！）")
+        : (source==="aozora"?"著者名で検索（青空文庫 / NDLサーチ）":"著者名（フルネームじゃなくても多分いける）");
 }
 window.setSource = setSource;
 
@@ -376,8 +545,8 @@ function setSearchMode(mode){
     document.getElementById("mode-author-btn").classList.toggle("active", mode==="author");
     const in_e = document.getElementById("search-input");
     in_e.placeholder = mode==="title"
-        ? (current_source==="aozora"?"作品名で検索（青空文庫）":"作品名（・がなくてもいけるようにした！）")
-        : (current_source==="aozora"?"著者名で検索（青空文庫）":"著者名（フルネームじゃなくても多分いける）");
+        ? (current_source==="aozora"?"作品名で検索（青空文庫 / NDLサーチ）":"作品名（・がなくてもいけるようにした！）")
+        : (current_source==="aozora"?"著者名で検索（青空文庫 / NDLサーチ）":"著者名（フルネームじゃなくても多分いける）");
 }
 window.setSearchMode = setSearchMode;
 
@@ -440,7 +609,57 @@ async function translateText(text, source, target){
 }
 
 /* ============================================================
-   青空文庫カタログ取得
+   青空文庫検索 — NDLサーチAPI（第1候補）
+   dpid=aozora で青空文庫のデータだけに絞り込む
+   ============================================================ */
+async function searchAozoraViaNDL(query, mode){
+    const param = mode === 'author' ? 'creator' : 'title';
+    const api = `${NDL_OPENSEARCH}?dpid=aozora&${param}=${encodeURIComponent(query)}&cnt=100`;
+
+    const res = await fetchWithTimeout(maji_de_proxy_base + encodeURIComponent(api), {}, FETCH_TIMEOUT_API);
+    if(!res.ok) throw new Error(`NDLサーチ HTTP ${res.status}`);
+
+    const xml = await res.text();
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+
+    if(doc.querySelector('parsererror')) throw new Error('NDLレスポンスのXMLパースに失敗');
+
+    const items = [...doc.getElementsByTagName('item')];
+    const out = [];
+    const seen = new Set();
+
+    for(const it of items){
+        const titleEl = it.querySelector('title');
+        const linkEl = it.querySelector('link');
+        const authorEl = it.querySelector('author');
+
+        const title = titleEl ? titleEl.textContent.trim() : '';
+        const link = linkEl ? linkEl.textContent.trim() : '';
+        const author = authorEl ? authorEl.textContent.trim() : '';
+
+        const m = link.match(/aozora\.gr\.jp\/cards\/(\d+)\/card(\d+)\.html/);
+        if(!m) continue;
+
+        const personId = m[1];
+        const workId = m[2];
+        if(seen.has(workId)) continue;
+        seen.add(workId);
+
+        out.push({
+            workId,
+            personId,
+            title: title || `作品ID: ${workId}`,
+            personName: author,
+            cardUrl: link,
+            htmlUrl: ''
+        });
+    }
+
+    return out;
+}
+
+/* ============================================================
+   青空文庫カタログ取得（フォールバック用）
    3段フォールバック:
    1. jsDelivr CDN (プロキシ不要・CORS対応)
    2. GitHub Raw (プロキシ不要・CORS対応)
@@ -466,7 +685,6 @@ async function fetchAozoraCatalog(){
     let csv_text = null;
     let lastErr = '';
 
-    // ソース1: jsDelivr
     if(!csv_text){
         try{
             const url = 'https://cdn.jsdelivr.net/gh/aozorabunko/aozorabunko@master/index_pages/list_person_all_extended_utf8.csv';
@@ -480,7 +698,6 @@ async function fetchAozoraCatalog(){
         }catch(e){ lastErr = `jsDelivr: ${e.message}`; }
     }
 
-    // ソース2: GitHub Raw
     if(!csv_text){
         try{
             const url = 'https://raw.githubusercontent.com/aozorabunko/aozorabunko/master/index_pages/list_person_all_extended_utf8.csv';
@@ -494,7 +711,6 @@ async function fetchAozoraCatalog(){
         }catch(e){ lastErr = `GitHub Raw: ${e.message}`; }
     }
 
-    // ソース3: 公式ZIPをプロキシ経由
     if(!csv_text){
         try{
             console.log('[青空文庫] 公式ZIPをプロキシ経由で試行...');
@@ -574,7 +790,11 @@ function parseCSVLine(line){
     result.push(cur);
     return result;
 }
-async function searchAozora(query){
+
+/* ============================================================
+   青空文庫検索フォールバック（NDL失敗時のみ）
+   ============================================================ */
+async function searchAozoraFallback(query, mode){
     if(!aozora_catalog_ready){
         if(!aozora_catalog_loading) fetchAozoraCatalog();
         let waited = 0;
@@ -582,11 +802,11 @@ async function searchAozora(query){
             await sleep(300);
             waited += 300;
         }
-        if(!aozora_catalog_ready) throw new Error('青空文庫カタログの読み込みが完了していません。少し待ってから再度お試しください。');
+        if(!aozora_catalog_ready) throw new Error('カタログ読み込みタイムアウト');
     }
     const q = query.toLowerCase();
     let results;
-    if(search_mode_v === "author"){
+    if(mode === "author"){
         results = aozora_catalog.filter(it => (it.personName||'').toLowerCase().includes(q));
     } else {
         results = aozora_catalog.filter(it => (it.title||'').toLowerCase().includes(q));
@@ -977,33 +1197,59 @@ async function execSearchGutenberg(q_v){
         showToast('検索エラー: '+err.message, 'error');
     }
 }
+
+/* ============================================================
+   青空文庫検索実行 — NDLサーチ優先、ダメならカタログ
+   ============================================================ */
 async function execSearchAozora(q_v){
     const t = document.getElementById("results-table");
     const tb = document.getElementById("results-tbody");
-    if(!aozora_catalog_ready) setStatus("search-status", "青空文庫カタログを読み込み中...", 'info');
+    let results = null;
+
+    /* --- 第1候補: NDLサーチ --- */
+    setStatus("search-status", "NDLサーチで青空文庫を検索中...", 'info');
     try{
-        const results = await searchAozora(q_v);
-        if(!results.length){
-            setStatus("search-status", "青空文庫に該当する作品が見つかりませんでした", 'error');
-            showToast('検索結果0件: 青空文庫に該当作品なし', 'warn');
-            return;
+        results = await searchAozoraViaNDL(q_v, search_mode_v);
+        if(results && results.length){
+            console.log(`[青空文庫] NDLサーチ成功 (${results.length}件)`);
+        } else {
+            results = null;
         }
-        setStatus("search-status", `見つかりました (${results.length}件)`, 'success');
-        t.style.display = "table";
-        results.forEach((item)=>{
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
-                <td>${escapeHtml(item.workId)}</td>
-                <td>${escapeHtml(item.title)}</td>
-                <td>${escapeHtml(item.personName)}</td>
-                <td><button onclick="downloadAndSaveAozora('${escapeHtml(item.workId)}','${escapeHtml(item.personId)}','${escapeHtml(item.title)}','${escapeHtml(item.personName)}','${escapeHtml(item.htmlUrl)}')">保存・読む</button></td>
-            `;
-            tb.appendChild(tr);
-        });
-    }catch(err){
-        setStatus("search-status", `検索エラー: ${err.message}`, 'error');
-        showToast('検索エラー: '+err.message, 'error');
+    }catch(e){
+        console.warn('[青空文庫] NDLサーチ失敗:', e.message);
     }
+
+    /* --- 第2候補: カタログフォールバック --- */
+    if(!results){
+        setStatus("search-status", "NDLが応答しないためカタログを読み込み中...", 'info');
+        try{
+            results = await searchAozoraFallback(q_v, search_mode_v);
+            if(!results.length) results = null;
+            else console.log(`[青空文庫] カタログフォールバック成功 (${results.length}件)`);
+        }catch(e){
+            console.warn('[青空文庫] カタログフォールバックも失敗:', e.message);
+        }
+    }
+
+    /* --- 全滅 --- */
+    if(!results || !results.length){
+        setStatus("search-status", "青空文庫に該当する作品が見つかりませんでした", 'error');
+        showToast('検索結果0件: 青空文庫に該当作品なし', 'warn');
+        return;
+    }
+
+    setStatus("search-status", `見つかりました (${results.length}件)`, 'success');
+    t.style.display = "table";
+    results.forEach((item)=>{
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${escapeHtml(item.workId)}</td>
+            <td>${escapeHtml(item.title)}</td>
+            <td>${escapeHtml(item.personName)}</td>
+            <td><button onclick="downloadAndSaveAozora('${escapeHtml(item.workId)}','${escapeHtml(item.personId)}','${escapeHtml(item.title)}','${escapeHtml(item.personName)}')">保存・読む</button></td>
+        `;
+        tb.appendChild(tr);
+    });
 }
 
 async function downloadAndSaveGutenberg(bookId){
@@ -1069,26 +1315,55 @@ async function downloadAndSaveGutenberg(bookId){
 }
 window.downloadAndSaveGutenberg = downloadAndSaveGutenberg;
 
-async function downloadAndSaveAozora(workId, personId, title, personName, htmlUrl){
-    const key = 'aozora_'+workId;
+/* ============================================================
+   青空文庫 本文ダウンロード
+   図書カード → 本文HTML の2段フェッチ
+   ============================================================ */
+async function downloadAndSaveAozora(workId, personId, title, personName){
+    const key = 'aozora_' + workId;
     setStatus("search-status", `「${title}」をダウンロード中...`, 'info');
     showToast(`ダウンロード開始: ${title}`, 'info');
-    try{
-        if(!htmlUrl) throw new Error('本文HTMLのURLが特定できませんでした');
-        let raw = '';
-        const m = htmlUrl.match(/cards\/(\d+)\/files\/(.+\.html?)$/);
-        if(m) raw = `${AOZORA_HTML_BASE}/${m[1]}/files/${m[2]}`;
-        else raw = htmlUrl;
-        const fetch_url = raw.startsWith('https://raw.githubusercontent.com') ? raw : maji_de_proxy_base+encodeURIComponent(raw);
-        const res = await fetchWithTimeout(fetch_url, {}, FETCH_TIMEOUT_BOOK);
-        if(!res.ok) throw new Error(`HTML取得失敗: HTTP ${res.status}`);
-        const buf = await res.arrayBuffer();
-        let html_text = '';
-        const head = new TextDecoder('ascii').decode(buf.slice(0,2000)).toLowerCase();
-        if(head.includes('shift_jis')||head.includes('shift-jis')||head.includes('sjis')) html_text = new TextDecoder('shift_jis').decode(buf);
-        else html_text = new TextDecoder('utf-8').decode(buf);
 
-        const d = new DOMParser().parseFromString(html_text, "text/html");
+    try{
+        /* --- ステップ1: 図書カードページから本文HTMLのURLを抽出 --- */
+        const cardUrl = `https://www.aozora.gr.jp/cards/${personId}/card${workId}.html`;
+        const cardRes = await fetchWithTimeout(
+            maji_de_proxy_base + encodeURIComponent(cardUrl), {}, FETCH_TIMEOUT_BOOK
+        );
+        if(!cardRes.ok) throw new Error(`図書カード取得失敗: HTTP ${cardRes.status}`);
+        const cardBuf = await cardRes.arrayBuffer();
+        let cardHtml = '';
+        const cardHead = new TextDecoder('ascii').decode(cardBuf.slice(0, 2000)).toLowerCase();
+        if(cardHead.includes('shift_jis') || cardHead.includes('shift-jis') || cardHead.includes('sjis')){
+            cardHtml = new TextDecoder('shift_jis').decode(cardBuf);
+        } else {
+            cardHtml = new TextDecoder('utf-8').decode(cardBuf);
+        }
+
+        const htmlUrlMatch = cardHtml.match(/href="(\.\/files\/[^"]+\.html?)"/i)
+                          || cardHtml.match(/href="(files\/[^"]+\.html?)"/i)
+                          || cardHtml.match(/href="([^"]*\/files\/[^"]+\.html?)"/i);
+        if(!htmlUrlMatch) throw new Error('本文HTMLのURLが図書カードから見つかりませんでした');
+        const relativePath = htmlUrlMatch[1].replace(/^\.\//, '');
+        const bodyUrl = `https://www.aozora.gr.jp/cards/${personId}/${relativePath}`;
+        console.log('[青空文庫] 本文URL:', bodyUrl);
+
+        /* --- ステップ2: 本文HTMLを取得 --- */
+        const bodyRes = await fetchWithTimeout(
+            maji_de_proxy_base + encodeURIComponent(bodyUrl), {}, FETCH_TIMEOUT_BOOK
+        );
+        if(!bodyRes.ok) throw new Error(`本文HTML取得失敗: HTTP ${bodyRes.status}`);
+        const bodyBuf = await bodyRes.arrayBuffer();
+        let bodyHtml = '';
+        const bodyHead = new TextDecoder('ascii').decode(bodyBuf.slice(0, 2000)).toLowerCase();
+        if(bodyHead.includes('shift_jis') || bodyHead.includes('shift-jis') || bodyHead.includes('sjis')){
+            bodyHtml = new TextDecoder('shift_jis').decode(bodyBuf);
+        } else {
+            bodyHtml = new TextDecoder('utf-8').decode(bodyBuf);
+        }
+
+        /* --- ステップ3: main_text から段落を抽出 --- */
+        const d = new DOMParser().parseFromString(bodyHtml, "text/html");
         d.querySelectorAll("script, style, header, footer, img, .bibliographical_information, .notation_notes, .after_text").forEach(el=>el.remove());
         const main = d.querySelector("div.main_text");
         if(!main) throw new Error('本文（div.main_text）が見つかりませんでした');
@@ -1096,11 +1371,20 @@ async function downloadAndSaveAozora(workId, personId, title, personName, htmlUr
 
         let paras = [];
         const pe = main.querySelectorAll("p");
-        if(pe.length){ pe.forEach(px=>{ const tx = px.textContent.trim(); if(tx) paras.push({tag:"p", text: tx}); }); }
-        else { main.textContent.trim().split(/\n+/).forEach(l=>{ if(l.trim()) paras.push({tag:"p", text: l.trim()}); }); }
+        if(pe.length){
+            pe.forEach(px=>{
+                const tx = px.textContent.trim();
+                if(tx) paras.push({tag:"p", text: tx});
+            });
+        } else {
+            main.textContent.trim().split(/\n+/).forEach(l=>{
+                if(l.trim()) paras.push({tag:"p", text: l.trim()});
+            });
+        }
         if(!paras.length) throw new Error('本文の段落が0個でした');
 
         const ch = paras.map(p=>`<${p.tag}>${escapeHtml(p.text)}</${p.tag}>`).join("");
+
         const bd = {
             id: key, title, author: personName,
             content: ch, contentTranslated: "",
@@ -1112,13 +1396,15 @@ async function downloadAndSaveAozora(workId, personId, title, personName, htmlUr
             bookmark: null, source: 'aozora',
             savedAt: new Date().toISOString(), sortOrder: Date.now(), favorite: false
         };
+
         await saveBookToDB(bd);
         setStatus("search-status", "保存完了！", 'success');
         showToast(`「${title}」保存完了（${paras.length}段落）`, 'success');
         openReader(bd);
+
     }catch(err){
         setStatus("search-status", `ダウンロード失敗: ${err.message}`, 'error');
-        showToast('ダウンロード失敗: '+err.message, 'error');
+        showToast('ダウンロード失敗: ' + err.message, 'error');
     }
 }
 window.downloadAndSaveAozora = downloadAndSaveAozora;
@@ -1519,7 +1805,8 @@ window.onload = async ()=>{
     catch(err){ showToast('DB初期化失敗: '+err.message, 'error', 15000); return; }
 
     resumePendingTranslations();
-    setTimeout(()=>{ fetchAozoraCatalog(); }, 100);
+    /* カタログの先読みは廃止。NDLサーチが第一候補なので普段は不要。
+       フォールバックが必要になった時だけ fetchAozoraCatalog() が走ります。 */
 };
 
 window.addEventListener('error', (ev)=>{
