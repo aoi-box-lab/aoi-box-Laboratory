@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>海外小説 邦題サーチャー (単一HTML版)</title>
+    <title>海外小説 邦題サーチ (ノーエラー単一HTML版)</title>
     <style>
         body {
             font-family: sans-serif;
@@ -54,26 +54,27 @@
         }
         .res-title { font-weight: bold; color: #1a0dab; }
         .res-snippet { font-size: 14px; color: #555; margin-top: 4px; }
+        .highlight { background-color: #fff3cd; font-weight: bold; padding: 0 2px; }
         .error { color: #d9534f; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>海外小説 邦題サーチ (単一HTML版)</h2>
-    <p>原題を入力したらWebから邦題の言及（スニペット）を探すよ ┌(┌ .w.)┐</p>
+    <h2>海外小説 邦題サーチ (単一HTML・公式API版)</h2>
+    <p>原題を入力したらWikipedia全体の本文から言及（スニペット）を探すよ ┌(┌ .w.)┐</p>
     
     <div class="input-group">
-        <input type="text" id="target_book" placeholder="例: The White Knights 小説">
-        <button onclick="maji_de_fetch_search()">検索実行</button>
+        <input type="text" id="target_book" placeholder="例: White Knights や 白衣の騎士団">
+        <button onclick="maji_de_safe_search()">検索実行</button>
     </div>
 
     <div id="result_box">ここに検索結果が出るよ (｀・ω・´)</div>
 </div>
 
 <script>
-// 単一HTMLでCORSを回避しつつDuckDuckGoのHTML版をブッコ抜く処理
-async function maji_de_fetch_search() 
+// プロキシ不要！Wikipedia公式API（CORS完全許可）を叩く処理
+async function maji_de_safe_search() 
 {
     let inputStr = document.getElementById("target_book").value.trim();
     let resBox = document.getElementById("result_box");
@@ -83,55 +84,37 @@ async function maji_de_fetch_search()
         return;
     }
 
-    resBox.innerHTML = "<p>Webを探索中…（CORSプロキシ経由） (  .w.)</p>";
+    resBox.innerHTML = "<p>Wikipedia本文を全文探索中… ┌(┌  .w.)┐</p>";
 
-    // 「小説 邦題」をつけて精度を上げる
-    let query = `${inputStr} 小説 邦題`;
-    let targetUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-    
-    // CORSプロキシを通してHTMLを丸ごと取得（corsproxy.ioを使用）
-    let proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+    // Wikipediaの「本文全文検索API」（origin=*をつけるとCORSエラーが絶対に起きない公式仕様）
+    let wikiApiUrl = `https://ja.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(inputStr)}&utf8=&format=json&origin=*`;
 
     try 
     {
-        let response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error("プロキシ通信失敗");
+        let response = await fetch(wikiApiUrl);
+        if (!response.ok) throw new Error("API応答エラー");
         
-        let htmlText = await response.text();
+        let data = await response.json();
+        let searchResults = data.query?.search;
 
-        // 取得したHTML文字列をDOMパースする（ブラウザの標準機能）
-        let parser = new DOMParser();
-        let doc = parser.parseFromString(htmlText, "text/html");
-
-        // DuckDuckGoの検索結果要素を抽出
-        let results = doc.querySelectorAll(".result");
-
-        if (!results || results.length === 0) {
-            resBox.innerHTML = "<p class='error'>見つからんかったわ… 検索ワード変えてみて (´・ω・`)</p>";
+        if (!searchResults || searchResults.length === 0) {
+            resBox.innerHTML = "<p class='error'>Wikipedia全体探したけどヒットしなかったわ… (´・ω・`)</p>";
             return;
         }
 
-        let outputHtml = "<h3>Web上の言及スニペット:</h3>";
-        let count = 0;
+        let outputHtml = "<h3>Wikipedia本文での言及スニペット:</h3>";
 
-        results.forEach(item => {
-            if (count >= 5) return; // 上位5件だけ出す
+        searchResults.forEach(item => {
+            let pageTitle = item.title;
+            // APIから返ってくるHTMLタグ付きのスニペット
+            let snippet = item.snippet;
 
-            let titleEl = item.querySelector(".result__title");
-            let snippetEl = item.querySelector(".result__snippet");
-
-            if (titleEl && snippetEl) {
-                let title = titleEl.textContent.trim();
-                let snippet = snippetEl.textContent.trim();
-
-                outputHtml += `
-                    <div class="res-item">
-                        <div class="res-title">${title}</div>
-                        <div class="res-snippet">${snippet}</div>
-                    </div>
-                `;
-                count++;
-            }
+            outputHtml += `
+                <div class="res-item">
+                    <div class="res-title"><a href="https://ja.wikipedia.org/wiki/${encodeURIComponent(pageTitle)}" target="_blank">${pageTitle}</a></div>
+                    <div class="res-snippet">...${snippet}...</div>
+                </div>
+            `;
         });
 
         resBox.innerHTML = outputHtml;
@@ -139,9 +122,9 @@ async function maji_de_fetch_search()
     } 
     catch (e) 
     {
-        // プロキシが落ちてたりネットワークエラー出たとき用
-        console.error("通信エラーで死んだんだが:", e);
-        resBox.innerHTML = "<p class='error'>通信エラー起きたわ！プロキシがブロックされたかも ( ;∀;)</p>";
+        // ここ通る時はオフラインの時くらい
+        console.error("通信エラーでおかしいんだが:", e);
+        resBox.innerHTML = "<p class='error'>通信エラー起きたわ！ネット繋がってるか？？( ;∀;)</p>";
     }
 }
 </script>
