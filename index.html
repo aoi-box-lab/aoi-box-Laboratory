@@ -180,7 +180,6 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
 <div class="toast-container" id="toast-container"></div>
 
 <script>
-/* ========== 定数 ========== */
 const maji_de_proxy_base = "https://aoi-box-lab.idosenpai.workers.dev/?url=";
 const LINGVA_INSTANCES = [
     'https://lingva.ml','https://translate.igna.wtf','https://translate.plausibility.cloud',
@@ -203,7 +202,6 @@ const FETCH_TIMEOUT_TRANSLATE = 4000;
 const FETCH_TIMEOUT_API = 8000;
 const FETCH_TIMEOUT_BOOK = 30000;
 
-/* ========== グローバル変数 ========== */
 let maji_de_db = null;
 let db_closing = false;
 let current_font_size = 18;
@@ -231,7 +229,6 @@ let pending_page_restore = null;
 
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 
-/* ========== fetchヘルパー ========== */
 async function fetchWithTimeout(url, options, timeoutMs){
     const controller = new AbortController();
     const timer = setTimeout(()=>controller.abort(), timeoutMs);
@@ -245,7 +242,6 @@ function shuffled(arr){
     return a;
 }
 
-/* ========== トースト ========== */
 function showToast(msg, type, duration){
     type = type||'info';
     duration = duration||(type==='error'?12000:6000);
@@ -270,7 +266,6 @@ function setStatus(elId, msg, type){
     if(type) el.classList.add(type);
 }
 
-/* ========== DB（接続クローズ対策込み） ========== */
 function initDB(){
     return new Promise((resolve, reject)=>{
         const req = indexedDB.open("YamabikoDB", 2);
@@ -282,7 +277,6 @@ function initDB(){
         req.onsuccess = (e)=>{
             maji_de_db = e.target.result;
             db_closing = false;
-            // 他タブでバージョン変更が起きたら閉じる
             maji_de_db.onversionchange = ()=>{
                 db_closing = true;
                 try{ maji_de_db.close(); }catch(_){}
@@ -300,22 +294,16 @@ function initDB(){
         };
     });
 }
-
-// 接続が生きているか確認して必要なら開き直す
 async function ensureDB(){
     if(maji_de_db && !db_closing){
         try{
             maji_de_db.transaction(["books"],"readonly").abort();
             return maji_de_db;
-        }catch(e){
-            maji_de_db = null;
-        }
+        }catch(e){ maji_de_db = null; }
     }
     await initDB();
     return maji_de_db;
 }
-
-// 全DB操作のラッパー。接続エラー時に1回だけ再接続してリトライする
 async function safeDBOp(storeNames, mode, fn){
     await ensureDB();
     return new Promise((resolve, reject)=>{
@@ -323,7 +311,6 @@ async function safeDBOp(storeNames, mode, fn){
         try{
             tx = maji_de_db.transaction(storeNames, mode);
         }catch(e){
-            // 接続が死んでいたら開き直してリトライ
             initDB().then(()=>{
                 try{
                     const tx2 = maji_de_db.transaction(storeNames, mode);
@@ -335,7 +322,6 @@ async function safeDBOp(storeNames, mode, fn){
         fn(tx, resolve, reject);
     });
 }
-
 function getBookFromDB(bookId){
     return safeDBOp(["books"],"readonly",(tx,resolve,reject)=>{
         const rq = tx.objectStore("books").get(bookId);
@@ -373,7 +359,6 @@ function saveCacheToDB(key, value){
 }
 function checkChosakukenSafe(y){ if(!y) return false; return (new Date().getFullYear()-y)>=80; }
 
-/* ========== ソース/モード切替 ========== */
 function setSource(source){
     current_source = source;
     document.getElementById("source-gutenberg-btn").classList.toggle("active", source==="gutenberg");
@@ -396,7 +381,6 @@ function setSearchMode(mode){
 }
 window.setSearchMode = setSearchMode;
 
-/* ========== Gutenberg検索 ========== */
 async function getOriginalTitleFromNDL(jpTitle){
     if(/^[a-zA-Z0-9\s]+$/.test(jpTitle)) return null;
     try{
@@ -455,12 +439,17 @@ async function translateText(text, source, target){
     return text;
 }
 
-/* ========== 青空文庫カタログ（ZIP方式・起動時バックグラウンドDL） ========== */
+/* ============================================================
+   青空文庫カタログ取得
+   3段フォールバック:
+   1. jsDelivr CDN (プロキシ不要・CORS対応)
+   2. GitHub Raw (プロキシ不要・CORS対応)
+   3. 公式ZIPをプロキシ経由 (最終手段)
+   ============================================================ */
 async function fetchAozoraCatalog(){
     if(aozora_catalog_loading || aozora_catalog_ready) return;
     aozora_catalog_loading = true;
 
-    // キャッシュ確認
     try{
         const cached = await getCacheFromDB('aozora_catalog');
         if(cached && cached.value && cached.value.length > 100){
@@ -472,54 +461,99 @@ async function fetchAozoraCatalog(){
         }
     }catch(e){}
 
-    console.log('[青空文庫] ZIPをダウンロード中...');
-    try{
-        const res = await fetchWithTimeout(maji_de_proxy_base+encodeURIComponent(AOZORA_CSV_ZIP_URL), {}, FETCH_TIMEOUT_BOOK);
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
-        const zip_buf = await res.arrayBuffer();
+    console.log('[青空文庫] カタログ取得開始...');
 
-        const zip = await JSZip.loadAsync(zip_buf);
-        let csv_file = zip.file(AOZORA_CSV_FILENAME);
-        if(!csv_file){
-            const names = Object.keys(zip.files);
-            const csv_name = names.find(n=>n.endsWith('.csv'));
-            if(!csv_name) throw new Error('ZIP内にCSVが見つかりません');
-            csv_file = zip.file(csv_name);
-        }
-        const csv_text = await csv_file.async('string');
+    let csv_text = null;
+    let lastErr = '';
 
-        const lines = csv_text.split('\n');
-        const catalog = [];
-        for(let i=1;i<lines.length;i++){
-            const line = lines[i].trim();
-            if(!line) continue;
-            const cols = parseCSVLine(line);
-            if(cols.length < 11) continue;
-            const workId = (cols[0]||'').trim();
-            const title = (cols[1]||'').trim();
-            const personId = (cols[8]||'').trim();
-            const personName = (cols[9]||'').trim();
-            const cardUrl = (cols[10]||'').trim();
-            let htmlUrl = '';
-            for(let c=11;c<Math.min(cols.length,40);c++){
-                const v = (cols[c]||'').trim();
-                if(v && v.includes('/files/') && (v.endsWith('.html')||v.endsWith('.xhtml'))){ htmlUrl=v; break; }
-            }
-            if(!workId || !title) continue;
-            catalog.push({workId, title, personId, personName, cardUrl, htmlUrl});
-        }
-
-        aozora_catalog = catalog;
-        aozora_catalog_ready = true;
-        aozora_catalog_loading = false;
-        console.log(`[青空文庫] カタログ読み込み完了 (${catalog.length}件)`);
-        try{ await saveCacheToDB('aozora_catalog', catalog); }catch(e){}
-        showToast(`青空文庫カタログ読み込み完了（${catalog.length}件）`, 'success', 5000);
-    }catch(e){
-        aozora_catalog_loading = false;
-        console.warn('[青空文庫] 取得失敗:', e.message);
-        showToast('青空文庫カタログ取得失敗: ' + e.message, 'error', 12000);
+    // ソース1: jsDelivr
+    if(!csv_text){
+        try{
+            const url = 'https://cdn.jsdelivr.net/gh/aozorabunko/aozorabunko@master/index_pages/list_person_all_extended_utf8.csv';
+            console.log('[青空文庫] jsDelivrから取得中...');
+            const res = await fetchWithTimeout(url, { cache: 'no-store' }, FETCH_TIMEOUT_BOOK);
+            if(res.ok){
+                const t = await res.text();
+                if(t && t.length > 10000){ csv_text = t; console.log(`[青空文庫] jsDelivr成功 (${t.length}文字)`); }
+                else lastErr = 'jsDelivr: データが短すぎる';
+            } else lastErr = `jsDelivr: HTTP ${res.status}`;
+        }catch(e){ lastErr = `jsDelivr: ${e.message}`; }
     }
+
+    // ソース2: GitHub Raw
+    if(!csv_text){
+        try{
+            const url = 'https://raw.githubusercontent.com/aozorabunko/aozorabunko/master/index_pages/list_person_all_extended_utf8.csv';
+            console.log('[青空文庫] GitHub Rawから取得中...');
+            const res = await fetchWithTimeout(url, { cache: 'no-store' }, FETCH_TIMEOUT_BOOK);
+            if(res.ok){
+                const t = await res.text();
+                if(t && t.length > 10000){ csv_text = t; console.log(`[青空文庫] GitHub Raw成功 (${t.length}文字)`); }
+                else lastErr = 'GitHub Raw: データが短すぎる';
+            } else lastErr = `GitHub Raw: HTTP ${res.status}`;
+        }catch(e){ lastErr = `GitHub Raw: ${e.message}`; }
+    }
+
+    // ソース3: 公式ZIPをプロキシ経由
+    if(!csv_text){
+        try{
+            console.log('[青空文庫] 公式ZIPをプロキシ経由で試行...');
+            const res = await fetchWithTimeout(maji_de_proxy_base+encodeURIComponent(AOZORA_CSV_ZIP_URL), {}, FETCH_TIMEOUT_BOOK);
+            if(res.ok){
+                const zip_buf = await res.arrayBuffer();
+                const zip = await JSZip.loadAsync(zip_buf);
+                let f = zip.file(AOZORA_CSV_FILENAME);
+                if(!f){
+                    const names = Object.keys(zip.files);
+                    const cn = names.find(n=>n.endsWith('.csv'));
+                    if(cn) f = zip.file(cn);
+                }
+                if(f){ csv_text = await f.async('string'); console.log(`[青空文庫] ZIP成功 (${csv_text.length}文字)`); }
+                else lastErr = 'ZIP: CSVが見つからない';
+            } else lastErr = `ZIP: HTTP ${res.status}`;
+        }catch(e){ lastErr = `ZIP: ${e.message}`; }
+    }
+
+    if(!csv_text){
+        aozora_catalog_loading = false;
+        console.error('[青空文庫] 全ソース失敗:', lastErr);
+        showToast('青空文庫カタログ取得失敗: ' + lastErr, 'error', 15000);
+        return;
+    }
+
+    const lines = csv_text.split('\n');
+    const catalog = [];
+    for(let i=1;i<lines.length;i++){
+        const line = lines[i].trim();
+        if(!line) continue;
+        const cols = parseCSVLine(line);
+        if(cols.length < 11) continue;
+        const workId = (cols[0]||'').trim();
+        const title = (cols[1]||'').trim();
+        const personId = (cols[8]||'').trim();
+        const personName = (cols[9]||'').trim();
+        const cardUrl = (cols[10]||'').trim();
+        let htmlUrl = '';
+        for(let c=11;c<Math.min(cols.length,40);c++){
+            const v = (cols[c]||'').trim();
+            if(v && v.includes('/files/') && (v.endsWith('.html')||v.endsWith('.xhtml'))){ htmlUrl=v; break; }
+        }
+        if(!workId || !title) continue;
+        catalog.push({workId, title, personId, personName, cardUrl, htmlUrl});
+    }
+
+    if(!catalog.length){
+        aozora_catalog_loading = false;
+        showToast('青空文庫カタログのパース結果が0件でした', 'error', 12000);
+        return;
+    }
+
+    aozora_catalog = catalog;
+    aozora_catalog_ready = true;
+    aozora_catalog_loading = false;
+    console.log(`[青空文庫] カタログ読み込み完了 (${catalog.length}件)`);
+    try{ await saveCacheToDB('aozora_catalog', catalog); }catch(e){}
+    showToast(`青空文庫カタログ読み込み完了（${catalog.length}件）`, 'success', 5000);
 }
 function parseCSVLine(line){
     const result = [];
@@ -541,7 +575,6 @@ function parseCSVLine(line){
     return result;
 }
 async function searchAozora(query){
-    // まだ読み込み中なら最大20秒待つ
     if(!aozora_catalog_ready){
         if(!aozora_catalog_loading) fetchAozoraCatalog();
         let waited = 0;
@@ -561,7 +594,6 @@ async function searchAozora(query){
     return results.slice(0, 100);
 }
 
-/* ========== 翻訳コア ========== */
 function splitTextRoughly(text, maxLen){
     const chunks = [];
     let rest = text;
@@ -659,7 +691,6 @@ function buildTranslatedHtml(book){
     return book.contentTranslated || book.content || "";
 }
 
-/* ========== バックグラウンド翻訳 ========== */
 async function startBackgroundTranslation(bookId){
     if(active_translation_jobs[bookId]) return;
     active_translation_jobs[bookId] = true;
@@ -838,7 +869,6 @@ async function resumePendingTranslations(){
     }catch(e){}
 }
 
-/* ========== しおり ========== */
 function scheduleBookmarkSave(){
     if(!ima_yonderu_hon) return;
     clearTimeout(bookmark_save_timer);
@@ -879,7 +909,6 @@ async function closeReader(){
 }
 window.closeReader = closeReader;
 
-/* ========== 検索実行 ========== */
 async function execSearch(){
     const q = document.getElementById("search-input").value.trim();
     const t = document.getElementById("results-table");
@@ -977,7 +1006,6 @@ async function execSearchAozora(q_v){
     }
 }
 
-/* ========== Gutenbergダウンロード ========== */
 async function downloadAndSaveGutenberg(bookId){
     const rx = v_project_cache[bookId];
     if(!rx){ setStatus("search-status","エラー: キャッシュがありません",'error'); showToast('ダウンロード失敗: 内部キャッシュなし','error'); return; }
@@ -1041,7 +1069,6 @@ async function downloadAndSaveGutenberg(bookId){
 }
 window.downloadAndSaveGutenberg = downloadAndSaveGutenberg;
 
-/* ========== 青空文庫ダウンロード ========== */
 async function downloadAndSaveAozora(workId, personId, title, personName, htmlUrl){
     const key = 'aozora_'+workId;
     setStatus("search-status", `「${title}」をダウンロード中...`, 'info');
@@ -1096,7 +1123,6 @@ async function downloadAndSaveAozora(workId, personId, title, personName, htmlUr
 }
 window.downloadAndSaveAozora = downloadAndSaveAozora;
 
-/* ========== 本棚 ========== */
 function loadBookshelf(){
     const s = document.getElementById("bookshelf-status");
     const t = document.getElementById("bookshelf-table");
@@ -1286,7 +1312,6 @@ function deleteBook(bookId){
     }).catch(()=>{});
 }
 
-/* ========== 読書画面 ========== */
 function openReader(bookObj){
     document.querySelectorAll(".view-panel").forEach(p=>p.classList.remove("active"));
     document.getElementById("reader-view").classList.add("active");
@@ -1448,7 +1473,6 @@ document.addEventListener("keydown", (ev)=>{
 });
 window.addEventListener("resize", ()=>{ if(is_page_mode) computePageLayout(ima_no_page); });
 
-/* ========== UI ========== */
 function switchTab(tabName){
     if(document.getElementById("reader-view").classList.contains("active")){
         saveBookmarkNow().catch(()=>{});
@@ -1490,24 +1514,17 @@ function escapeHtml(str){
     return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
 }
 
-/* ========== 起動 ========== */
 window.onload = async ()=>{
     try{ await initDB(); }
     catch(err){ showToast('DB初期化失敗: '+err.message, 'error', 15000); return; }
 
-    // 未完了の翻訳を再開
     resumePendingTranslations();
-
-    // 青空文庫カタログをバックグラウンドでダウンロード開始
-    // （ユーザーが待たされないよう、UIスレッドをブロックせず裏で進める）
     setTimeout(()=>{ fetchAozoraCatalog(); }, 100);
 };
 
-// beforeunloadでのasync保存は接続クローズ中のトランザクション作成で
-// エラーを起こすので削除。しおりは closeReader / switchTab で確実に保存される
 window.addEventListener('error', (ev)=>{
     const msg = ev.message || 'unknown';
-    if(msg.includes('database connection is closing')) return; // DB接続エラーはトーストしない
+    if(msg.includes('database connection is closing')) return;
     try{ showToast('予期しないエラー: '+msg, 'error', 12000); }catch(e){}
 });
 window.addEventListener('unhandledrejection', (ev)=>{
