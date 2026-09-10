@@ -3,24 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>aoi-box Laboratory</title>
+    <title>海外小説 邦題サーチャー (単一HTML版)</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #f4f4f9; }
-        h1 { color: #333; }
-        .tool-card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        a { color: #0066cc; font-weight: bold; text-decoration: none; }
-        a:hover { text-decoration: underline; }
+        body {
+            font-family: sans-serif;
+            max-width: 650px;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        .card {
+            background: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover { background-color: #0052a3; }
+        #result_box {
+            margin-top: 20px;
+            line-height: 1.6;
+        }
+        .res-item {
+            background: #fafafa;
+            border-left: 4px solid #0066cc;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 0 6px 6px 0;
+        }
+        .res-title { font-weight: bold; color: #1a0dab; }
+        .res-snippet { font-size: 14px; color: #555; margin-top: 4px; }
+        .error { color: #d9534f; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h1> aoi-box Laboratory</h1>
-    <p>自作ツールや実験プロジェクトのポータルサイトです。</p>
 
-    <div class="tool-card">
-        <h3> 制作中のツール（仮）</h3>
-        <p>現在開発中の便利ツールです。</p>
-        <!-- フォルダを作ったらそのパスを書けばリンクできる！ -->
-        <a href="./tool1/">ツールを開く ➔</a>
+<div class="card">
+    <h2>海外小説 邦題サーチ (単一HTML版)</h2>
+    <p>原題を入力したらWebから邦題の言及（スニペット）を探すよ ┌(┌ .w.)┐</p>
+    
+    <div class="input-group">
+        <input type="text" id="target_book" placeholder="例: The White Knights 小説">
+        <button onclick="maji_de_fetch_search()">検索実行</button>
     </div>
+
+    <div id="result_box">ここに検索結果が出るよ (｀・ω・´)</div>
+</div>
+
+<script>
+// 単一HTMLでCORSを回避しつつDuckDuckGoのHTML版をブッコ抜く処理
+async function maji_de_fetch_search() 
+{
+    let inputStr = document.getElementById("target_book").value.trim();
+    let resBox = document.getElementById("result_box");
+
+    if (!inputStr) {
+        resBox.innerHTML = "<p class='error'>何か単語いれてくれめんす… (´・ω・`)</p>";
+        return;
+    }
+
+    resBox.innerHTML = "<p>Webを探索中…（CORSプロキシ経由） (  .w.)</p>";
+
+    // 「小説 邦題」をつけて精度を上げる
+    let query = `${inputStr} 小説 邦題`;
+    let targetUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+    
+    // CORSプロキシを通してHTMLを丸ごと取得（corsproxy.ioを使用）
+    let proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+
+    try 
+    {
+        let response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error("プロキシ通信失敗");
+        
+        let htmlText = await response.text();
+
+        // 取得したHTML文字列をDOMパースする（ブラウザの標準機能）
+        let parser = new DOMParser();
+        let doc = parser.parseFromString(htmlText, "text/html");
+
+        // DuckDuckGoの検索結果要素を抽出
+        let results = doc.querySelectorAll(".result");
+
+        if (!results || results.length === 0) {
+            resBox.innerHTML = "<p class='error'>見つからんかったわ… 検索ワード変えてみて (´・ω・`)</p>";
+            return;
+        }
+
+        let outputHtml = "<h3>Web上の言及スニペット:</h3>";
+        let count = 0;
+
+        results.forEach(item => {
+            if (count >= 5) return; // 上位5件だけ出す
+
+            let titleEl = item.querySelector(".result__title");
+            let snippetEl = item.querySelector(".result__snippet");
+
+            if (titleEl && snippetEl) {
+                let title = titleEl.textContent.trim();
+                let snippet = snippetEl.textContent.trim();
+
+                outputHtml += `
+                    <div class="res-item">
+                        <div class="res-title">${title}</div>
+                        <div class="res-snippet">${snippet}</div>
+                    </div>
+                `;
+                count++;
+            }
+        });
+
+        resBox.innerHTML = outputHtml;
+
+    } 
+    catch (e) 
+    {
+        // プロキシが落ちてたりネットワークエラー出たとき用
+        console.error("通信エラーで死んだんだが:", e);
+        resBox.innerHTML = "<p class='error'>通信エラー起きたわ！プロキシがブロックされたかも ( ;∀;)</p>";
+    }
+}
+</script>
+
 </body>
 </html>
