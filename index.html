@@ -13,433 +13,173 @@
             --border-color: #e0e0e0;
             --font-family: 'Georgia', 'Yu Mincho', 'Hiragino Mincho ProN', serif;
         }
-
         body.dark-mode {
-            --bg-color: #1a1a1a;
-            --text-color: #d1d1d1;
-            --accent-color: #6b8cce;
-            --card-bg: #282828;
-            --border-color: #404040;
+            --bg-color: #1a1a1a; --text-color: #d1d1d1; --accent-color: #6b8cce;
+            --card-bg: #282828; --border-color: #404040;
         }
-
         body.sepia-mode {
-            --bg-color: #f4ecd8;
-            --text-color: #5b4636;
-            --accent-color: #8c6d53;
-            --card-bg: #fbf0d9;
-            --border-color: #e2d7c0;
+            --bg-color: #f4ecd8; --text-color: #5b4636; --accent-color: #8c6d53;
+            --card-bg: #fbf0d9; --border-color: #e2d7c0;
         }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: var(--font-family);
-            transition: background-color 0.3s, color 0.3s;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+            background-color: var(--bg-color); color: var(--text-color);
+            font-family: var(--font-family); transition: background-color 0.3s, color 0.3s;
+            height: 100vh; display: flex; flex-direction: column; overflow: hidden;
         }
-
         header {
-            padding: 12px 20px;
-            background-color: var(--card-bg);
+            padding: 12px 20px; background-color: var(--card-bg);
             border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 10;
+            display: flex; justify-content: space-between; align-items: center; z-index: 10;
         }
-
-        h1 {
-            font-size: 1.2rem;
-            font-weight: normal;
-            letter-spacing: 1px;
-        }
-
+        h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 1px; }
         .nav-buttons button {
-            background: none;
-            border: 1px solid var(--border-color);
-            color: var(--text-color);
-            padding: 6px 12px;
-            margin-left: 8px;
-            border-radius: 4px;
-            cursor: pointer;
+            background: none; border: 1px solid var(--border-color); color: var(--text-color);
+            padding: 6px 12px; margin-left: 8px; border-radius: 4px; cursor: pointer;
         }
+        .container { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .view-panel { flex: 1; padding: 20px; overflow-y: auto; display: none; }
+        .view-panel.active { display: block; }
 
-        .container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .view-panel {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            display: none;
-        }
-
-        .view-panel.active {
-            display: block;
-        }
-
-        /* ---- 新しい検索UI ---- */
         .search-container {
-            max-width: 720px;
-            margin: 0 auto 20px auto;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
+            max-width: 720px; margin: 0 auto 20px auto;
+            display: flex; flex-direction: column; gap: 14px;
         }
-
         .simple-search-box {
-            display: flex;
-            gap: 10px;
-            padding: 14px;
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+            display: flex; gap: 10px; padding: 14px;
+            background: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.04);
         }
-
         .simple-search-box input {
-            flex: 1;
-            padding: 12px 16px;
-            font-size: 1rem;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            background: var(--bg-color);
-            color: var(--text-color);
-            font-family: inherit;
+            flex: 1; padding: 12px 16px; font-size: 1rem;
+            border: 1px solid var(--border-color); border-radius: 4px;
+            background: var(--bg-color); color: var(--text-color); font-family: inherit;
         }
-
         .simple-search-box button {
-            padding: 12px 22px;
-            background: var(--accent-color);
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 1rem;
-            font-family: inherit;
-            white-space: nowrap;
+            padding: 12px 22px; background: var(--accent-color); color: #fff;
+            border: none; border-radius: 4px; cursor: pointer;
+            font-size: 1rem; font-family: inherit; white-space: nowrap;
         }
-
-        .simple-search-label {
-            font-size: 0.85rem;
-            opacity: 0.7;
-            margin-bottom: -6px;
-        }
-
+        .simple-search-label { font-size: 0.85rem; opacity: 0.7; margin-bottom: -6px; }
         .advanced-search-box {
-            padding: 16px;
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+            padding: 16px; background: var(--card-bg);
+            border: 1px solid var(--border-color); border-radius: 8px;
+            display: flex; flex-direction: column; gap: 12px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.04);
         }
-
-        .field-row {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .field-row label {
-            width: 70px;
-            flex-shrink: 0;
-            font-size: 0.92rem;
-            opacity: 0.85;
-        }
-
+        .field-row { display: flex; align-items: center; gap: 12px; }
+        .field-row label { width: 70px; flex-shrink: 0; font-size: 0.92rem; opacity: 0.85; }
         .field-row input {
-            flex: 1;
-            padding: 10px 14px;
-            font-size: 1rem;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            background: var(--bg-color);
-            color: var(--text-color);
-            font-family: inherit;
+            flex: 1; padding: 10px 14px; font-size: 1rem;
+            border: 1px solid var(--border-color); border-radius: 4px;
+            background: var(--bg-color); color: var(--text-color); font-family: inherit;
         }
-
         .advanced-search-box > button {
-            align-self: flex-end;
-            padding: 10px 24px;
-            background: var(--accent-color);
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.95rem;
-            font-family: inherit;
+            align-self: flex-end; padding: 10px 24px;
+            background: var(--accent-color); color: #fff; border: none;
+            border-radius: 4px; cursor: pointer; font-size: 0.95rem; font-family: inherit;
         }
 
-        /* ---- 検索結果テーブル ---- */
         .results-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: var(--card-bg);
-            border-radius: 6px;
-            overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            width: 100%; border-collapse: collapse; background: var(--card-bg);
+            border-radius: 6px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
-
         .results-table th, .results-table td {
-            padding: 12px 15px;
-            text-align: left;
+            padding: 12px 15px; text-align: left;
             border-bottom: 1px solid var(--border-color);
         }
+        .results-table th { background-color: rgba(0,0,0,0.03); font-weight: bold; }
+        .results-table tr:hover { background-color: rgba(0,0,0,0.02); cursor: pointer; }
 
-        .results-table th {
-            background-color: rgba(0,0,0,0.03);
-            font-weight: bold;
-        }
-
-        .results-table tr:hover {
-            background-color: rgba(0,0,0,0.02);
-            cursor: pointer;
-        }
-
-        .id-cell {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
+        .id-cell { display: flex; align-items: center; gap: 10px; }
         .drag-handle {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            width: 16px;
-            cursor: grab;
-            flex-shrink: 0;
+            display: flex; flex-direction: column; gap: 3px;
+            width: 16px; cursor: grab; flex-shrink: 0;
         }
+        .drag-handle:active { cursor: grabbing; }
+        .drag-handle .bar { height: 2px; background: var(--text-color); opacity: 0.4; border-radius: 1px; }
+        .results-table tr.drag-over-row { outline: 2px dashed var(--accent-color); outline-offset: -2px; }
 
-        .drag-handle:active {
-            cursor: grabbing;
-        }
-
-        .drag-handle .bar {
-            height: 2px;
-            background: var(--text-color);
-            opacity: 0.4;
-            border-radius: 1px;
-        }
-
-        .results-table tr.drag-over-row {
-            outline: 2px dashed var(--accent-color);
-            outline-offset: -2px;
-        }
-
-        .menu-wrap {
-            position: relative;
-            display: inline-block;
-        }
-
+        .menu-wrap { position: relative; display: inline-block; }
         .dots-btn {
-            background: none;
-            border: none;
-            font-size: 1.3rem;
-            line-height: 1;
-            cursor: pointer;
-            color: var(--text-color);
-            padding: 4px 10px;
+            background: none; border: none; font-size: 1.3rem; line-height: 1;
+            cursor: pointer; color: var(--text-color); padding: 4px 10px;
         }
-
         .row-menu {
-            display: none;
-            position: absolute;
-            right: 0;
-            top: 100%;
-            margin-top: 4px;
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 30;
-            min-width: 170px;
-            overflow: hidden;
+            display: none; position: absolute; right: 0; top: 100%; margin-top: 4px;
+            background: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 30; min-width: 170px; overflow: hidden;
         }
-
-        .row-menu.active {
-            display: block;
-        }
-
+        .row-menu.active { display: block; }
         .row-menu button {
-            display: block;
-            width: 100%;
-            text-align: left;
-            padding: 10px 14px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: var(--text-color);
-            font-size: 0.9rem;
+            display: block; width: 100%; text-align: left; padding: 10px 14px;
+            background: none; border: none; cursor: pointer;
+            color: var(--text-color); font-size: 0.9rem;
         }
-
-        .row-menu button:hover {
-            background: rgba(0,0,0,0.05);
-        }
+        .row-menu button:hover { background: rgba(0,0,0,0.05); }
 
         #reader-view {
-            flex: 1;
-            display: none;
-            flex-direction: column;
-            height: 100%;
-            position: relative;
+            flex: 1; display: none; flex-direction: column;
+            height: 100%; position: relative;
         }
-
-        #reader-view.active {
-            display: flex;
-        }
-
+        #reader-view.active { display: flex; }
         .reader-toolbar {
-            padding: 8px 20px;
-            background: var(--card-bg);
+            padding: 8px 20px; background: var(--card-bg);
             border-bottom: 1px solid var(--border-color);
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            font-size: 0.9rem;
-            flex-wrap: wrap;
+            display: flex; gap: 12px; align-items: center;
+            font-size: 0.9rem; flex-wrap: wrap;
         }
-
         .reader-toolbar button {
-            padding: 5px 12px;
-            border: 1px solid var(--border-color);
-            background: var(--card-bg);
-            color: var(--text-color);
-            border-radius: 4px;
-            cursor: pointer;
-            font-family: inherit;
-            font-size: 0.88rem;
+            padding: 5px 12px; border: 1px solid var(--border-color);
+            background: var(--card-bg); color: var(--text-color);
+            border-radius: 4px; cursor: pointer;
+            font-family: inherit; font-size: 0.88rem;
         }
-
         .reader-content {
-            flex: 1;
-            padding: 40px;
-            overflow: auto;
-            line-height: 1.8;
-            font-size: 1.1rem;
-            max-width: 900px;
-            margin: 0 auto;
-            width: 100%;
+            flex: 1; padding: 40px; overflow: auto; line-height: 1.8;
+            font-size: 1.1rem; max-width: 900px; margin: 0 auto; width: 100%;
         }
-
         .reader-content.vertical {
-            writing-mode: vertical-rl;
-            text-orientation: mixed;
-            max-width: none;
-            height: 100%;
-            padding: 40px 60px;
+            writing-mode: vertical-rl; text-orientation: mixed;
+            max-width: none; height: 100%; padding: 40px 60px;
         }
-
-        #reader-body.paged {
-            overflow: hidden;
-            scroll-behavior: smooth;
-            cursor: pointer;
-        }
-
-        #reader-flow {
-            height: 100%;
-        }
-
+        #reader-body.paged { overflow: hidden; scroll-behavior: smooth; cursor: pointer; }
+        #reader-flow { height: 100%; }
         #page-nav {
-            display: none;
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
-            padding: 8px;
-            background: var(--card-bg);
-            border-bottom: 1px solid var(--border-color);
-            font-size: 0.9rem;
+            display: none; justify-content: center; align-items: center;
+            gap: 20px; padding: 8px; background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color); font-size: 0.9rem;
         }
-
         #page-nav button {
-            padding: 4px 14px;
-            border: 1px solid var(--border-color);
-            background: var(--card-bg);
-            color: var(--text-color);
-            border-radius: 4px;
-            cursor: pointer;
-            font-family: inherit;
+            padding: 4px 14px; border: 1px solid var(--border-color);
+            background: var(--card-bg); color: var(--text-color);
+            border-radius: 4px; cursor: pointer; font-family: inherit;
         }
-
         .status-msg {
-            text-align: center;
-            padding: 20px;
-            font-size: 0.95rem;
-            opacity: 0.85;
-            font-weight: bold;
-            max-width: 720px;
-            margin: 0 auto;
+            text-align: center; padding: 20px; font-size: 0.95rem;
+            opacity: 0.85; font-weight: bold; max-width: 720px; margin: 0 auto;
         }
-
         .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.45);
-            z-index: 100;
-            align-items: center;
-            justify-content: center;
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.45); z-index: 100;
+            align-items: center; justify-content: center;
         }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
+        .modal-overlay.active { display: flex; }
         .modal-box {
-            background: var(--card-bg);
-            color: var(--text-color);
-            padding: 26px 30px;
-            border-radius: 8px;
-            max-width: 320px;
-            width: 90%;
-            text-align: center;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            background: var(--card-bg); color: var(--text-color);
+            padding: 26px 30px; border-radius: 8px; max-width: 320px;
+            width: 90%; text-align: center; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
         }
-
-        .modal-box p {
-            margin-bottom: 20px;
-            line-height: 1.6;
-        }
-
-        .modal-buttons {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-        }
-
+        .modal-box p { margin-bottom: 20px; line-height: 1.6; }
+        .modal-buttons { display: flex; gap: 10px; justify-content: center; }
         .modal-buttons button {
-            padding: 8px 20px;
-            border-radius: 4px;
-            border: 1px solid var(--border-color);
-            cursor: pointer;
-            background: var(--card-bg);
-            color: var(--text-color);
-            font-size: 0.9rem;
-            font-family: inherit;
+            padding: 8px 20px; border-radius: 4px;
+            border: 1px solid var(--border-color); cursor: pointer;
+            background: var(--card-bg); color: var(--text-color);
+            font-size: 0.9rem; font-family: inherit;
         }
-
-        .modal-buttons button.danger {
-            background: #d9534f;
-            color: #fff;
-            border-color: #d9534f;
-        }
+        .modal-buttons button.danger { background: #d9534f; color: #fff; border-color: #d9534f; }
     </style>
 </head>
 <body>
@@ -453,19 +193,15 @@
     </header>
 
     <div class="container">
-        <!-- 検索タブ -->
         <div id="search-view" class="view-panel active">
             <div class="search-container">
-                <!-- 簡単検索：作品名・著者名をまとめて両方あたる -->
-                <div class="simple-search-label">簡単検索（作品名・著者名どっちでもどうぞ）</div>
+                <div class="simple-search-label">簡単検索（作品名・著者名どっちでも自動判定）</div>
                 <div class="simple-search-box">
                     <input type="text" id="simple-search-input"
                            placeholder="例: シャーロック・ホームズ / コナン・ドイル"
                            onkeydown="if(event.key==='Enter') execSimpleSearch()">
                     <button onclick="execSimpleSearch()">検索</button>
                 </div>
-
-                <!-- 個別検索 -->
                 <div class="advanced-search-box">
                     <div class="field-row">
                         <label>作品名</label>
@@ -487,35 +223,24 @@
             <table class="results-table" id="results-table" style="display:none;">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>タイトル</th>
-                        <th>著者</th>
-                        <th>没年</th>
-                        <th>操作</th>
+                        <th>ID</th><th>タイトル</th><th>著者</th><th>没年</th><th>操作</th>
                     </tr>
                 </thead>
                 <tbody id="results-tbody"></tbody>
             </table>
         </div>
 
-        <!-- 本棚タブ -->
         <div id="bookshelf-view" class="view-panel">
             <h2>保存済み作品</h2>
             <div id="bookshelf-status" class="status-msg"></div>
             <table class="results-table" id="bookshelf-table" style="display:none;">
                 <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>タイトル</th>
-                        <th>著者</th>
-                        <th>操作</th>
-                    </tr>
+                    <tr><th>ID</th><th>タイトル</th><th>著者</th><th>操作</th></tr>
                 </thead>
                 <tbody id="bookshelf-tbody"></tbody>
             </table>
         </div>
 
-        <!-- 読書画面 -->
         <div id="reader-view">
             <div class="reader-toolbar">
                 <button onclick="toggleWritingMode()">縦横切替</button>
@@ -540,7 +265,6 @@
         </div>
     </div>
 
-    <!-- 削除確認ポップアップ -->
     <div class="modal-overlay" id="confirm-modal">
         <div class="modal-box">
             <p>削除しますか？</p>
@@ -552,22 +276,17 @@
     </div>
 
 <script>
-// マジで最強のプロキシ
 const maji_de_proxy_base = "https://aoi-box-lab.idosenpai.workers.dev/?url=";
 
 let maji_de_db = null;
 let current_font_size = 18;
 let is_vertical_mode = false;
-
-// キャッシュ格納庫
 let v_project_cache = {};
 
-// 並べ替え・メニュー・削除まわり
 let drag_zaku_id = null;
 let menu_char_aznable_id = null;
 let delete_kill_confirm_id = null;
 
-// めくりモード＆翻訳切替
 const gata_gap_haba = 60;
 let is_page_mode = false;
 let ima_no_page = 0;
@@ -575,312 +294,238 @@ let zenbu_page_su = 1;
 let is_showing_translation = false;
 let ima_yonderu_hon = null;
 
-// DB初期化
-function initDB()
-{
-    return new Promise((resolve, reject) => 
-    {
+// ============ DB ============
+function initDB() {
+    return new Promise((resolve, reject) => {
         const req = indexedDB.open("SolariGutenbergDB", 1);
-        
-        req.onupgradeneeded = (e) => 
-        {
+        req.onupgradeneeded = (e) => {
             const db = e.target.result;
-            if (!db.objectStoreNames.contains("books")) 
-            {
+            if (!db.objectStoreNames.contains("books")) {
                 db.createObjectStore("books", { keyPath: "id" });
             }
         };
-
-        req.onsuccess = (e) => 
-        {
-            maji_de_db = e.target.result;
-            resolve(maji_de_db);
-        };
-
-        req.onerror = (e) => 
-        {
-            console.error("DB起動失敗！", e);
-            reject(e);
-        };
+        req.onsuccess = (e) => { maji_de_db = e.target.result; resolve(maji_de_db); };
+        req.onerror = (e) => { console.error("DB起動失敗", e); reject(e); };
     });
 }
 
-// 著作権チェック
-function checkChosakukenSafe(authorDeathYear)
-{
+function checkChosakukenSafe(authorDeathYear) {
     if (!authorDeathYear) return false;
-    const genzaiNen = new Date().getFullYear();
-    return (genzaiNen - authorDeathYear) >= 80;
+    return (new Date().getFullYear() - authorDeathYear) >= 80;
 }
 
-// ============================================================
-//  NDL 原題抽出
-// ============================================================
-async function getOriginalTitleFromNDL(jpTitle)
-{
-    if (/^[a-zA-Z0-9\s]+$/.test(jpTitle)) return null;
+// ============ ユーティリティ ============
+function isAsciiQuery(s) {
+    return /^[a-zA-Z0-9\s\-'.,]+$/.test(s);
+}
 
-    try 
-    {
+// ============ NDL 原題抽出 ============
+// 戻り値: { title, confident }
+//   confident=true  → 書誌の「原タイトル:」等から確実に抽出できた
+//   confident=false → 本文中のラテン文字列を拾っただけ（ノイズの可能性あり）
+async function getOriginalTitleFromNDL(jpTitle) {
+    if (isAsciiQuery(jpTitle)) return { title: null, confident: false };
+
+    try {
         const ndl_api_yobidashi = `https://ndlsearch.ndl.go.jp/api/opensearch?title=${encodeURIComponent(jpTitle)}&cnt=10`;
         const res = await fetch(maji_de_proxy_base + encodeURIComponent(ndl_api_yobidashi));
         const xml = await res.text();
-        
+
         const parser = new DOMParser();
         const doc = parser.parseFromString(xml, 'application/xml');
         const items = [...doc.getElementsByTagName('item')];
-        
-        if (!items.length) return null;
+        if (!items.length) return { title: null, confident: false };
 
-        for(const item of items) 
-        {
+        // Pass 1: 明示的な原タイトル表記（高信頼）
+        const pats = [
+            /原タイトル\s*[:：]\s*([^\n\r]+)/,
+            /原題\s*[:：]\s*([^\n\r]+)/,
+            /Original title\s*[:：]\s*([^\n\r]+)/i,
+            /別書名\s*[:：]\s*([^\n\r]+)/,
+        ];
+        for (const item of items) {
             const text = item.textContent;
-            
-            const pats = [
-                /原タイトル\s*[:：]\s*([^\n\r]+)/,
-                /原題\s*[:：]\s*([^\n\r]+)/,
-                /Original title\s*[:：]\s*([^\n\r]+)/i,
-                /別書名\s*[:：]\s*([^\n\r]+)/,
-            ];
-            
-            for (const p of pats) 
-            {
+            for (const p of pats) {
                 const m = text.match(p);
-                if (m) 
-                {
+                if (m) {
                     const cand = m[1].trim().replace(/[。．.\s]+$/, '');
-                    if (cand && !cand.includes(jpTitle)) return cand;
+                    if (cand && !cand.includes(jpTitle)) {
+                        return { title: cand, confident: true };
+                    }
                 }
             }
-            
+        }
+
+        // Pass 2: ラテン文字列のフォールバック（低信頼）
+        for (const item of items) {
+            const text = item.textContent;
             const latin = text.match(/[A-Z][A-Za-z'’\-]+(?:\s+(?:of|the|and|in|a|an|to|[A-Z][A-Za-z'’\-]+)){2,}/g);
-            if (latin && latin.length) 
-            {
+            if (latin && latin.length) {
                 latin.sort((a, b) => b.length - a.length);
-                return latin[0].trim();
+                return { title: latin[0].trim(), confident: false };
             }
         }
-    } 
-    catch (err) 
-    {
-        console.warn("NDLサーチ失敗したわ…", err);
+    } catch (err) {
+        console.warn("NDLサーチ失敗", err);
     }
-    
-    return null;
+    return { title: null, confident: false };
 }
 
-// ============================================================
-//  著者名の英語化（Wikipedia言語間リンク方式・改良版）
-//  ※旧実装は generator=search + gsrlimit=1 で1件だけ取っていたため、
-//    「コナン・ドイル」で検索したのにアガサ・クリスティが返る等の誤爆が頻発した。
-//    新実装では list=search で複数候補を取り、タイトル一致度でスコアリングして選抜する。
-// ============================================================
-async function getAuthorEnglishNameFromWikipedia(jpName)
-{
-    if (/^[a-zA-Z0-9\s]+$/.test(jpName)) return jpName;
+// ============ Wikipedia 著者名解決 ============
+// ページ検索 → タイトル一致度スコア → 人物カテゴリ確認 → 英語版タイトル取得
+// 作品記事（シャーロック・ホームズ等）を著者と誤認しないため、
+// 「〜年生」「〜年没」カテゴリの有無で人物判定する
+async function getAuthorEnglishNameFromWikipedia(jpName) {
+    if (isAsciiQuery(jpName)) return null;
 
     const norm_target = jpName.replace(/[・\s　\.\,\-ー、]/g, "").toLowerCase();
 
-    try 
-    {
+    try {
+        // Step1: 候補を10件取得
         const search_api = `https://ja.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(jpName)}&srlimit=10&format=json&origin=*`;
         const res = await fetch(maji_de_proxy_base + encodeURIComponent(search_api));
         const data = await res.json();
-
         const hits = data && data.query && data.query.search;
         if (!hits || !hits.length) return null;
 
-        // タイトル一致度スコアリング
+        // Step2: タイトル一致度でスコアリング
         let best = null;
         let best_score = -1;
-        for (const h of hits) 
-        {
+        for (const h of hits) {
             const norm_hit = h.title.replace(/[・\s　\.\,\-ー、]/g, "").toLowerCase();
             let score = 0;
             if (norm_hit === norm_target) score = 100;
             else if (norm_hit.includes(norm_target)) score = 80;
             else if (norm_target.includes(norm_hit)) score = 70;
-            else 
-            {
+            else {
                 let overlap = 0;
-                for (const ch of norm_target) 
-                {
-                    if (norm_hit.includes(ch)) overlap++;
-                }
+                for (const ch of norm_target) if (norm_hit.includes(ch)) overlap++;
                 score = (overlap / Math.max(1, norm_target.length)) * 50;
             }
-            if (score > best_score) 
-            {
-                best_score = score;
-                best = h;
-            }
+            if (score > best_score) { best_score = score; best = h; }
         }
+        // 閾値を60に引き上げ（低スコアの別人ヒットを弾く）
+        if (!best || best_score < 60) return null;
 
-        // 一致度が低すぎる場合は「別人を拾ってる」可能性が高いので諦める
-        if (!best || best_score < 30) return null;
-
-        // 選んだページの英語版タイトル（＝本人の英語表記）を取得
-        const ll_api = `https://ja.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(best.title)}&prop=langlinks&lllang=en&format=json&origin=*`;
-        const res2 = await fetch(maji_de_proxy_base + encodeURIComponent(ll_api));
+        // Step3: カテゴリ＋langlinksを一度に取得して人物判定
+        const detail_api = `https://ja.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(best.title)}&prop=langlinks|categories&lllang=en&cllimit=50&format=json&origin=*`;
+        const res2 = await fetch(maji_de_proxy_base + encodeURIComponent(detail_api));
         const data2 = await res2.json();
-
         const pages = data2 && data2.query && data2.query.pages;
         if (!pages) return null;
         const page = Object.values(pages)[0];
-        const eng_title = page && page.langlinks && page.langlinks[0] && page.langlinks[0]["*"];
+        if (!page) return null;
+
+        const cats = page.categories || [];
+        let is_person = false;
+        for (const c of cats) {
+            const t = c.title || "";
+            if (/\d{3,4}年生/.test(t) || /\d{3,4}年没/.test(t)) { is_person = true; break; }
+        }
+        if (!is_person) return null;  // 作品・概念記事は弾く
+
+        const eng_title = page.langlinks && page.langlinks[0] && page.langlinks[0]["*"];
         return eng_title || null;
-    } 
-    catch (err) 
-    {
-        console.warn("Wikipedia検索コケた…", err);
+
+    } catch (err) {
+        console.warn("Wikipedia検索失敗", err);
         return null;
     }
 }
 
-// フォールバック：Google翻訳
-async function translateToEnglish(jpText)
-{
-    if (/^[a-zA-Z0-9\s]+$/.test(jpText)) return jpText;
-
-    try 
-    {
+// ============ Google翻訳フォールバック ============
+async function translateToEnglish(jpText) {
+    if (isAsciiQuery(jpText)) return jpText;
+    try {
         const nen_ryou = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=en&dt=t&q=${encodeURIComponent(jpText)}`;
         const res = await fetch(maji_de_proxy_base + encodeURIComponent(nen_ryou));
         const data = await res.json();
-        
-        if (data && data[0] && data[0][0] && data[0][0][0]) 
-        {
-            return data[0][0][0];
-        }
-    } 
-    catch (err) 
-    {
-        console.warn("Google翻訳も死んだ…", err);
+        if (data && data[0] && data[0][0] && data[0][0][0]) return data[0][0][0];
+    } catch (err) {
+        console.warn("Google翻訳失敗", err);
     }
     return jpText;
 }
 
-// ============================================================
-//  本文まるごと日本語化（ダウンロード時翻訳）
-// ============================================================
-function splitTextRoughly(text, maxLen)
-{
+// ============ 本文まるごと日本語化 ============
+function splitTextRoughly(text, maxLen) {
     const chunks = [];
     let rest = text;
-
-    while (rest.length > maxLen) 
-    {
+    while (rest.length > maxLen) {
         let cut = rest.lastIndexOf(". ", maxLen);
         if (cut < maxLen * 0.5) cut = maxLen;
-
         chunks.push(rest.slice(0, cut + 1));
         rest = rest.slice(cut + 1);
     }
-
     if (rest.length > 0) chunks.push(rest);
     return chunks;
 }
 
-async function translateChunkToJapanese(text)
-{
-    try 
-    {
+async function translateChunkToJapanese(text) {
+    try {
         const q_url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ja&dt=t&q=${encodeURIComponent(text)}`;
         const res = await fetch(maji_de_proxy_base + encodeURIComponent(q_url));
         const data = await res.json();
-
-        if (data && data[0]) 
-        {
-            return data[0].map(seg => seg[0]).join("");
-        }
-    } 
-    catch (err) 
-    {
-        console.warn("段落翻訳コケた…原文のまま突っ込む", err);
+        if (data && data[0]) return data[0].map(seg => seg[0]).join("");
+    } catch (err) {
+        console.warn("段落翻訳失敗", err);
     }
-
     return text;
 }
 
-async function translateParagraphToJapanese(text)
-{
+async function translateParagraphToJapanese(text) {
     if (!text || !text.trim()) return text;
-
     const MAX_LEN = 1500;
-    if (text.length <= MAX_LEN) 
-    {
-        return await translateChunkToJapanese(text);
-    }
-
+    if (text.length <= MAX_LEN) return await translateChunkToJapanese(text);
     const chunks = splitTextRoughly(text, MAX_LEN);
-    const translated_chunks = [];
-    for (const c of chunks) 
-    {
-        translated_chunks.push(await translateChunkToJapanese(c));
-    }
-    return translated_chunks.join("");
+    const out = [];
+    for (const c of chunks) out.push(await translateChunkToJapanese(c));
+    return out.join("");
 }
 
-async function translateParagraphList(paragraphList, onProgress)
-{
+async function translateParagraphList(paragraphList, onProgress) {
     const result_list = new Array(paragraphList.length).fill("");
     const batch_size = 5;
-
-    for (let i = 0; i < paragraphList.length; i += batch_size) 
-    {
+    for (let i = 0; i < paragraphList.length; i += batch_size) {
         const batch = paragraphList.slice(i, i + batch_size);
-        const batch_results = await Promise.all(
-            batch.map(p => translateParagraphToJapanese(p.text))
-        );
-
+        const batch_results = await Promise.all(batch.map(p => translateParagraphToJapanese(p.text)));
         batch_results.forEach((t, j) => { result_list[i + j] = t; });
-
         if (onProgress) onProgress(Math.min(i + batch_size, paragraphList.length), paragraphList.length);
     }
-
     return result_list;
 }
 
-// ============================================================
-//  検索まわり（新UI対応）
-// ============================================================
-
-// 検索クエリを英語化（mode: "title" or "author"）
-async function resolveQueryToEnglish(rawQuery, mode)
-{
-    const loose = rawQuery.replace(/[・＝ _]/g, " ").replace(/\s+/g, " ").trim();
-
-    let eng = null;
-    if (mode === "title") 
-    {
-        eng = await getOriginalTitleFromNDL(loose);
-        if (!eng) eng = await translateToEnglish(loose);
-    } 
-    else 
-    {
-        eng = await getAuthorEnglishNameFromWikipedia(rawQuery);
-        if (!eng) eng = await translateToEnglish(loose);
-    }
-    return eng;
-}
-
-// Gutendexに投げるだけ
-async function fetchGutendexResults(engQuery)
-{
+// ============ Gutendex 問い合わせ ============
+async function fetchGutendexResults(engQuery) {
     if (!engQuery) return { results: [] };
     const clean = engQuery.replace(/[^\w\s]/gi, ' ').replace(/\s+/g, ' ').trim();
     if (!clean) return { results: [] };
-
     const g_api = `https://gutendex.com/books/?search=${encodeURIComponent(clean)}`;
     const res = await fetch(maji_de_proxy_base + encodeURIComponent(g_api));
     return await res.json();
 }
 
-// 検索結果をテーブルに描画（共通）
-function renderSearchResults(results, statusEl, tableEl, tbodyEl)
-{
-    if (!results || results.length === 0) 
-    {
+// 著者名でクライアント側フィルタ。4文字以上の語を優先（Doyle/Conan等）
+function filterByAuthor(results, authorEng) {
+    if (!authorEng) return results;
+    const norm = authorEng.toLowerCase();
+    const words = norm.split(/\s+/).filter(w => w.length >= 3);
+    const longWords = words.filter(w => w.length >= 4);
+    const useWords = longWords.length > 0 ? longWords : words;
+    if (useWords.length === 0) return results;
+
+    return results.filter(b => {
+        const authors = b.authors || [];
+        return authors.some(a => {
+            const n = (a.name || "").toLowerCase();
+            return useWords.some(w => n.includes(w));
+        });
+    });
+}
+
+// ============ 結果描画 ============
+function renderSearchResults(results, statusEl, tableEl, tbodyEl) {
+    if (!results || results.length === 0) {
         statusEl.style.color = "#d9534f";
         statusEl.textContent = "Gutendexに該当する作品が見つからんかった＼(^o^)／";
         tableEl.style.display = "none";
@@ -888,11 +533,9 @@ function renderSearchResults(results, statusEl, tableEl, tbodyEl)
         return;
     }
 
-    // 重複除去
     const seen = new Set();
     const unique = [];
-    for (const b of results) 
-    {
+    for (const b of results) {
         if (seen.has(b.id)) continue;
         seen.add(b.id);
         unique.push(b);
@@ -903,10 +546,8 @@ function renderSearchResults(results, statusEl, tableEl, tbodyEl)
     tableEl.style.display = "table";
     tbodyEl.innerHTML = "";
 
-    unique.forEach(b => 
-    {
+    unique.forEach(b => {
         v_project_cache[b.id] = b;
-
         const a_a = b.authors[0] || { name: "不明", death_year: null };
         const d_y = a_a.death_year;
         const is_s = checkChosakukenSafe(d_y);
@@ -918,7 +559,7 @@ function renderSearchResults(results, statusEl, tableEl, tbodyEl)
             <td>${a_a.name}</td>
             <td>${d_y ? d_y : "不明"}</td>
             <td>
-                ${is_s 
+                ${is_s
                     ? `<button onclick="downloadAndSaveBook(${b.id})">保存・読む</button>`
                     : `<span style="color:red; font-size:0.8rem;">保護期間内</span>`
                 }
@@ -928,9 +569,10 @@ function renderSearchResults(results, statusEl, tableEl, tbodyEl)
     });
 }
 
-// 簡単検索：作品名・著者名を並行で両方あたってマージ
-async function execSimpleSearch()
-{
+// ============ 簡単検索 ============
+// 方針: マージしない。著者として当たれば著者検索、ダメなら作品として検索。
+// これで「作品名と著者名の両方で検索してノイズが混ざる」問題を解消。
+async function execSimpleSearch() {
     const q = document.getElementById("simple-search-input").value.trim();
     if (!q) return;
 
@@ -942,75 +584,87 @@ async function execSimpleSearch()
     tableEl.style.display = "none";
     v_project_cache = {};
     statusEl.style.color = "#2b2b2b";
-    statusEl.textContent = `「${q}」を作品名・著者名の両方で英語化中... ( ｀・ω・´)`;
 
-    // 作品名・著者名の両方で英語化を並行実行
-    const [titleEng, authorEng] = await Promise.all([
-        resolveQueryToEnglish(q, "title").catch(() => null),
-        resolveQueryToEnglish(q, "author").catch(() => null)
-    ]);
-
-    statusEl.textContent = "Gutendexを索敵中... ( ﾟдﾟ)";
-
-    const all_results = [];
-    const seen = new Set();
-
-    // 作品名としての結果
-    if (titleEng) 
-    {
-        try 
-        {
-            const data = await fetchGutendexResults(titleEng);
-            if (data && data.results) 
-            {
-                for (const b of data.results) 
-                {
-                    if (!seen.has(b.id)) { seen.add(b.id); all_results.push(b); }
-                }
-            }
-        } 
-        catch (e) { /* 握りつぶし */ }
+    // ASCIIのみ → 直接Gutendex検索
+    if (isAsciiQuery(q)) {
+        statusEl.textContent = `「${q}」でGutendexを索敵中...`;
+        try {
+            const data = await fetchGutendexResults(q);
+            renderSearchResults((data && data.results) || [], statusEl, tableEl, tbodyEl);
+        } catch (err) {
+            statusEl.style.color = "#d9534f";
+            statusEl.textContent = `エラー: ${err.message}`;
+        }
+        return;
     }
 
-    // 著者名としての結果（著者名でフィルタして誤爆を防ぐ）
-    if (authorEng) 
-    {
-        try 
-        {
+    // Step1: 著者として解決を試みる（人物カテゴリ判定済み）
+    statusEl.textContent = `「${q}」を著者名としてWikipediaで検索中...`;
+    const authorEng = await getAuthorEnglishNameFromWikipedia(q);
+
+    if (authorEng) {
+        statusEl.textContent = `著者「${authorEng}」でGutendexを索敵中...`;
+        try {
             const data = await fetchGutendexResults(authorEng);
-            if (data && data.results) 
-            {
-                const norm = authorEng.toLowerCase();
-                const words = norm.split(/\s+/).filter(w => w.length >= 3);
-                for (const b of data.results) 
-                {
-                    const authors = b.authors || [];
-                    const matched = authors.some(a => {
-                        const n = (a.name || "").toLowerCase();
-                        return words.length ? words.some(w => n.includes(w)) : n.includes(norm);
-                    });
-                    if (matched && !seen.has(b.id)) 
-                    {
-                        seen.add(b.id);
-                        all_results.push(b);
-                    }
-                }
+            let results = (data && data.results) || [];
+            results = filterByAuthor(results, authorEng);
+            if (results.length > 0) {
+                renderSearchResults(results, statusEl, tableEl, tbodyEl);
+                return;
             }
-        } 
-        catch (e) { /* 握りつぶし */ }
+        } catch (err) { /* 次へ */ }
     }
 
-    renderSearchResults(all_results, statusEl, tableEl, tbodyEl);
+    // Step2: 作品名としてNDLで原題を探す
+    statusEl.textContent = `「${q}」を作品名としてNDLで検索中...`;
+    const loose = q.replace(/[・＝ _]/g, " ").replace(/\s+/g, " ").trim();
+    const ndlResult = await getOriginalTitleFromNDL(loose);
+
+    if (ndlResult.title && ndlResult.confident) {
+        statusEl.textContent = `原題「${ndlResult.title}」でGutendexを索敵中...`;
+        try {
+            const data = await fetchGutendexResults(ndlResult.title);
+            const results = (data && data.results) || [];
+            if (results.length > 0) {
+                renderSearchResults(results, statusEl, tableEl, tbodyEl);
+                return;
+            }
+        } catch (err) { /* 次へ */ }
+    }
+
+    // Step3: NDLのラテン文字列フォールバック（低信頼）でも一応試す
+    if (ndlResult.title) {
+        statusEl.textContent = `原題候補「${ndlResult.title}」でGutendexを索敵中...`;
+        try {
+            const data = await fetchGutendexResults(ndlResult.title);
+            const results = (data && data.results) || [];
+            if (results.length > 0) {
+                renderSearchResults(results, statusEl, tableEl, tbodyEl);
+                return;
+            }
+        } catch (err) { /* 次へ */ }
+    }
+
+    // Step4: Google翻訳で最終フォールバック
+    statusEl.textContent = `Google翻訳で「${q}」を英語化中...`;
+    const transEng = await translateToEnglish(loose);
+    statusEl.textContent = `「${transEng}」でGutendexを索敵中...`;
+    try {
+        const data = await fetchGutendexResults(transEng);
+        renderSearchResults((data && data.results) || [], statusEl, tableEl, tbodyEl);
+    } catch (err) {
+        statusEl.style.color = "#d9534f";
+        statusEl.textContent = `エラー: ${err.message}`;
+    }
 }
 
-// 個別検索：作品名・著者名それぞれの欄を個別に使う
-async function execAdvancedSearch()
-{
+// ============ 個別検索 ============
+// 連結せず、作品名でGutendex→著者名でクライアント側フィルタ
+async function execAdvancedSearch() {
     const titleQ = document.getElementById("title-search-input").value.trim();
     const authorQ = document.getElementById("author-search-input").value.trim();
 
-    if (!titleQ && !authorQ) 
-    {
+    if (!titleQ && !authorQ) {
         alert("作品名か著者名、最低どちらかは入れてください ( ˘ω˘ )");
         return;
     }
@@ -1023,97 +677,75 @@ async function execAdvancedSearch()
     tableEl.style.display = "none";
     v_project_cache = {};
     statusEl.style.color = "#2b2b2b";
-    statusEl.textContent = "検索条件を英語化中... ( ｀・ω・´)";
 
+    // 作品名を英語化
     let titleEng = null;
+    if (titleQ) {
+        if (isAsciiQuery(titleQ)) {
+            titleEng = titleQ;
+        } else {
+            statusEl.textContent = `NDLで「${titleQ}」の原題を探り中...`;
+            const looseT = titleQ.replace(/[・＝ _]/g, " ").replace(/\s+/g, " ").trim();
+            const ndlResult = await getOriginalTitleFromNDL(looseT);
+            if (ndlResult.title) {
+                titleEng = ndlResult.title;
+            } else {
+                statusEl.textContent = `Google翻訳で「${titleQ}」を英語化中...`;
+                titleEng = await translateToEnglish(looseT);
+            }
+        }
+    }
+
+    // 著者名を英語化
     let authorEng = null;
-
-    if (titleQ) 
-    {
-        statusEl.textContent = `NDLで「${titleQ}」の原題を探り中...`;
-        titleEng = await getOriginalTitleFromNDL(titleQ.replace(/[・＝ _]/g, " ").trim());
-        if (!titleEng) 
-        {
-            statusEl.textContent = `Google翻訳で「${titleQ}」を英語化中...`;
-            titleEng = await translateToEnglish(titleQ);
+    if (authorQ) {
+        if (isAsciiQuery(authorQ)) {
+            authorEng = authorQ;
+        } else {
+            statusEl.textContent = `Wikipediaで「${authorQ}」の英語表記を探り中...`;
+            authorEng = await getAuthorEnglishNameFromWikipedia(authorQ);
+            if (!authorEng) {
+                statusEl.textContent = `Google翻訳で「${authorQ}」を英語化中...`;
+                const looseA = authorQ.replace(/[・＝ _]/g, " ").replace(/\s+/g, " ").trim();
+                authorEng = await translateToEnglish(looseA);
+            }
         }
     }
-
-    if (authorQ) 
-    {
-        statusEl.textContent = `Wikipediaで「${authorQ}」の英語表記を探り中...`;
-        authorEng = await getAuthorEnglishNameFromWikipedia(authorQ);
-        if (!authorEng) 
-        {
-            statusEl.textContent = `Google翻訳で「${authorQ}」を英語化中...`;
-            authorEng = await translateToEnglish(authorQ);
-        }
-    }
-
-    // Gutendexは1クエリなので、両方あれば連結して投げる
-    let combined = [titleEng, authorEng].filter(Boolean).join(" ").trim();
-    if (!combined) 
-    {
-        statusEl.style.color = "#d9534f";
-        statusEl.textContent = "英語化に失敗しました…";
-        return;
-    }
-
-    statusEl.textContent = `「${combined}」でGutendexを索敵中... ( ﾟдﾟ)`;
 
     let results = [];
-    try 
-    {
-        const data = await fetchGutendexResults(combined);
-        results = (data && data.results) || [];
-    } 
-    catch (err) 
-    {
+    try {
+        if (titleEng) {
+            statusEl.textContent = `「${titleEng}」でGutendexを索敵中...`;
+            const data = await fetchGutendexResults(titleEng);
+            results = (data && data.results) || [];
+            if (authorEng) results = filterByAuthor(results, authorEng);
+        } else if (authorEng) {
+            statusEl.textContent = `著者「${authorEng}」でGutendexを索敵中...`;
+            const data = await fetchGutendexResults(authorEng);
+            results = filterByAuthor((data && data.results) || [], authorEng);
+        }
+    } catch (err) {
         statusEl.style.color = "#d9534f";
         statusEl.textContent = `検索エラー: ${err.message}`;
         return;
     }
 
-    // 著者名が指定されている場合は、その著者の作品だけに絞る
-    if (authorEng) 
-    {
-        const norm = authorEng.toLowerCase();
-        const words = norm.split(/\s+/).filter(w => w.length >= 3);
-        results = results.filter(b => 
-        {
-            const authors = b.authors || [];
-            return authors.some(a => 
-            {
-                const n = (a.name || "").toLowerCase();
-                return words.length ? words.some(w => n.includes(w)) : n.includes(norm);
-            });
-        });
-    }
-
     renderSearchResults(results, statusEl, tableEl, tbodyEl);
 }
 
-// ============================================================
-//  ダウンロード＆DB保存
-// ============================================================
-async function downloadAndSaveBook(bookId)
-{
+// ============ ダウンロード＆保存 ============
+async function downloadAndSaveBook(bookId) {
     const s_e = document.getElementById("search-status");
     const rx_78 = v_project_cache[bookId];
-
     s_e.style.color = "#2b2b2b";
-
-    if (!rx_78)
-    {
+    if (!rx_78) {
         s_e.style.color = "#d9534f";
-        s_e.textContent = "エラー: キャッシュがないぞ…バグってんじゃねーか！";
+        s_e.textContent = "エラー: キャッシュがないぞ…";
         return;
     }
+    s_e.textContent = `作品ID:${bookId} をダウンロード＆分解構築中...`;
 
-    s_e.textContent = `作品ID:${bookId} をダウンロード＆分解構築中... (｀・ω・´)`;
-
-    try 
-    {
+    try {
         const funnel_urls = [
             rx_78.formats["text/html; charset=utf-8"],
             rx_78.formats["text/html"],
@@ -1123,79 +755,43 @@ async function downloadAndSaveBook(bookId)
             `https://www.gutenberg.org/cache/epub/${bookId}/pg${bookId}.txt.utf8`
         ].filter(Boolean);
 
-        if (funnel_urls.length === 0)
-        {
+        if (funnel_urls.length === 0) {
             s_e.style.color = "#d9534f";
-            s_e.textContent = "エラー: この作品、読める形式のURLが存在しないわorz";
+            s_e.textContent = "エラー: 読める形式のURLが存在しない";
             return;
         }
 
-        let res_ok = null;
-        let r_t = "";
-        let final_url = "";
-
-        for (const u of funnel_urls) 
-        {
-            try 
-            {
+        let res_ok = null, r_t = "", final_url = "";
+        for (const u of funnel_urls) {
+            try {
                 const tmp_r = await fetch(maji_de_proxy_base + encodeURIComponent(u));
-                if (tmp_r.ok) 
-                {
-                    res_ok = tmp_r;
-                    r_t = await tmp_r.text();
-                    final_url = u;
-                    break;
-                }
-            } 
-            catch(e) { /* 次のURLを試す */ }
+                if (tmp_r.ok) { res_ok = tmp_r; r_t = await tmp_r.text(); final_url = u; break; }
+            } catch(e) {}
         }
+        if (!res_ok) throw new Error(`全URL 404等で全滅`);
 
-        if (!res_ok) 
-        {
-            throw new Error(`全URL試したけどHTTP 404等で全滅したわ…`);
-        }
-        
         let paragraph_list = [];
-
-        if (final_url.includes("html") || final_url.includes("htm"))
-        {
+        if (final_url.includes("html") || final_url.includes("htm")) {
             const p = new DOMParser();
             const d = p.parseFromString(r_t, "text/html");
-
             d.querySelectorAll("script, style, header, footer, img").forEach(el => el.remove());
-
             const pe = d.querySelectorAll("p, h1, h2, h3");
-            if (pe.length > 0) 
-            {
-                pe.forEach(px => 
-                {
+            if (pe.length > 0) {
+                pe.forEach(px => {
                     const tx = px.textContent.trim();
-                    if (tx.length > 0) 
-                    {
-                        paragraph_list.push({ tag: px.tagName.toLowerCase(), text: tx });
-                    }
+                    if (tx.length > 0) paragraph_list.push({ tag: px.tagName.toLowerCase(), text: tx });
                 });
-            } 
-            else 
-            {
+            } else {
                 paragraph_list.push({ tag: "p", text: d.body.textContent.trim() });
             }
-        }
-        else
-        {
-            const lns = r_t.split("\n");
-            lns.forEach(l => 
-            {
-                if(l.trim().length > 0) 
-                {
-                    paragraph_list.push({ tag: "p", text: l.trim() });
-                }
+        } else {
+            r_t.split("\n").forEach(l => {
+                if (l.trim().length > 0) paragraph_list.push({ tag: "p", text: l.trim() });
             });
         }
 
         s_e.textContent = `本文を日本語に翻訳中... (0/${paragraph_list.length})`;
-        const translated_texts = await translateParagraphList(paragraph_list, (done, total) => 
-        {
+        const translated_texts = await translateParagraphList(paragraph_list, (done, total) => {
             s_e.textContent = `本文を日本語に翻訳中... (${done}/${total})`;
         });
 
@@ -1207,47 +803,31 @@ async function downloadAndSaveBook(bookId)
         const a_n = rx_78.authors[0] ? rx_78.authors[0].name : "不明";
 
         const bd = {
-            id: bookId,
-            title: rx_78.title,
-            author: a_n,
-            content: c_h,
-            contentTranslated: c_h_translated,
+            id: bookId, title: rx_78.title, author: a_n,
+            content: c_h, contentTranslated: c_h_translated,
             savedAt: new Date().toISOString(),
-            sortOrder: Date.now(),
-            favorite: false
+            sortOrder: Date.now(), favorite: false
         };
-
         st.put(bd);
 
-        tx_db.oncomplete = () => 
-        {
+        tx_db.oncomplete = () => {
             s_e.style.color = "#4a6fa5";
-            s_e.textContent = "保存完了！読書画面へ移行します ( ﾟ∀ﾟ)o彡";
+            s_e.textContent = "保存完了！読書画面へ移行します";
             openReader(bd);
         };
+        tx_db.onerror = (e) => { throw new Error(`DB保存エラー: ${e.target.error.message}`); };
 
-        tx_db.onerror = (e) => 
-        {
-            throw new Error(`DB保存エラー: ${e.target.error.message}`);
-        };
-
-    } 
-    catch (err) 
-    {
+    } catch (err) {
         s_e.style.color = "#d9534f";
-        s_e.textContent = `クラッシュしたわ… 原因: ${err.message}`;
+        s_e.textContent = `クラッシュ: ${err.message}`;
     }
 }
 
-// ============================================================
-//  本棚
-// ============================================================
-function loadBookshelf()
-{
+// ============ 本棚 ============
+function loadBookshelf() {
     const s_e = document.getElementById("bookshelf-status");
     const t_e = document.getElementById("bookshelf-table");
     const tb_e = document.getElementById("bookshelf-tbody");
-
     tb_e.innerHTML = "";
     s_e.textContent = "読み込み中...";
     s_e.style.color = "#2b2b2b";
@@ -1256,25 +836,19 @@ function loadBookshelf()
     const st = tx.objectStore("books");
     const rq = st.getAll();
 
-    rq.onsuccess = () => 
-    {
+    rq.onsuccess = () => {
         const bks = rq.result;
-        if (bks.length === 0) 
-        {
+        if (bks.length === 0) {
             s_e.textContent = "本棚は空っぽだよ ( ˘ω˘ )";
             t_e.style.display = "none";
             return;
         }
-
         bks.sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity));
-
         s_e.textContent = "";
         t_e.style.display = "table";
 
-        bks.forEach(b => 
-        {
+        bks.forEach(b => {
             const tr = document.createElement("tr");
-
             tr.draggable = true;
             tr.ondragstart = (e) => handleDragStart(e, b.id);
             tr.ondragover = (e) => handleDragOver(e, tr);
@@ -1284,7 +858,6 @@ function loadBookshelf()
             tr.onclick = () => readSavedBook(b.id);
 
             const fav_mark = b.favorite ? "★ " : "";
-
             tr.innerHTML = `
                 <td class="id-cell">
                     <span class="drag-handle" title="ドラッグで並べ替え" onclick="event.stopPropagation()">
@@ -1309,162 +882,102 @@ function loadBookshelf()
     };
 }
 
-function handleDragStart(ev, bookId)
-{
+function handleDragStart(ev, bookId) {
     drag_zaku_id = bookId;
     ev.dataTransfer.effectAllowed = "move";
 }
-
-function handleDragOver(ev, rowEl)
-{
-    ev.preventDefault(); // ← これ消すと詰む
+function handleDragOver(ev, rowEl) {
+    ev.preventDefault();
     rowEl.classList.add("drag-over-row");
 }
-
-function handleRowDrop(ev, targetId, rowEl)
-{
+function handleRowDrop(ev, targetId, rowEl) {
     ev.preventDefault();
     rowEl.classList.remove("drag-over-row");
-
     if (drag_zaku_id === null || drag_zaku_id === targetId) return;
     swapBookOrder(drag_zaku_id, targetId);
     drag_zaku_id = null;
 }
-
-function swapBookOrder(idA, idB)
-{
+function swapBookOrder(idA, idB) {
     const tx = maji_de_db.transaction(["books"], "readwrite");
     const st = tx.objectStore("books");
     const rqA = st.get(idA);
-
-    rqA.onsuccess = () => 
-    {
+    rqA.onsuccess = () => {
         const bookA = rqA.result;
         const rqB = st.get(idB);
-
-        rqB.onsuccess = () => 
-        {
+        rqB.onsuccess = () => {
             const bookB = rqB.result;
             if (!bookA || !bookB) return;
-
             const tmp_order = bookA.sortOrder ?? 0;
             bookA.sortOrder = bookB.sortOrder ?? 0;
             bookB.sortOrder = tmp_order;
-
             st.put(bookA);
             st.put(bookB);
         };
     };
-
-    tx.oncomplete = () => 
-    {
-        loadBookshelf();
-    };
+    tx.oncomplete = () => { loadBookshelf(); };
 }
 
-function toggleRowMenu(ev, bookId)
-{
+function toggleRowMenu(ev, bookId) {
     ev.stopPropagation();
-
     const target_menu = document.getElementById(`menu-${bookId}`);
     const is_opening = !target_menu.classList.contains("active");
-
     closeAllRowMenus();
-
-    if (is_opening) 
-    {
+    if (is_opening) {
         target_menu.classList.add("active");
         menu_char_aznable_id = bookId;
     }
 }
-
-function closeAllRowMenus()
-{
+function closeAllRowMenus() {
     document.querySelectorAll(".row-menu").forEach(m => m.classList.remove("active"));
     menu_char_aznable_id = null;
 }
+document.addEventListener("click", () => { closeAllRowMenus(); });
 
-document.addEventListener("click", () => 
-{
+function toggleFavorite(bookId) {
     closeAllRowMenus();
-});
-
-function toggleFavorite(bookId)
-{
-    closeAllRowMenus();
-
     const tx = maji_de_db.transaction(["books"], "readwrite");
     const st = tx.objectStore("books");
     const rq = st.get(bookId);
-
-    rq.onsuccess = () => 
-    {
+    rq.onsuccess = () => {
         const b = rq.result;
         if (!b) return;
         b.favorite = !b.favorite;
         st.put(b);
     };
-
-    tx.oncomplete = () => 
-    {
-        loadBookshelf();
-    };
+    tx.oncomplete = () => { loadBookshelf(); };
 }
 
-function confirmDeleteBook(bookId)
-{
+function confirmDeleteBook(bookId) {
     closeAllRowMenus();
     delete_kill_confirm_id = bookId;
     document.getElementById("confirm-modal").classList.add("active");
 }
-
-function closeConfirmModal()
-{
+function closeConfirmModal() {
     delete_kill_confirm_id = null;
     document.getElementById("confirm-modal").classList.remove("active");
 }
-
-function executeConfirmedDelete()
-{
+function executeConfirmedDelete() {
     if (delete_kill_confirm_id === null) return;
     deleteBook(delete_kill_confirm_id);
     closeConfirmModal();
 }
-
-function readSavedBook(bookId)
-{
+function readSavedBook(bookId) {
     const tx = maji_de_db.transaction(["books"], "readonly");
     const st = tx.objectStore("books");
     const rq = st.get(bookId);
-
-    rq.onsuccess = () => 
-    {
-        if (rq.result) 
-        {
-            openReader(rq.result);
-        }
-    };
+    rq.onsuccess = () => { if (rq.result) openReader(rq.result); };
 }
-
-function deleteBook(bookId)
-{
+function deleteBook(bookId) {
     const tx = maji_de_db.transaction(["books"], "readwrite");
     const st = tx.objectStore("books");
     st.delete(bookId);
-    tx.oncomplete = () => 
-    {
-        loadBookshelf();
-    };
+    tx.oncomplete = () => { loadBookshelf(); };
 }
 
-// ============================================================
-//  読書画面
-// ============================================================
-function openReader(bookObj)
-{
+// ============ 読書画面 ============
+function openReader(bookObj) {
     document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
-    const rv = document.getElementById("reader-view");
-    rv.classList.add("active");
+    document.getElementById("reader-view").classList.add("active");
 
     ima_yonderu_hon = bookObj;
     is_showing_translation = false;
@@ -1480,55 +993,37 @@ function openReader(bookObj)
 
     updateTranslationButtonLabel();
     renderReaderContent();
-
     rb.scrollTop = 0;
     rb.scrollLeft = 0;
 }
 
-function renderReaderContent()
-{
+function renderReaderContent() {
     if (!ima_yonderu_hon) return;
-
     const flow = document.getElementById("reader-flow");
     const use_translated = is_showing_translation && ima_yonderu_hon.contentTranslated;
-
     flow.innerHTML = use_translated ? ima_yonderu_hon.contentTranslated : ima_yonderu_hon.content;
-
-    if (is_page_mode) 
-    {
-        requestAnimationFrame(computePageLayout);
-    }
+    if (is_page_mode) requestAnimationFrame(computePageLayout);
 }
 
-function toggleTranslationView()
-{
+function toggleTranslationView() {
     if (!ima_yonderu_hon) return;
-
-    if (!ima_yonderu_hon.contentTranslated) 
-    {
+    if (!ima_yonderu_hon.contentTranslated) {
         alert("この本には翻訳データが無いよ（アプデ前にダウンロードした本かも）");
         return;
     }
-
     is_showing_translation = !is_showing_translation;
     updateTranslationButtonLabel();
     renderReaderContent();
 }
-
-function updateTranslationButtonLabel()
-{
+function updateTranslationButtonLabel() {
     const btn = document.getElementById("translate-toggle-btn");
     if (!btn) return;
     btn.textContent = is_showing_translation ? "原文で読む" : "翻訳で読む";
 }
 
-// ============================================================
-//  めくりモード
-// ============================================================
-function togglePageMode()
-{
+// ============ めくりモード ============
+function togglePageMode() {
     is_page_mode = !is_page_mode;
-
     const rb = document.getElementById("reader-body");
     const flow = document.getElementById("reader-flow");
     const page_nav = document.getElementById("page-nav");
@@ -1538,12 +1033,9 @@ function togglePageMode()
     page_nav.style.display = is_page_mode ? "flex" : "none";
     mode_btn.textContent = is_page_mode ? "スクロールに戻す" : "めくりモード";
 
-    if (is_page_mode) 
-    {
+    if (is_page_mode) {
         requestAnimationFrame(computePageLayout);
-    } 
-    else 
-    {
+    } else {
         flow.style.columnWidth = "";
         flow.style.columnGap = "";
         flow.style.columnFill = "";
@@ -1551,128 +1043,81 @@ function togglePageMode()
     }
 }
 
-function computePageLayout()
-{
+function computePageLayout() {
     if (!is_page_mode) return;
-
     const rb = document.getElementById("reader-body");
     const flow = document.getElementById("reader-flow");
-
     const page_w = rb.clientWidth;
     flow.style.columnWidth = `${page_w}px`;
     flow.style.columnGap = `${gata_gap_haba}px`;
     flow.style.columnFill = "auto";
-
     const total_w = flow.scrollWidth;
     zenbu_page_su = Math.max(1, Math.round(total_w / (page_w + gata_gap_haba)));
-
     goToPage(0);
 }
 
-function turnPage(delta)
-{
-    goToPage(ima_no_page + delta);
-}
+function turnPage(delta) { goToPage(ima_no_page + delta); }
 
-function goToPage(pageIdx)
-{
+function goToPage(pageIdx) {
     const rb = document.getElementById("reader-body");
     ima_no_page = Math.max(0, Math.min(zenbu_page_su - 1, pageIdx));
     rb.scrollLeft = ima_no_page * (rb.clientWidth + gata_gap_haba);
-
     const indicator = document.getElementById("page-indicator");
     if (indicator) indicator.textContent = `${ima_no_page + 1} / ${zenbu_page_su}`;
 }
 
-document.getElementById("reader-body").addEventListener("click", (ev) => 
-{
+document.getElementById("reader-body").addEventListener("click", (ev) => {
     if (!is_page_mode) return;
-
     const rb = ev.currentTarget;
     const rect = rb.getBoundingClientRect();
     const rel_x = (ev.clientX - rect.left) / rect.width;
-
     if (rel_x < 0.25) turnPage(-1);
     else if (rel_x > 0.75) turnPage(1);
 });
 
-document.addEventListener("keydown", (ev) => 
-{
+document.addEventListener("keydown", (ev) => {
     if (!is_page_mode) return;
     if (ev.key === "ArrowRight") turnPage(1);
     if (ev.key === "ArrowLeft") turnPage(-1);
 });
 
-window.addEventListener("resize", () => 
-{
-    if (is_page_mode) computePageLayout();
-});
+window.addEventListener("resize", () => { if (is_page_mode) computePageLayout(); });
 
-// ============================================================
-//  タブ・UI
-// ============================================================
-function switchTab(tabName)
-{
+// ============ タブ・UI ============
+function switchTab(tabName) {
     document.getElementById("reader-view").classList.remove("active");
     document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
-
-    if (tabName === "search") 
-    {
+    if (tabName === "search") {
         document.getElementById("search-view").classList.add("active");
-    } 
-    else if (tabName === "bookshelf") 
-    {
+    } else if (tabName === "bookshelf") {
         document.getElementById("bookshelf-view").classList.add("active");
         loadBookshelf();
     }
 }
 
-function toggleWritingMode()
-{
+function toggleWritingMode() {
     const rb = document.getElementById("reader-body");
     is_vertical_mode = !is_vertical_mode;
-    if (is_vertical_mode) 
-    {
-        rb.classList.add("vertical");
-    } 
-    else 
-    {
-        rb.classList.remove("vertical");
-    }
-
+    rb.classList.toggle("vertical", is_vertical_mode);
     if (is_page_mode) computePageLayout();
 }
-
-function changeFontSize(delta)
-{
+function changeFontSize(delta) {
     current_font_size = Math.max(12, Math.min(36, current_font_size + delta));
     document.getElementById("reader-body").style.fontSize = `${current_font_size}px`;
-
     if (is_page_mode) computePageLayout();
 }
-
-function setTheme(theme)
-{
+function setTheme(theme) {
     document.body.classList.remove("dark-mode", "sepia-mode");
     if (theme === "dark") document.body.classList.add("dark-mode");
     if (theme === "sepia") document.body.classList.add("sepia-mode");
 }
-
-function escapeHtml(str)
-{
+function escapeHtml(str) {
     if (!str) return "";
-    return str.replace(/&/g, "&amp;")
-              .replace(/</g, "&lt;")
-              .replace(/>/g, "&gt;")
-              .replace(/"/g, "&quot;")
-              .replace(/'/g, "&#039;");
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
-// アプリ初期起動
-window.onload = async () => 
-{
-    await initDB();
-};
+window.onload = async () => { await initDB(); };
 </script>
 </body>
 </html>
