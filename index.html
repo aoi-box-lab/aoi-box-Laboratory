@@ -91,6 +91,21 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
 #reading-title{margin-left:auto;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .close-reader-btn{margin-left:15px}
 
+/* ヘッダーのローディングスピナー */
+.header-title-wrap{display:flex;align-items:center;gap:10px;}
+#header-spinner{
+    display:none;
+    width:14px;
+    height:14px;
+    border:2px solid var(--border-color);
+    border-top-color:var(--accent-color);
+    border-radius:50%;
+    animation:spin .8s linear infinite;
+    flex-shrink:0;
+}
+#header-spinner.active{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
 @media (max-width: 1024px){
     .reader-toolbar{padding:6px 12px;gap:6px 8px;}
     .reader-toolbar button{padding:4px 9px;font-size:.85rem}
@@ -120,6 +135,7 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
 }
 @media (max-width: 480px){
     header{flex-direction:column;align-items:stretch;gap:8px;padding:10px 12px;}
+    .header-title-wrap{justify-content:center;}
     h1{text-align:center;font-size:1rem}
     .nav-buttons{display:flex;gap:8px}
     .nav-buttons button{flex:1;margin:0;padding:8px 0;font-size:.9rem;}
@@ -144,7 +160,10 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
 <body>
 
 <header>
-    <h1>ヤマビコ</h1>
+    <div class="header-title-wrap">
+        <h1>ヤマビコ</h1>
+        <span id="header-spinner" title="読み込み中"></span>
+    </div>
     <div class="nav-buttons">
         <button onclick="switchTab('search')">検索</button>
         <button onclick="switchTab('bookshelf')">本棚</button>
@@ -291,6 +310,15 @@ function shuffled(arr){
     const a = arr.slice();
     for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
     return a;
+}
+
+function showHeaderSpinner(){
+    const el = document.getElementById('header-spinner');
+    if(el) el.classList.add('active');
+}
+function hideHeaderSpinner(){
+    const el = document.getElementById('header-spinner');
+    if(el) el.classList.remove('active');
 }
 
 function showToast(msg, type, duration){
@@ -472,6 +500,7 @@ async function translateText(text, source, target){
 async function fetchAozoraCatalog(){
     if(aozora_catalog_loading || aozora_catalog_ready) return;
     aozora_catalog_loading = true;
+    showHeaderSpinner();
 
     try{
         const cached = await getCacheFromDB('aozora_catalog');
@@ -480,6 +509,7 @@ async function fetchAozoraCatalog(){
             aozora_catalog_ready = true;
             aozora_catalog_loading = false;
             console.log(`[青空文庫] キャッシュから読み込み (${aozora_catalog.length}件)`);
+            hideHeaderSpinner();
             return;
         }
     }catch(e){}
@@ -539,6 +569,7 @@ async function fetchAozoraCatalog(){
 
     if(!csv_text){
         aozora_catalog_loading = false;
+        hideHeaderSpinner();
         console.error('[青空文庫] 全ソース失敗:', lastErr);
         showToast('青空文庫カタログ取得失敗: ' + lastErr, 'error', 15000);
         return;
@@ -567,6 +598,7 @@ async function fetchAozoraCatalog(){
 
     if(!catalog.length){
         aozora_catalog_loading = false;
+        hideHeaderSpinner();
         showToast('青空文庫カタログのパース結果が0件でした', 'error', 12000);
         return;
     }
@@ -576,6 +608,7 @@ async function fetchAozoraCatalog(){
     aozora_catalog_loading = false;
     console.log(`[青空文庫] カタログ読み込み完了 (${catalog.length}件)`);
     try{ await saveCacheToDB('aozora_catalog', catalog); }catch(e){}
+    hideHeaderSpinner();
     showToast(`青空文庫カタログ読み込み完了（${catalog.length}件）`, 'success', 5000);
 }
 function parseCSVLine(line){
@@ -1574,7 +1607,22 @@ window.onload = async ()=>{
     catch(err){ showToast('DB初期化失敗: '+err.message, 'error', 15000); return; }
 
     resumePendingTranslations();
-    /* 青空文庫カタログは必要になった時だけ読み込み（遅延） */
+
+    /* 青空文庫カタログを裏で先読み（初回のみ実際にDLが走る）
+       起動2秒後に開始することで、UIの初期描画を邪魔しない */
+    setTimeout(async ()=>{
+        try{
+            const cached = await getCacheFromDB('aozora_catalog');
+            if(cached && cached.value && cached.value.length > 100){
+                console.log('[青空文庫] キャッシュ済みのため先読み不要');
+                return;
+            }
+            console.log('[青空文庫] バックグラウンド先読み開始...');
+            await fetchAozoraCatalog();
+        }catch(e){
+            console.warn('[青空文庫] 先読み失敗:', e.message);
+        }
+    }, 2000);
 };
 
 window.addEventListener('error', (ev)=>{
