@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>ヤマビコ</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
@@ -13,33 +13,80 @@
     --card-bg:#fff;
     --border-color:#e0e0e0;
     --font-family:'Georgia','Yu Mincho','Hiragino Mincho ProN',serif;
+    /* レスポンシブ */
+    --app-h: 100dvh;
+    --ui-pad-x: clamp(12px, 2vw, 20px);
+    --ui-pad-y: clamp(8px, 1.2vh, 12px);
+    --reader-font: clamp(15px, 0.9vw + 12px, 19px);
+    --reader-pad-x: clamp(16px, 3vw, 40px);
+    --reader-pad-y: clamp(20px, 4vh, 40px);
+    --reader-max-w: clamp(600px, 92vw, 900px);
+    --tap-min: 40px;
 }
 body.dark-mode{--bg-color:#1a1a1a;--text-color:#d1d1d1;--accent-color:#6b8cce;--card-bg:#282828;--border-color:#404040;}
 body.sepia-mode{--bg-color:#f4ecd8;--text-color:#5b4636;--accent-color:#8c6d53;--card-bg:#fbf0d9;--border-color:#e2d7c0;}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background-color:var(--bg-color);color:var(--text-color);font-family:var(--font-family);transition:background-color .3s,color .3s;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-header{flex-shrink:0;position:relative;z-index:100;padding:12px 20px;background-color:var(--card-bg);border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center}
-h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
-.nav-buttons button{background:none;border:1px solid var(--border-color);color:var(--text-color);padding:6px 12px;margin-left:8px;border-radius:4px;cursor:pointer}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+body{
+    background-color:var(--bg-color);
+    color:var(--text-color);
+    font-family:var(--font-family);
+    transition:background-color .3s,color .3s;
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:var(--app-h);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    overscroll-behavior:none;
+    -webkit-text-size-adjust:100%;
+    -webkit-tap-highlight-color:transparent;
+}
+header{
+    flex-shrink:0;
+    position:relative;
+    z-index:100;
+    padding-top:calc(var(--ui-pad-y) + env(safe-area-inset-top));
+    padding-bottom:var(--ui-pad-y);
+    padding-left:calc(var(--ui-pad-x) + env(safe-area-inset-left));
+    padding-right:calc(var(--ui-pad-x) + env(safe-area-inset-right));
+    background-color:var(--card-bg);
+    border-bottom:1px solid var(--border-color);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+h1{font-size:clamp(1rem, 0.5vw + 0.9rem, 1.2rem);font-weight:normal;letter-spacing:2px}
+.nav-buttons button{
+    min-height:var(--tap-min);
+    background:none;
+    border:1px solid var(--border-color);
+    color:var(--text-color);
+    padding:6px 12px;
+    margin-left:8px;
+    border-radius:4px;
+    cursor:pointer;
+}
 .container{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;position:relative}
-.view-panel{flex:1;min-height:0;padding:20px;overflow-y:auto;display:none}
+.view-panel{flex:1;min-height:0;padding:var(--ui-pad-x);overflow-y:auto;display:none;overscroll-behavior:contain}
 .view-panel.active{display:block}
 .search-box{display:flex;gap:10px;max-width:800px;margin:0 auto 20px auto;align-items:center;flex-wrap:wrap}
 .source-toggle{display:flex;flex-shrink:0}
-.source-toggle button{padding:8px 14px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);cursor:pointer;font-size:.85rem}
+.source-toggle button{padding:8px 14px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);cursor:pointer;font-size:.85rem;min-height:var(--tap-min)}
 .source-toggle button:first-child{border-radius:4px 0 0 4px}
 .source-toggle button:last-child{border-radius:0 4px 4px 0;border-left:none}
 .source-toggle button.active{background:var(--accent-color);color:#fff;border-color:var(--accent-color)}
 .source-toggle button:not(.active){opacity:.45}
 .mode-toggle{display:flex;flex-shrink:0}
-.mode-toggle button{padding:6px 10px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);cursor:pointer;font-size:.8rem}
+.mode-toggle button{padding:6px 10px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);cursor:pointer;font-size:.8rem;min-height:var(--tap-min)}
 .mode-toggle button:first-child{border-radius:4px 0 0 4px}
 .mode-toggle button:last-child{border-radius:0 4px 4px 0;border-left:none}
 .mode-toggle button.active{background:var(--accent-color);color:#fff;border-color:var(--accent-color)}
 .mode-toggle button:not(.active){opacity:.45}
-.search-box input{flex:1;min-width:180px;padding:10px 14px;border:1px solid var(--border-color);border-radius:4px;background:var(--card-bg);color:var(--text-color);font-size:1rem}
-.search-box button{padding:10px 20px;background:var(--accent-color);color:#fff;border:none;border-radius:4px;cursor:pointer}
+.search-box input{flex:1;min-width:180px;padding:10px 14px;border:1px solid var(--border-color);border-radius:4px;background:var(--card-bg);color:var(--text-color);font-size:1rem;min-height:var(--tap-min)}
+.search-box button{padding:10px 20px;background:var(--accent-color);color:#fff;border:none;border-radius:4px;cursor:pointer;min-height:var(--tap-min)}
 .results-table{width:100%;border-collapse:collapse;background:var(--card-bg);box-shadow:0 2px 5px rgba(0,0,0,.05)}
 .results-table th,.results-table td{padding:12px 15px;text-align:left;border-bottom:1px solid var(--border-color)}
 .results-table th{background-color:rgba(0,0,0,.03);font-weight:bold}
@@ -50,18 +97,42 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
 .drag-handle .bar{height:2px;background:var(--text-color);opacity:.4;border-radius:1px}
 .results-table tr.drag-over-row{outline:2px dashed var(--accent-color);outline-offset:-2px}
 .menu-wrap{position:relative;display:inline-block}
-.dots-btn{background:none;border:none;font-size:1.3rem;line-height:1;cursor:pointer;color:var(--text-color);padding:4px 10px}
+.dots-btn{background:none;border:none;font-size:1.3rem;line-height:1;cursor:pointer;color:var(--text-color);padding:4px 10px;min-height:var(--tap-min);min-width:var(--tap-min)}
 .row-menu{display:none;position:fixed;background:var(--card-bg);border:1px solid var(--border-color);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:5000;min-width:180px;overflow:hidden}
 .row-menu.active{display:block}
-.row-menu button{display:block;width:100%;text-align:left;padding:10px 14px;background:none;border:none;cursor:pointer;color:var(--text-color);font-size:.9rem}
+.row-menu button{display:block;width:100%;text-align:left;padding:10px 14px;background:none;border:none;cursor:pointer;color:var(--text-color);font-size:.9rem;min-height:var(--tap-min)}
 .row-menu button:hover{background:rgba(0,0,0,.05)}
-#reader-view{flex:1;min-height:0;display:none;flex-direction:column;height:100%;position:relative}
+#reader-view{flex:1;min-height:0;display:none;flex-direction:column;height:100%;position:relative;overflow:hidden}
 #reader-view.active{display:flex}
-.reader-toolbar{flex-shrink:0;padding:8px 20px;background:var(--card-bg);border-bottom:1px solid var(--border-color);display:flex;gap:10px;align-items:center;font-size:.9rem;flex-wrap:wrap}
-.reader-toolbar button{padding:4px 10px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);border-radius:4px;cursor:pointer}
-.reader-toolbar select{padding:4px 8px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);border-radius:4px;cursor:pointer;font-size:.9rem}
+.reader-toolbar{
+    flex-shrink:0;
+    padding-top:var(--ui-pad-y);
+    padding-bottom:var(--ui-pad-y);
+    padding-left:calc(var(--ui-pad-x) + env(safe-area-inset-left));
+    padding-right:calc(var(--ui-pad-x) + env(safe-area-inset-right));
+    background:var(--card-bg);
+    border-bottom:1px solid var(--border-color);
+    display:flex;
+    gap:clamp(6px, 1vw, 10px);
+    align-items:center;
+    font-size:.9rem;
+    flex-wrap:wrap;
+}
+.reader-toolbar button{padding:6px 12px;min-height:var(--tap-min);border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);border-radius:4px;cursor:pointer}
+.reader-toolbar select{padding:4px 8px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);border-radius:4px;cursor:pointer;font-size:.9rem;min-height:36px}
 .reader-toolbar .lang-group{display:flex;align-items:center;gap:4px;padding:2px 8px;border-left:1px solid var(--border-color);margin-left:4px}
-.reader-content{flex:1;min-height:0;padding:40px;overflow:auto;line-height:1.8;font-size:1.1rem;max-width:900px;margin:0 auto;width:100%}
+.reader-content{
+    flex:1;
+    min-height:0;
+    padding:var(--reader-pad-y) var(--reader-pad-x);
+    overflow:auto;
+    line-height:1.8;
+    font-size:var(--reader-font);
+    max-width:var(--reader-max-w);
+    margin:0 auto;
+    width:100%;
+    overscroll-behavior:contain;
+}
 #reader-body.book-mode{
     overflow:hidden;
     cursor:pointer;
@@ -70,6 +141,7 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
     width:100%;
     height:100%;
     position:relative;
+    overscroll-behavior:contain;
 }
 #reader-body.book-mode #reader-flow{
     will-change:transform;
@@ -110,7 +182,7 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
 #page-nav{display:none;align-items:center;gap:8px;font-size:.9rem}
 #page-nav.active{display:flex}
 #page-nav.rtl{flex-direction:row-reverse}
-#page-nav button{padding:4px 10px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);border-radius:4px;cursor:pointer;font-size:.85rem}
+#page-nav button{padding:6px 12px;min-height:36px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);border-radius:4px;cursor:pointer;font-size:.85rem}
 #page-nav #page-indicator{white-space:nowrap;padding:0 4px;opacity:.8}
 
 .status-msg{text-align:center;padding:20px;font-size:.95rem;opacity:.8;font-weight:bold}
@@ -122,25 +194,25 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
 .trans-badge.done{color:#4caf50}
 .update-badge{display:inline-block;font-size:.8rem;color:#f0ad4e;font-weight:bold;margin-right:6px;cursor:help}
 .bookshelf-filters{display:flex;gap:12px;max-width:700px;margin:0 auto 16px auto;align-items:center;flex-wrap:wrap}
-.bookshelf-filters input[type="text"]{flex:1;min-width:180px;padding:8px 12px;border:1px solid var(--border-color);border-radius:4px;background:var(--card-bg);color:var(--text-color);font-size:.95rem}
-.bookshelf-filters label{display:flex;align-items:center;gap:6px;font-size:.9rem;cursor:pointer;white-space:nowrap}
-.reprocess-all-btn{padding:8px 14px;border:1px solid #f0ad4e;background:#f0ad4e;color:#fff;border-radius:4px;cursor:pointer;font-size:.9rem;font-weight:bold;white-space:nowrap}
+.bookshelf-filters input[type="text"]{flex:1;min-width:180px;padding:8px 12px;border:1px solid var(--border-color);border-radius:4px;background:var(--card-bg);color:var(--text-color);font-size:.95rem;min-height:36px}
+.bookshelf-filters label{display:flex;align-items:center;gap:6px;font-size:.9rem;cursor:pointer;white-space:nowrap;min-height:var(--tap-min)}
+.reprocess-all-btn{padding:8px 14px;border:1px solid #f0ad4e;background:#f0ad4e;color:#fff;border-radius:4px;cursor:pointer;font-size:.9rem;font-weight:bold;white-space:nowrap;min-height:var(--tap-min)}
 .reprocess-all-btn:hover{background:#ec971f;border-color:#ec971f}
 .reprocess-all-btn:disabled{opacity:.6;cursor:default}
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;align-items:center;justify-content:center}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;align-items:center;justify-content:center;padding:16px}
 .modal-overlay.active{display:flex}
-.modal-box{background:var(--card-bg);color:var(--text-color);padding:26px 30px;border-radius:8px;max-width:320px;width:90%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.modal-box{background:var(--card-bg);color:var(--text-color);padding:26px 30px;border-radius:8px;max-width:320px;width:100%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 .modal-box p{margin-bottom:20px;line-height:1.6}
 .modal-buttons{display:flex;gap:10px;justify-content:center}
-.modal-buttons button{padding:8px 20px;border-radius:4px;border:1px solid var(--border-color);cursor:pointer;background:var(--card-bg);color:var(--text-color);font-size:.9rem}
+.modal-buttons button{padding:8px 20px;border-radius:4px;border:1px solid var(--border-color);cursor:pointer;background:var(--card-bg);color:var(--text-color);font-size:.9rem;min-height:var(--tap-min)}
 .modal-buttons button.danger{background:#d9534f;color:#fff;border-color:#d9534f}
-.toast-container{position:fixed;top:60px;right:16px;z-index:10000;display:flex;flex-direction:column;gap:8px;max-width:380px;pointer-events:none}
+.toast-container{position:fixed;top:calc(60px + env(safe-area-inset-top));right:16px;z-index:10000;display:flex;flex-direction:column;gap:8px;max-width:380px;pointer-events:none}
 .toast{background:var(--card-bg);color:var(--text-color);border:1px solid var(--border-color);border-left:4px solid var(--accent-color);border-radius:6px;padding:10px 14px;box-shadow:0 4px 14px rgba(0,0,0,.2);font-size:.88rem;line-height:1.5;animation:slideIn .25s ease;pointer-events:auto;word-break:break-word}
 .toast.error{border-left-color:#d9534f}
 .toast.success{border-left-color:#4caf50}
 .toast.warn{border-left-color:#f0ad4e}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-#reading-title{margin-left:auto;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#reading-title{margin-left:auto;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40%}
 .close-reader-btn{margin-left:15px}
 .header-title-wrap{display:flex;align-items:center;gap:10px;}
 #header-spinner{display:none;width:14px;height:14px;border:2px solid var(--border-color);border-top-color:var(--accent-color);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
@@ -190,39 +262,34 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
 /* 設定パネル */
 .settings-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:8000}
 .settings-backdrop.active{display:block}
-.settings-panel{position:fixed;top:0;right:0;bottom:0;width:340px;max-width:90vw;background:var(--card-bg);border-left:1px solid var(--border-color);box-shadow:-4px 0 20px rgba(0,0,0,.15);transform:translateX(100%);transition:transform .25s ease;z-index:8100;display:flex;flex-direction:column;overflow:hidden}
+.settings-panel{position:fixed;top:0;right:0;bottom:0;width:340px;max-width:90vw;background:var(--card-bg);border-left:1px solid var(--border-color);box-shadow:-4px 0 20px rgba(0,0,0,.15);transform:translateX(100%);transition:transform .25s ease;z-index:8100;display:flex;flex-direction:column;overflow:hidden;padding-bottom:env(safe-area-inset-bottom)}
 .settings-panel.active{transform:translateX(0)}
-.settings-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border-color)}
+.settings-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border-color);padding-top:calc(16px + env(safe-area-inset-top))}
 .settings-header h2{font-size:1.1rem;font-weight:normal}
-.settings-close{background:none;border:none;font-size:1.5rem;line-height:1;cursor:pointer;color:var(--text-color);padding:4px 10px;border-radius:4px}
+.settings-close{background:none;border:none;font-size:1.5rem;line-height:1;cursor:pointer;color:var(--text-color);padding:4px 10px;border-radius:4px;min-width:var(--tap-min);min-height:var(--tap-min)}
 .settings-close:hover{background:rgba(0,0,0,.05)}
-.settings-body{flex:1;overflow-y:auto;padding:20px}
+.settings-body{flex:1;overflow-y:auto;padding:20px;overscroll-behavior:contain}
 .settings-group{margin-bottom:24px}
 .settings-group > label{display:block;font-size:.85rem;font-weight:bold;margin-bottom:8px;opacity:.7}
 .settings-options{display:flex;gap:8px;flex-wrap:wrap}
-.settings-options button{flex:1;min-width:70px;padding:8px 12px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);border-radius:4px;cursor:pointer;font-size:.88rem}
+.settings-options button{flex:1;min-width:70px;padding:8px 12px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);border-radius:4px;cursor:pointer;font-size:.88rem;min-height:var(--tap-min)}
 .settings-options button.active{background:var(--accent-color);color:#fff;border-color:var(--accent-color)}
-.settings-select{width:100%;padding:8px 12px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);border-radius:4px;font-size:.95rem}
+.settings-select{width:100%;padding:8px 12px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);border-radius:4px;font-size:.95rem;min-height:var(--tap-min)}
 .settings-info{font-size:.78rem;opacity:.6;margin-top:6px;line-height:1.5}
 .settings-btn{background:none;border:1px solid var(--border-color);color:var(--text-color);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.9rem}
 
+/* 中間サイズ */
 @media (max-width: 1024px){
-    .reader-toolbar{padding:6px 12px;gap:6px 8px;}
-    .reader-toolbar button{padding:4px 9px;font-size:.85rem}
     #reading-title{font-size:.9rem;max-width:35%}
 }
+
+/* タブレット縦 / スマホ横 */
 @media (max-width: 768px){
-    header{padding:10px 14px}
-    h1{font-size:1.05rem;letter-spacing:1px}
-    .nav-buttons button{padding:5px 12px;font-size:.85rem;margin-left:6px}
-    .view-panel{padding:14px}
+    .view-panel{padding:clamp(10px, 2.5vw, 14px)}
     .search-box{gap:8px;max-width:100%;margin-bottom:14px;}
     .search-box input{flex:1 1 100%;order:-1;min-width:0;}
-    .search-box > button{padding:8px 16px;font-size:.9rem}
     .results-table th, .results-table td{padding:9px 10px;font-size:.86rem;}
-    .reader-toolbar{padding:6px 10px;gap:5px 6px;font-size:.82rem;}
-    .reader-toolbar button{padding:5px 9px;font-size:.78rem}
-    #reading-title{order:-1;flex:1 1 100%;margin-left:0;padding:0 0 6px 0;border-bottom:1px solid var(--border-color);font-size:.88rem;}
+    #reading-title{order:-1;flex:1 1 100%;margin-left:0;padding:0 0 6px 0;border-bottom:1px solid var(--border-color);font-size:.88rem;max-width:100%}
     .close-reader-btn{margin-left:auto}
     #page-nav{order:2}
     #reader-body.book-mode{padding:20px 14px}
@@ -230,28 +297,51 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
     .bookshelf-filters input[type="text"]{min-width:0}
     .reprocess-all-btn{width:100%}
 }
+
+/* スマホ縦 */
 @media (max-width: 480px){
-    header{flex-direction:column;align-items:stretch;gap:8px;padding:10px 12px;}
+    header{flex-direction:column;align-items:stretch;gap:8px}
     .header-title-wrap{justify-content:center;}
-    h1{text-align:center;font-size:1rem}
+    h1{text-align:center}
     .nav-buttons{display:flex;gap:8px}
     .nav-buttons button{flex:1;margin:0;padding:8px 0;font-size:.9rem;}
-    .view-panel{padding:10px}
     .search-box{flex-direction:column;align-items:stretch;gap:8px;}
     .search-box input{width:100%}
     .search-box > button{width:100%}
     .source-toggle, .mode-toggle{align-self:center}
     .results-table th, .results-table td{padding:8px;font-size:.82rem;white-space:normal;}
-    .reader-toolbar{padding:6px 8px;gap:4px;}
-    .reader-toolbar button{padding:5px 8px;font-size:.75rem;}
+    .reader-toolbar{gap:6px;}
     #page-nav{gap:6px;font-size:.8rem;}
-    #page-nav button{padding:4px 8px;font-size:.78rem}
+    #page-nav button{padding:5px 8px;font-size:.78rem;min-height:32px}
     #page-nav #page-indicator{font-size:.78rem}
     #reader-body.book-mode{padding:14px 10px}
     .modal-box{padding:22px 20px}
-    .toast-container{top:auto;bottom:16px;left:16px;right:16px;max-width:none;}
+    .toast-container{top:auto;bottom:calc(16px + env(safe-area-inset-bottom));left:16px;right:16px;max-width:none;}
     #error-banner{font-size:.82rem;padding:10px 40px 10px 12px}
     .settings-panel{width:100%;max-width:100vw}
+}
+
+/* 横向き（低い高さ） */
+@media (orientation: landscape) and (max-height: 500px){
+    header{
+        padding-top:calc(6px + env(safe-area-inset-top));
+        padding-bottom:6px;
+    }
+    h1{font-size:.95rem}
+    .reader-toolbar{
+        padding-top:4px;padding-bottom:4px;gap:4px;
+    }
+    .reader-toolbar button{padding:4px 8px;font-size:.78rem;min-height:32px}
+    #reading-title{font-size:.85rem;max-width:40%}
+    .view-panel{padding:10px}
+    #reader-body.book-mode{padding:10px}
+    .nav-buttons button{min-height:32px;padding:4px 10px}
+}
+
+/* 大画面 */
+@media (min-width: 1200px){
+    .reader-content{line-height:1.9}
+    .view-panel{padding:30px}
 }
 </style>
 </head>
@@ -410,11 +500,39 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
 
 <script>
 /* ============================================================
+   ビューポート追従（URLバー伸縮・ソフトキーボード対応）
+   ============================================================ */
+function updateAppHeight(){
+    let h = window.innerHeight;
+    if(window.visualViewport && window.visualViewport.height){
+        h = window.visualViewport.height;
+    }
+    document.documentElement.style.setProperty('--app-h', h + 'px');
+}
+function setupViewportTracking(){
+    updateAppHeight();
+    window.addEventListener('resize', updateAppHeight, {passive:true});
+    window.addEventListener('orientationchange', ()=>{
+        setTimeout(updateAppHeight, 120);
+        setTimeout(updateAppHeight, 400);
+    });
+    if(window.visualViewport){
+        window.visualViewport.addEventListener('resize', updateAppHeight, {passive:true});
+        window.visualViewport.addEventListener('scroll', updateAppHeight, {passive:true});
+    }
+    let lastH = 0;
+    setInterval(()=>{
+        const cur = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+        if(Math.abs(cur - lastH) > 2){
+            lastH = cur;
+            updateAppHeight();
+        }
+    }, 400);
+}
+setupViewportTracking();
+
+/* ============================================================
    バージョン管理
-   ------------------------------------------------------------
-   新機能を追加したら FEATURE_VERSION を更新してください。
-   起動時に FEATURE_VERSION と一致しない本は、
-   バックグラウンドで自動再ダウンロードされます。
    ============================================================ */
 const FEATURE_VERSION = '2024-12-20T00:00:00Z';
 
@@ -452,7 +570,6 @@ const AOZORA_TEXT_MIRROR = 'https://raw.githubusercontent.com/aozorahack/aozorab
 const BOOK_FORMAT_VERSION = 3;
 const SETTINGS_KEY = 'yamabiko_settings_v1';
 
-/* 制御マーカー */
 const MK_WARI   = '\x01WARI\x01';
 const MK_WARI_E = '\x01WARIEND\x01';
 const MK_BOLD   = '\x01BOLD\x01';
@@ -467,7 +584,6 @@ const MK_SUB    = '\x01SUB\x01';
 const MK_SUB_E  = '\x01SUBEND\x01';
 const MK_BR     = '\x01BR\x01';
 
-/* アプリ状態 */
 let maji_de_db = null;
 let db_closing = false;
 let current_font_size = 18;
@@ -489,11 +605,9 @@ let bookmark_save_timer = null;
 let pending_page_restore = null;
 let readerHtmlCache = { bookId: null, original: null, translated: null };
 
-/* 本モード関連 */
 let is_book_mode = false;
 let readingDirection = 'ltr';
 
-/* 設定 */
 let appSettings = {
     viewMode: 'scroll',
     bookFlipStyle: 'both',
@@ -518,24 +632,20 @@ function loadSettings(){
         appSettings.fontFamily = FONT_STACKS[s.fontFamily] ? s.fontFamily : 'mincho';
     }catch(e){}
 }
-
 function saveSettings(){
     try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(appSettings)); }catch(e){}
 }
-
 function applyTheme(t){
     document.body.classList.remove('dark-mode','sepia-mode');
     if(t === 'dark') document.body.classList.add('dark-mode');
     if(t === 'sepia') document.body.classList.add('sepia-mode');
 }
-
 function applyFontFamily(){
     const rb = document.getElementById('reader-body');
     if(!rb) return;
     const stack = FONT_STACKS[appSettings.fontFamily] || FONT_STACKS.mincho;
     rb.style.fontFamily = stack;
 }
-
 function updateSettingsUI(){
     document.querySelectorAll('.settings-options').forEach(group=>{
         const key = group.dataset.setting;
@@ -544,7 +654,6 @@ function updateSettingsUI(){
         });
     });
 }
-
 function openSettings(){
     updateSettingsUI();
     const sel = document.getElementById('settings-target-lang');
@@ -553,7 +662,6 @@ function openSettings(){
     document.getElementById('settings-panel').classList.add('active');
 }
 window.openSettings = openSettings;
-
 function closeSettings(){
     document.getElementById('settings-backdrop').classList.remove('active');
     document.getElementById('settings-panel').classList.remove('active');
@@ -709,13 +817,11 @@ function initDB(){
         req.onblocked = ()=>showToast('他のタブでヤマビコが開かれています。そちらを閉じて再読み込みしてください。', 'warn', 12000);
     });
 }
-
 async function ensureDB(){
     if(maji_de_db && !db_closing) return maji_de_db;
     await initDB();
     return maji_de_db;
 }
-
 async function safeDBOp(storeNames, mode, fn){
     await ensureDB();
     return new Promise((resolve, reject)=>{
@@ -731,7 +837,6 @@ async function safeDBOp(storeNames, mode, fn){
         fn(tx, resolve, reject);
     });
 }
-
 function getBookFromDB(bookId){
     return safeDBOp(["books"], "readonly", (tx, resolve, reject)=>{
         const rq = tx.objectStore("books").get(bookId);
@@ -769,9 +874,6 @@ function saveCacheToDB(key, value){
 }
 function checkChosakukenSafe(y){ if(!y) return false; return (new Date().getFullYear() - y) >= 80; }
 
-/* ============================================================
-   要更新判定
-   ============================================================ */
 function isBookOutdated(book){
     if(!book.rawParas || !Array.isArray(book.rawParas) || !book.rawParas.length) return false;
     return (book.formatVersion || 0) < BOOK_FORMAT_VERSION;
@@ -1924,7 +2026,6 @@ async function redownloadOutdatedBooks(){
     console.log(`[再DL] ${outdated.length}件を再取得します`);
     showToast(`古いデータ ${outdated.length}件 をバックグラウンドで再取得します`, 'info', 8000);
 
-    // カタログが必要なケースに備える
     if(outdated.some(b => b.source === 'aozora' && !b.sourceInfo)){
         try { await fetchAozoraCatalog(); } catch(e){}
     }
@@ -1933,7 +2034,6 @@ async function redownloadOutdatedBooks(){
     for(const book of outdated){
         try{
             let si = book.sourceInfo;
-            // 既存古データの救済: IDからsourceInfoを推定
             if(!si && book.source === 'aozora'){
                 const workId = book.id.replace(/^aozora_/, '');
                 if(aozora_catalog_ready){
@@ -1952,7 +2052,6 @@ async function redownloadOutdatedBooks(){
                 await downloadAndSaveAozora(si.workId, si.personId, si.title, si.personName, si.zipName || '', true);
                 ok++;
             } else if(book.source === 'gutenberg' && si){
-                // gutendexから情報を取得
                 const rx = await fetchGutenbergBookById(si.bookId);
                 v_project_cache[si.bookId] = rx;
                 await downloadAndSaveGutenberg(si.bookId, true);
@@ -1968,7 +2067,6 @@ async function redownloadOutdatedBooks(){
         }catch(e){
             console.warn('[再DL] 失敗:', book.id, e.message);
             failed++;
-            // 失敗した本は featureVersion だけ更新して無限リトライを防ぐ
             try{
                 const b = await getBookFromDB(book.id);
                 if(b){
@@ -2208,7 +2306,6 @@ async function executeConfirmedDelete(){
             tx.onabort = ()=>{ console.error("[削除] tx abort"); reject(new Error("aborted")); };
         });
 
-        // 削除確認
         const remaining = await getAllBooksFromDB();
         const stillThere = remaining.some(b => b.id === id);
         if(stillThere){
@@ -2225,7 +2322,6 @@ async function executeConfirmedDelete(){
 }
 window.executeConfirmedDelete = executeConfirmedDelete;
 
-/* モーダルボタンを明示的にバインド */
 (function bindConfirmModalButtons(){
     const yes = document.getElementById("confirm-modal-yes");
     const no  = document.getElementById("confirm-modal-no");
@@ -2443,9 +2539,7 @@ async function changeTargetLang(newLang){
 window.changeTargetLang = changeTargetLang;
 
 /* ============================================================
-   本モード（transform ベースのページめくり）
-   ------------------------------------------------------------
-   列幅のぶれを防ぐため column-count で確定させている。
+   本モード
    ============================================================ */
 function computePageLayout(keep){
     if(!is_book_mode) return;
@@ -2460,34 +2554,27 @@ function computePageLayout(keep){
     const contentW = Math.max(50, rb.clientWidth - padLeft - padRight);
     const contentH = Math.max(50, rb.clientHeight - padTop - padBottom);
 
-    // リセット
     flow.style.transition = 'none';
     flow.style.transform = 'none';
     flow.style.writingMode = (readingDirection === 'rtl') ? 'vertical-rl' : 'horizontal-tb';
     flow.style.columnGap = `${gata_gap_haba}px`;
     flow.style.columnFill = 'auto';
     flow.style.height = `${contentH}px`;
-    flow.style.width = '';
 
-    // パス1: column-width で計測
     flow.style.columnCount = '';
     flow.style.columnWidth = `${contentW}px`;
-    // 幅を親と同じにする（1列ぶん）
     flow.style.width = `${contentW}px`;
 
-    // 実際の列数を測るために、幅を一度広げてscrollWidthを計測
     flow.style.width = 'auto';
     const measured = Math.max(flow.scrollWidth, flow.offsetWidth, contentW);
     const step = contentW + gata_gap_haba;
     zenbu_page_su = Math.max(1, Math.round((measured + gata_gap_haba) / step));
 
-    // パス2: column-count で確定
     const totalW = zenbu_page_su * contentW + (zenbu_page_su - 1) * gata_gap_haba;
     flow.style.columnWidth = `${contentW}px`;
     flow.style.columnCount = String(zenbu_page_su);
     flow.style.width = `${totalW}px`;
 
-    // ページ位置決定
     let target = (typeof keep === 'number') ? keep : ima_no_page;
     if(pending_page_restore != null){ target = pending_page_restore; pending_page_restore = null; }
     ima_no_page = Math.max(0, Math.min(zenbu_page_su - 1, target));
@@ -2559,7 +2646,6 @@ function goToPage(i){
     playPageTurnEffect(direction);
 }
 
-/* 端タップでページ送り */
 document.getElementById("reader-body").addEventListener("click", (ev)=>{
     if(!is_book_mode) return;
     if(appSettings.bookFlipStyle !== 'edge' && appSettings.bookFlipStyle !== 'both') return;
@@ -2575,7 +2661,6 @@ document.getElementById("reader-body").addEventListener("click", (ev)=>{
     }
 });
 
-/* スワイプでページ送り（紙を引っ張る方向） */
 let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
 document.getElementById("reader-body").addEventListener("touchstart", (e)=>{
     if(!is_book_mode) return;
@@ -2622,12 +2707,21 @@ document.addEventListener("keydown", (ev)=>{
     }
 });
 
-window.addEventListener("resize", ()=>{
-    if(is_book_mode){
-        clearTimeout(page_recompute_timer);
-        page_recompute_timer = setTimeout(()=>computePageLayout(ima_no_page), 200);
-    }
-});
+/* ビューポート・リサイズ時の再計算 */
+let _resizeTimer = null;
+function handleViewportChange(){
+    clearTimeout(_resizeTimer);
+    _resizeTimer = setTimeout(()=>{
+        if(is_book_mode){
+            computePageLayout(ima_no_page);
+        }
+    }, 150);
+}
+window.addEventListener("resize", handleViewportChange, {passive:true});
+window.addEventListener("orientationchange", ()=>setTimeout(handleViewportChange, 200));
+if(window.visualViewport){
+    window.visualViewport.addEventListener("resize", handleViewportChange, {passive:true});
+}
 
 /* ============================================================
    タブ切替・表示
@@ -2663,7 +2757,6 @@ window.onload = async ()=>{
 
     resumePendingTranslations();
 
-    // バージョンフラグによる自動再取得（数秒後に開始）
     setTimeout(()=>{ redownloadOutdatedBooks().catch(e=>console.warn('[再DL] 失敗:', e)); }, 3000);
 
     setTimeout(async ()=>{
