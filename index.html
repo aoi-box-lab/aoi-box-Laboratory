@@ -252,7 +252,7 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
 <body>
 
 <div id="error-banner">
-    <span class="eb-title">⚠ エラー:</span>
+    <span class="eb-title">エラー:</span>
     <span class="eb-msg"></span>
     <div class="eb-detail"></div>
     <button class="eb-close" onclick="document.getElementById('error-banner').classList.remove('active')">×</button>
@@ -296,7 +296,7 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
         <h2>保存済み作品</h2>
         <div class="bookshelf-filters">
             <input type="text" id="bookshelf-search" placeholder="タイトル・著者で絞り込み" oninput="loadBookshelf()">
-            <label><input type="checkbox" id="bookshelf-fav-only" onchange="loadBookshelf()"> ★ お気に入りのみ</label>
+            <label><input type="checkbox" id="bookshelf-fav-only" onchange="loadBookshelf()"> お気に入りのみ</label>
             <button id="reprocess-all-btn" class="reprocess-all-btn" style="display:none;" onclick="handleReprocessAll()">要更新 0件</button>
         </div>
         <div id="bookshelf-status" class="status-msg"></div>
@@ -313,7 +313,7 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
             <button onclick="changeFontSize(1)">拡大</button>
             <button onclick="changeFontSize(-1)">縮小</button>
             <button id="translate-toggle-btn" onclick="toggleTranslationView()">翻訳で読む</button>
-            <button onclick="openSettings()">⚙ 設定</button>
+            <button onclick="openSettings()">設定</button>
             <span id="translation-status-label" class="trans-badge"></span>
             <span id="reading-title"></span>
             <button onclick="closeReader()" class="close-reader-btn">閉じる</button>
@@ -395,8 +395,8 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
     <div class="modal-box">
         <p>削除しますか？</p>
         <div class="modal-buttons">
-            <button onclick="closeConfirmModal()">いいえ</button>
-            <button class="danger" onclick="executeConfirmedDelete()">はい</button>
+            <button id="confirm-modal-no">いいえ</button>
+            <button id="confirm-modal-yes" class="danger">はい</button>
         </div>
     </div>
 </div>
@@ -406,12 +406,6 @@ h1{font-size:1.2rem;font-weight:normal;letter-spacing:2px}
 /* ============================================================
    翻訳エンジン
    現在: Lingva → LibreTranslate の2段フォールバック
-   (MyMemory は非商用限定のため削除済み)
-
-   TODO: 将来的に GitHub Pages の別ファイルとして
-   ローカル翻訳（Transformers.js + OPUS-MT）を追加予定。
-   配置先: ./translator/worker.js
-   形式: ES Module として動的import
    ============================================================ */
 const LINGVA_INSTANCES = [
     'https://lingva.ml','https://translate.igna.wtf','https://translate.plausibility.cloud',
@@ -487,10 +481,10 @@ let readingDirection = 'ltr';  // 'ltr' or 'rtl'
 
 /* 設定 */
 let appSettings = {
-    viewMode: 'scroll',       // 'scroll' | 'book'
-    bookFlipStyle: 'both',    // 'edge' | 'swipe' | 'both'
-    theme: 'light',           // 'light' | 'sepia' | 'dark'
-    fontFamily: 'mincho'      // 'mincho' | 'gothic' | 'maru' | 'kyokasho' | 'ud'
+    viewMode: 'scroll',
+    bookFlipStyle: 'both',
+    theme: 'light',
+    fontFamily: 'mincho'
 };
 
 const FONT_STACKS = {
@@ -1530,7 +1524,31 @@ async function execSearchGutenberg(q_v){
             const a = b.authors[0] || {name:"不明", death_year:null};
             const safe = checkChosakukenSafe(a.death_year);
             const tr = document.createElement("tr");
-            tr.innerHTML = `<td>${b.id}</td><td>${escapeHtml(b.title)}</td><td>${escapeHtml(a.name)}</td><td>${safe ? `<button onclick="downloadAndSaveGutenberg(${b.id})">保存・読む</button>` : `<span style="color:red;font-size:.8rem;">保護期間内</span>`}</td>`;
+
+            const tdId = document.createElement("td");
+            tdId.textContent = b.id;
+            const tdTitle = document.createElement("td");
+            tdTitle.textContent = b.title;
+            const tdAuthor = document.createElement("td");
+            tdAuthor.textContent = a.name;
+            const tdOp = document.createElement("td");
+            if(safe){
+                const btn = document.createElement("button");
+                btn.textContent = "保存・読む";
+                btn.addEventListener("click", ()=>downloadAndSaveGutenberg(b.id));
+                tdOp.appendChild(btn);
+            } else {
+                const span = document.createElement("span");
+                span.style.color = "red";
+                span.style.fontSize = ".8rem";
+                span.textContent = "保護期間内";
+                tdOp.appendChild(span);
+            }
+
+            tr.appendChild(tdId);
+            tr.appendChild(tdTitle);
+            tr.appendChild(tdAuthor);
+            tr.appendChild(tdOp);
             tb.appendChild(tr);
         });
     }catch(err){ setStatus("search-status", `検索エラー: ${err.message}`, 'error'); showToast('検索エラー: ' + err.message, 'error'); }
@@ -1664,6 +1682,96 @@ window.downloadAndSaveGutenberg = downloadAndSaveGutenberg;
 /* ============================================================
    本文ダウンロード（青空文庫）
    ============================================================ */
+async function resolveAozoraZipName(workId, personId, initialZipName){
+    if(initialZipName) return { zipName: initialZipName, via: 'catalog' };
+
+    const paddedPersonId = String(personId).padStart(6, '0');
+
+    // 1) GitHub API（2リポジトリを順に）
+    const apiCandidates = [
+        `https://api.github.com/repos/aozorahack/aozorabunko_text/contents/cards/${paddedPersonId}/files?ref=master`,
+        `https://api.github.com/repos/aozorabunko/aozorabunko/contents/cards/${paddedPersonId}/files?ref=master`
+    ];
+    for(const apiUrl of apiCandidates){
+        try{
+            const apiRes = await fetchWithTimeout(apiUrl, {}, FETCH_TIMEOUT_API);
+            if(!apiRes.ok){
+                console.warn('[aozora] GitHub API HTTP', apiRes.status, apiUrl);
+                continue;
+            }
+            const files = await apiRes.json();
+            if(!Array.isArray(files)){
+                console.warn('[aozora] GitHub API 非配列応答:', files && files.message);
+                continue;
+            }
+            const zipTarget = files.find(f => f.name && f.name.startsWith(String(workId) + '_') && f.name.endsWith('.zip'));
+            if(zipTarget) return { zipName: zipTarget.name, via: 'github-api' };
+            const dirTarget = files.find(f => f.name && f.name.startsWith(String(workId) + '_'));
+            if(dirTarget){
+                const base = dirTarget.name.replace(/\.zip$/i, '');
+                return { zipName: base + '.zip', via: 'github-api-dir' };
+            }
+        }catch(e){ console.warn('[aozora] GitHub API 例外:', e.message); }
+    }
+
+    // 2) 青空文庫カードページHTMLから zip リンク抽出
+    try{
+        const cardUrl = `https://www.aozora.gr.jp/cards/${paddedPersonId}/card${workId}.html`;
+        const res = await fetchWithTimeout(CORS_PROXIES.aoi(cardUrl), {}, FETCH_TIMEOUT_API);
+        if(res.ok){
+            const html = await res.text();
+            const m = html.match(/files\/([^"'#?]+\.zip)/i);
+            if(m) return { zipName: m[1], via: 'card-html' };
+        } else {
+            console.warn('[aozora] card page HTTP', res.status, cardUrl);
+        }
+    }catch(e){ console.warn('[aozora] card page 例外:', e.message); }
+
+    // 3) GitHub のディレクトリ直リンクから（ゆるい名前マッチ）
+    try{
+        const apiUrl = `https://api.github.com/repos/aozorahack/aozorabunko_text/contents/cards/${paddedPersonId}/files?ref=master`;
+        const apiRes = await fetchWithTimeout(apiUrl, {}, FETCH_TIMEOUT_API);
+        if(apiRes.ok){
+            const files = await apiRes.json();
+            if(Array.isArray(files)){
+                const re = new RegExp('^' + String(workId).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[_\\-]');
+                const hit = files.find(f => f.name && re.test(f.name));
+                if(hit){
+                    const base = hit.name.replace(/\.zip$/i, '').replace(/\.txt$/i, '');
+                    return { zipName: base + '.zip', via: 'github-api-loose' };
+                }
+            }
+        }
+    }catch(e){ console.warn('[aozora] ゆるマッチ失敗:', e.message); }
+
+    return { zipName: null, via: null };
+}
+
+async function checkAozoraSuspended(workId, personId){
+    // カードページHTMLを取得して「公開停止」等の記載を検出
+    try{
+        const paddedPersonId = String(personId).padStart(6, '0');
+        const cardUrl = `https://www.aozora.gr.jp/cards/${paddedPersonId}/card${workId}.html`;
+        const res = await fetchWithTimeout(CORS_PROXIES.aoi(cardUrl), {}, FETCH_TIMEOUT_API);
+        if(!res.ok) return { suspended: false, reason: null };
+        const html = await res.text();
+
+        const patterns = [
+            /この作品の公開は現在、?一時的に停止されています/,
+            /この作品は公開を停止しています/,
+            /公開を停止しました/,
+            /現在公開していません/,
+            /公開停止中/
+        ];
+        for(const re of patterns){
+            if(re.test(html)) return { suspended: true, reason: '公開停止中' };
+        }
+    }catch(e){
+        console.warn('[aozora] 公開状態チェック失敗:', e.message);
+    }
+    return { suspended: false, reason: null };
+}
+
 async function downloadAndSaveAozora(workId, personId, title, personName, zipName){
     const key = 'aozora_' + workId;
     setStatus("search-status", `「${title}」をダウンロード中...`, 'info');
@@ -1672,29 +1780,26 @@ async function downloadAndSaveAozora(workId, personId, title, personName, zipNam
         if(!personId){
             throw new Error('著者IDが不明です。もう一度検索し直してください。');
         }
-        const paddedPersonId = String(personId).padStart(6, '0');
-        let finalZipName = zipName;
 
-        if(!finalZipName){
-            const apiCandidates = [
-                `https://api.github.com/repos/aozorahack/aozorabunko_text/contents/cards/${paddedPersonId}/files?ref=master`,
-                `https://api.github.com/repos/aozorabunko/aozorabunko/contents/cards/${paddedPersonId}/files?ref=master`
-            ];
-            for(const apiUrl of apiCandidates){
-                try{
-                    const apiRes = await fetchWithTimeout(apiUrl, {}, FETCH_TIMEOUT_API);
-                    if(!apiRes.ok) continue;
-                    const files = await apiRes.json();
-                    if(!Array.isArray(files)) continue;
-                    const zipTarget = files.find(f => f.name && f.name.startsWith(String(workId) + '_') && f.name.endsWith('.zip'));
-                    if(zipTarget){ finalZipName = zipTarget.name; break; }
-                    const dirTarget = files.find(f => f.name && f.name.startsWith(String(workId) + '_'));
-                    if(dirTarget){ finalZipName = dirTarget.name + '.zip'; break; }
-                }catch(e){}
-            }
+        // 公開停止チェック（ZIP解決の前にカードページを確認）
+        setStatus("search-status", `「${title}」の公開状態を確認中...`, 'info');
+        const susp = await checkAozoraSuspended(workId, personId);
+        if(susp.suspended){
+            setStatus("search-status", `「${title}」は${susp.reason}です`, 'warn');
+            showToast(`「${title}」は${susp.reason}のため、ダウンロードできません。`, 'warn', 8000);
+            return;
         }
 
-        if(!finalZipName) throw new Error('ZIPファイル名が特定できませんでした');
+        const paddedPersonId = String(personId).padStart(6, '0');
+        setStatus("search-status", `「${title}」のZIP名を解決中...`, 'info');
+        const resolved = await resolveAozoraZipName(workId, personId, zipName);
+        const finalZipName = resolved.zipName;
+        console.log('[aozora] ZIP解決:', finalZipName, '(via', resolved.via + ')');
+        if(!finalZipName){
+            setStatus("search-status", `「${title}」のファイルを取得できませんでした`, 'warn');
+            showToast(`「${title}」は公開停止中、またはファイルが公開されていません。`, 'warn', 8000);
+            return;
+        }
         const baseName = finalZipName.replace(/\.zip$/i, '');
 
         const candidates = [
@@ -1758,8 +1863,9 @@ async function downloadAndSaveAozora(workId, personId, title, personName, zipNam
         showToast(`「${title}」保存完了（${paras.length}段落）`, 'success');
         openReader(bd);
     }catch(err){
+        console.error('[aozora] ダウンロード失敗:', err);
         setStatus("search-status", `ダウンロード失敗: ${err.message}`, 'error');
-        showToast('ダウンロード失敗: ' + err.message, 'error');
+        showToast(`「${title}」(作品ID:${workId} / 著者ID:${personId}) ダウンロード失敗: ${err.message}`, 'error', 15000);
     }
 }
 window.downloadAndSaveAozora = downloadAndSaveAozora;
@@ -1813,7 +1919,7 @@ function loadBookshelf(){
                 tr.style.cursor = "pointer";
                 tr.onclick = ()=>readSavedBook(b.id);
 
-                const fav = b.favorite ? "★ " : "";
+                const fav = b.favorite ? "[お気に入り] " : "";
                 const st = formatTranslationStatus(b);
                 const stCls = b.translationStatus === "error" ? "error" : b.translationStatus === "done" ? "done" : "";
                 const errTitle = b.lastError ? ` title="${escapeHtml(b.lastError)}"` : "";
@@ -1821,7 +1927,7 @@ function loadBookshelf(){
                 const done = b.translationDone || 0;
                 const incomplete = b.paragraphs && b.paragraphs.length && done < total;
                 const retryBtn = incomplete ? `<button onclick="event.stopPropagation(); retryTranslation('${escapeHtml(b.id)}')">翻訳を再開</button>` : "";
-                const updateBadge = outdated ? `<span class="update-badge" title="新しい処理形式で読み直せます">⟳</span>` : "";
+                const updateBadge = outdated ? `<span class="update-badge" title="新しい処理形式で読み直せます">要更新</span>` : "";
                 const reprocessBtn = outdated ? `<button onclick="event.stopPropagation(); handleReprocessOne('${escapeHtml(b.id)}')">新形式で再処理</button>` : "";
 
                 tr.innerHTML = `
@@ -1836,7 +1942,7 @@ function loadBookshelf(){
                     <td>${updateBadge}<span class="trans-badge ${stCls}" data-status-for="${escapeHtml(b.id)}"${errTitle}>${st}</span></td>
                     <td onclick="event.stopPropagation()">
                         <div class="menu-wrap">
-                            <button class="dots-btn" onclick="toggleRowMenu(event, '${escapeHtml(b.id)}')">⋮</button>
+                            <button class="dots-btn" onclick="toggleRowMenu(event, '${escapeHtml(b.id)}')">...</button>
                             <div class="row-menu" id="menu-${escapeHtml(b.id)}">
                                 ${reprocessBtn}
                                 ${retryBtn}
@@ -1927,7 +2033,10 @@ function closeAllRowMenus(){
     document.querySelectorAll(".row-menu").forEach(m=>m.classList.remove("active"));
     menu_char_aznable_id = null;
 }
-document.addEventListener("click", ()=>closeAllRowMenus());
+document.addEventListener("click", (ev)=>{
+    if(ev.target && ev.target.closest && ev.target.closest(".modal-overlay")) return;
+    closeAllRowMenus();
+});
 document.addEventListener("scroll", ()=>closeAllRowMenus(), true);
 window.addEventListener("resize", ()=>closeAllRowMenus());
 
@@ -1942,15 +2051,74 @@ function toggleFavorite(bookId){
 }
 window.toggleFavorite = toggleFavorite;
 
-function confirmDeleteBook(bookId){ closeAllRowMenus(); delete_kill_confirm_id = bookId; document.getElementById("confirm-modal").classList.add("active"); }
+function confirmDeleteBook(bookId){
+    closeAllRowMenus();
+    delete_kill_confirm_id = bookId;
+    const modal = document.getElementById("confirm-modal");
+    if(modal) modal.classList.add("active");
+}
 window.confirmDeleteBook = confirmDeleteBook;
-function closeConfirmModal(){ delete_kill_confirm_id = null; document.getElementById("confirm-modal").classList.remove("active"); }
+
+function closeConfirmModal(){
+    delete_kill_confirm_id = null;
+    const modal = document.getElementById("confirm-modal");
+    if(modal) modal.classList.remove("active");
+}
 window.closeConfirmModal = closeConfirmModal;
-function executeConfirmedDelete(){ if(delete_kill_confirm_id === null) return; const id = delete_kill_confirm_id; deleteBook(id); closeConfirmModal(); }
+
+async function executeConfirmedDelete(){
+    const id = delete_kill_confirm_id;
+    if(!id){
+        closeConfirmModal();
+        return;
+    }
+    delete_kill_confirm_id = null;
+    const modal = document.getElementById("confirm-modal");
+    if(modal) modal.classList.remove("active");
+
+    try{
+        await safeDBOp(["books"], "readwrite", (tx, resolve, reject)=>{
+            const req = tx.objectStore("books").delete(id);
+            req.onerror = ()=>reject(req.error || new Error("IDB delete failed"));
+            tx.oncomplete = ()=>resolve();
+            tx.onerror = ()=>reject(tx.error || new Error("IDB tx failed"));
+            tx.onabort = ()=>reject(new Error("IDB tx aborted"));
+        });
+        loadBookshelf();
+        showToast("削除しました", "success", 2500);
+    }catch(e){
+        console.error("[削除] エラー:", e);
+        showToast("削除に失敗: " + ((e && e.message) || e), "error");
+    }
+}
 window.executeConfirmedDelete = executeConfirmedDelete;
 
+function deleteBook(bookId){
+    if(!bookId){ showToast("削除対象のIDが不正です", "error"); return; }
+    safeDBOp(["books"], "readwrite", (tx, resolve, reject)=>{
+        const req = tx.objectStore("books").delete(bookId);
+        req.onerror = ()=>reject(req.error || new Error("IDB delete failed"));
+        tx.oncomplete = ()=>resolve();
+        tx.onerror = ()=>reject(tx.error || new Error("IDB tx failed"));
+        tx.onabort = ()=>reject(new Error("IDB tx aborted"));
+    }).then(()=>{
+        loadBookshelf();
+        showToast("削除しました", "success", 2500);
+    }).catch(e=>{
+        console.error("[削除] エラー:", e);
+        showToast("削除に失敗: " + ((e && e.message) || e), "error");
+    });
+}
+
+/* モーダルボタンを明示的にバインド */
+(function bindConfirmModalButtons(){
+    const yes = document.getElementById("confirm-modal-yes");
+    const no  = document.getElementById("confirm-modal-no");
+    if(yes) yes.addEventListener("click", (ev)=>{ ev.stopPropagation(); executeConfirmedDelete(); });
+    if(no)  no.addEventListener("click", (ev)=>{ ev.stopPropagation(); closeConfirmModal(); });
+})();
+
 function readSavedBook(bookId){ getBookFromDB(bookId).then(b=>{ if(b) openReader(b); }).catch(()=>{}); }
-function deleteBook(bookId){ safeDBOp(["books"], "readwrite", (tx, resolve)=>{ tx.objectStore("books").delete(bookId); tx.oncomplete = ()=>{ loadBookshelf(); resolve(); }; }).catch(()=>{}); }
 
 /* ============================================================
    リーダー
@@ -2042,7 +2210,6 @@ function openReader(bookObj){
     applyBookModeStyles();
     applyFontFamily();
 
-    // 描画
     renderReaderContent();
 
     updateReaderTranslationLabel();
@@ -2170,7 +2337,10 @@ function computePageLayout(keep){
     const style = getComputedStyle(rb);
     const padLeft = parseFloat(style.paddingLeft) || 0;
     const padRight = parseFloat(style.paddingRight) || 0;
+    const padTop = parseFloat(style.paddingTop) || 0;
+    const padBottom = parseFloat(style.paddingBottom) || 0;
     const contentW = rb.clientWidth - padLeft - padRight;
+    const contentH = rb.clientHeight - padTop - padBottom;
 
     // 一旦リセットして計測
     flow.style.transition = 'none';
@@ -2179,7 +2349,7 @@ function computePageLayout(keep){
     flow.style.columnWidth = `${contentW}px`;
     flow.style.columnGap = `${gata_gap_haba}px`;
     flow.style.columnFill = 'auto';
-    flow.style.height = '100%';
+    flow.style.height = `${contentH}px`;
     flow.style.width = '';
 
     // 内容の総幅を測る
@@ -2278,7 +2448,7 @@ document.getElementById("reader-body").addEventListener("click", (ev)=>{
     }
 });
 
-/* スワイプでページ送り */
+/* スワイプでページ送り（紙を引っ張る方向） */
 let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
 document.getElementById("reader-body").addEventListener("touchstart", (e)=>{
     if(!is_book_mode) return;
@@ -2301,10 +2471,10 @@ document.getElementById("reader-body").addEventListener("touchend", (e)=>{
     if(Math.abs(dx) < Math.abs(dy) * 1.5) return;
 
     if(readingDirection === 'rtl'){
-        if(dx < 0) turnPage(1);
+        if(dx > 0) turnPage(1);
         else turnPage(-1);
     } else {
-        if(dx > 0) turnPage(1);
+        if(dx < 0) turnPage(1);
         else turnPage(-1);
     }
 }, {passive: true});
