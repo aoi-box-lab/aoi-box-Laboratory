@@ -317,6 +317,41 @@ h1 {
     cursor: pointer;
 }
 
+/* PC のみ：列幅を固定して長いタイトルで暴走しないようにする */
+@media (min-width: 769px) {
+    .results-table {
+        table-layout: fixed;
+    }
+    .results-table th,
+    .results-table td {
+        overflow-wrap: break-word;
+        word-break: break-word;
+        vertical-align: top;
+    }
+
+    /* 検索結果：場所 / タイトル / 著者 / 操作 */
+    #results-table th:nth-child(1),
+    #results-table td:nth-child(1) { width: 12%; }
+    #results-table th:nth-child(2),
+    #results-table td:nth-child(2) { width: auto; }
+    #results-table th:nth-child(3),
+    #results-table td:nth-child(3) { width: 22%; }
+    #results-table th:nth-child(4),
+    #results-table td:nth-child(4) { width: 12%; }
+
+    /* 本棚：ID / タイトル / 著者 / 状態 / 操作 */
+    #bookshelf-table th:nth-child(1),
+    #bookshelf-table td:nth-child(1) { width: 22%; }
+    #bookshelf-table th:nth-child(2),
+    #bookshelf-table td:nth-child(2) { width: auto; }
+    #bookshelf-table th:nth-child(3),
+    #bookshelf-table td:nth-child(3) { width: 18%; }
+    #bookshelf-table th:nth-child(4),
+    #bookshelf-table td:nth-child(4) { width: 14%; }
+    #bookshelf-table th:nth-child(5),
+    #bookshelf-table td:nth-child(5) { width: 14%; }
+}
+
 .source-badge {
     display: inline-block;
     font-size: .72rem;
@@ -2508,7 +2543,7 @@ async function execDetailSearch() {
 window.execDetailSearch = execDetailSearch;
 
 /* ============================================================
-   統合検索
+   統合検索（到着順に逐次反映）
    ============================================================ */
 async function unifiedSearch({ query, filters, defaultSort }) {
     const myGen = ++currentSearchGen;
@@ -2523,88 +2558,90 @@ async function unifiedSearch({ query, filters, defaultSort }) {
     v_project_cache = {};
 
     const allSources = [
-        'gutenberg',
-        'aozora',
-        'internetarchive',
-        'openlibrary',
-        'ndl',
-        'wikisource',
-        'standardebooks',
-        'runeberg',
-        'poetrydb',
-        'fadedpage',
-        'doaj',
-        'zenodo',
-        'core',
-        'arxiv'
+        'gutenberg', 'aozora', 'internetarchive', 'openlibrary', 'ndl',
+        'wikisource', 'standardebooks', 'runeberg', 'poetrydb', 'fadedpage',
+        'doaj', 'zenodo', 'core', 'arxiv'
     ];
-
     const sources = allSources.filter(s => !filters.source || filters.source === s);
+    const total = sources.length;
+
+    if (defaultSort === 'id') {
+        currentSortField = 'id';
+        currentSortAsc = true;
+    } else {
+        currentSortField = 'relevance';
+        currentSortAsc = false;
+    }
+    document.getElementById('sort-field').value = currentSortField;
+    updateSortDirectionButton();
 
     showHeaderSpinner();
-    setStatus('search-status', `${sources.length}つの場所を検索中...`, 'info');
+    setStatus('search-status', `0/${total} 検索中...`, 'info');
 
-    try {
-        const settled = await Promise.allSettled(
-            sources.map(src => searchSourceUnified(src, { query, filters }))
-        );
+    const relevanceQuery = (query || filters.title || filters.author || '').trim();
+    const seen = new Set();
+    let completed = 0;
+    let hits = 0;
+    let renderScheduled = false;
 
-        if (myGen !== currentSearchGen) return;
-
-        let allResults = [];
-        settled.forEach((r, i) => {
-            if (r.status === 'fulfilled' && Array.isArray(r.value)) {
-                allResults = allResults.concat(r.value);
-            } else if (r.status === 'rejected') {
-                console.warn(`[unified] ${sources[i]} failed:`, r.reason);
-            }
+    const scheduleRender = () => {
+        if (renderScheduled) return;
+        renderScheduled = true;
+        requestAnimationFrame(() => {
+            renderScheduled = false;
+            if (myGen !== currentSearchGen) return;
+            renderSearchResults();
         });
+    };
 
-        if (filters.year) {
-            allResults = allResults.filter(r => matchYear(r.year, filters.year));
-        }
-        if (filters.category) {
-            allResults = allResults.filter(r => matchCategory(r.category, filters.category));
-        }
-
-        const seen = new Set();
-        const dedup = [];
-        for (const r of allResults) {
-            if (!seen.has(r.id)) {
+    const absorb = (src, results) => {
+        if (myGen !== currentSearchGen) return;
+        if (Array.isArray(results)) {
+            for (const r of results) {
+                if (seen.has(r.id)) continue;
+                if (filters.year && !matchYear(r.year, filters.year)) continue;
+                if (filters.category && !matchCategory(r.category, filters.category)) continue;
                 seen.add(r.id);
-                dedup.push(r);
+                currentSearchResults.push({
+                    ...r,
+                    relevance: computeRelevance(r, relevanceQuery)
+                });
+                hits++;
             }
         }
-
-        if (!dedup.length) {
-            setStatus('search-status', '見つかりませんでした', 'error');
-            return;
+        completed++;
+        setStatus(
+            'search-status',
+            `${completed}/${total} 完了 — ${sourceNameOf(src)}（${hits}件）`,
+            'info'
+        );
+        if (hits > 0) {
+            if (t.style.display === 'none') t.style.display = 'table';
+            if (sortBar.style.display === 'none') sortBar.style.display = 'flex';
         }
+        scheduleRender();
+    };
 
-        const relevanceQuery = (query || filters.title || filters.author || '').trim();
-        currentSearchResults = dedup.map(r => ({
-            ...r,
-            relevance: computeRelevance(r, relevanceQuery)
-        }));
-
-        // ソート初期値
-        if (defaultSort === 'id') {
-            currentSortField = 'id';
-            currentSortAsc = true;
-        } else {
-            currentSortField = 'relevance';
-            currentSortAsc = false;
+    await Promise.allSettled(sources.map(async (src) => {
+        try {
+            const r = await searchSourceUnified(src, { query, filters });
+            absorb(src, r);
+        } catch (e) {
+            console.warn(`[unified] ${src} failed:`, e);
+            absorb(src, []);
         }
-        document.getElementById('sort-field').value = currentSortField;
-        updateSortDirectionButton();
+    }));
 
-        t.style.display = 'table';
-        sortBar.style.display = 'flex';
-        renderSearchResults();
-        setStatus('search-status', `見つかりました (${currentSearchResults.length}件)`, 'success');
-    } finally {
-        if (myGen === currentSearchGen) hideHeaderSpinner();
+    if (myGen !== currentSearchGen) return;
+    hideHeaderSpinner();
+
+    if (!currentSearchResults.length) {
+        setStatus('search-status', '見つかりませんでした', 'error');
+        t.style.display = 'none';
+        sortBar.style.display = 'none';
+        return;
     }
+    setStatus('search-status', `検索完了（${currentSearchResults.length}件）`, 'success');
 }
 
 function applySort() {
