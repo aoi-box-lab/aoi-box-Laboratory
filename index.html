@@ -57,35 +57,79 @@ h1{font-size:clamp(1rem, 0.5vw + 0.9rem, 1.2rem);font-weight:normal;letter-spaci
 .container{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;position:relative}
 .view-panel{flex:1;min-height:0;padding:var(--ui-pad-x);overflow-y:auto;display:none;overscroll-behavior:contain}
 .view-panel.active{display:block}
-.search-box{display:flex;gap:10px;max-width:900px;margin:0 auto 20px auto;align-items:center;flex-wrap:wrap}
 
-/* ソース切替 */
-.source-toggle{
-    display:flex;flex-shrink:0;flex-wrap:wrap;gap:0;
-    border-radius:4px;overflow:hidden;
+/* ===== 簡易検索 ===== */
+.simple-search-box{
+    display:flex;gap:10px;
+    max-width:900px;margin:0 auto 10px auto;
+    align-items:center;flex-wrap:wrap;
 }
-.source-toggle button{
-    padding:8px 12px;border:1px solid var(--border-color);
+.simple-search-box input{
+    flex:1;min-width:180px;padding:10px 14px;
+    border:1px solid var(--border-color);border-radius:4px;
     background:var(--card-bg);color:var(--text-color);
-    cursor:pointer;font-size:.8rem;min-height:var(--tap-min);margin:0;
-    border-right:none;
+    font-size:1rem;min-height:var(--tap-min);
 }
-.source-toggle button:last-child{border-right:1px solid var(--border-color)}
-.source-toggle button.active{background:var(--accent-color);color:#fff;border-color:var(--accent-color);position:relative;z-index:1}
-.source-toggle button:not(.active){opacity:.55}
-
+.simple-search-box button.go{
+    padding:10px 20px;background:var(--accent-color);color:#fff;
+    border:none;border-radius:4px;cursor:pointer;min-height:var(--tap-min);
+}
 .mode-toggle{display:flex;flex-shrink:0}
-.mode-toggle button{padding:6px 10px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);cursor:pointer;font-size:.8rem;min-height:var(--tap-min)}
+.mode-toggle button{padding:8px 14px;border:1px solid var(--border-color);background:var(--card-bg);color:var(--text-color);cursor:pointer;font-size:.85rem;min-height:var(--tap-min)}
 .mode-toggle button:first-child{border-radius:4px 0 0 4px}
 .mode-toggle button:last-child{border-radius:0 4px 4px 0;border-left:none}
 .mode-toggle button.active{background:var(--accent-color);color:#fff;border-color:var(--accent-color)}
-.mode-toggle button:not(.active){opacity:.45}
-.search-box input{flex:1;min-width:180px;padding:10px 14px;border:1px solid var(--border-color);border-radius:4px;background:var(--card-bg);color:var(--text-color);font-size:1rem;min-height:var(--tap-min)}
-.search-box button.go{padding:10px 20px;background:var(--accent-color);color:#fff;border:none;border-radius:4px;cursor:pointer;min-height:var(--tap-min)}
+.mode-toggle button:not(.active){opacity:.55}
+
+/* ===== 詳細検索トグル ===== */
+.detail-toggle-wrap{max-width:900px;margin:0 auto 12px auto;text-align:center;}
+.detail-toggle-btn{
+    background:none;border:1px solid var(--border-color);
+    color:var(--text-color);border-radius:4px;
+    padding:6px 16px;font-size:.85rem;cursor:pointer;min-height:36px;
+}
+.detail-toggle-btn.active{background:var(--accent-color);color:#fff;border-color:var(--accent-color);}
+.detail-toggle-icon{display:inline-block;transition:transform .2s;margin-right:6px;}
+.detail-toggle-btn.active .detail-toggle-icon{transform:rotate(90deg);}
+
+/* ===== 詳細検索パネル ===== */
+.detail-search-panel{
+    display:none;max-width:900px;margin:0 auto 20px auto;
+    padding:16px 20px;background:var(--card-bg);
+    border:1px solid var(--border-color);border-radius:8px;
+    box-shadow:0 2px 8px rgba(0,0,0,.05);
+}
+.detail-search-panel.active{display:block;}
+.detail-row{
+    display:flex;align-items:center;gap:12px;
+    margin-bottom:12px;flex-wrap:wrap;
+}
+.detail-row > label{flex-shrink:0;width:80px;font-size:.85rem;font-weight:bold;opacity:.75;}
+.detail-select,.detail-input{
+    flex:1;min-width:140px;padding:8px 12px;
+    border:1px solid var(--border-color);border-radius:4px;
+    background:var(--card-bg);color:var(--text-color);
+    font-size:.95rem;min-height:40px;
+}
+.detail-buttons{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;}
+.detail-buttons button{
+    padding:8px 20px;border-radius:4px;cursor:pointer;min-height:40px;
+    border:1px solid var(--border-color);background:var(--card-bg);
+    color:var(--text-color);font-size:.9rem;
+}
+.detail-buttons button.go{background:var(--accent-color);color:#fff;border-color:var(--accent-color);}
+
+/* ===== 結果テーブル ===== */
 .results-table{width:100%;border-collapse:collapse;background:var(--card-bg);box-shadow:0 2px 5px rgba(0,0,0,.05)}
 .results-table th,.results-table td{padding:12px 15px;text-align:left;border-bottom:1px solid var(--border-color)}
 .results-table th{background-color:rgba(0,0,0,.03);font-weight:bold}
 .results-table tr:hover{background-color:rgba(0,0,0,.02);cursor:pointer}
+.source-badge{
+    display:inline-block;font-size:.72rem;
+    padding:2px 8px;border-radius:3px;
+    background:rgba(74,111,165,.12);color:var(--accent-color);
+    white-space:nowrap;
+}
 .id-cell{display:flex;align-items:center;gap:10px}
 .drag-handle{display:flex;flex-direction:column;gap:3px;width:16px;cursor:grab;flex-shrink:0}
 .drag-handle:active{cursor:grabbing}
@@ -97,6 +141,7 @@ h1{font-size:clamp(1rem, 0.5vw + 0.9rem, 1.2rem);font-weight:normal;letter-spaci
 .row-menu.active{display:block}
 .row-menu button{display:block;width:100%;text-align:left;padding:10px 14px;background:none;border:none;cursor:pointer;color:var(--text-color);font-size:.9rem;min-height:var(--tap-min)}
 .row-menu button:hover{background:rgba(0,0,0,.05)}
+
 #reader-view{flex:1;min-height:0;display:none;flex-direction:column;height:100%;position:relative;overflow:hidden}
 #reader-view.active{display:flex}
 .reader-toolbar{
@@ -235,8 +280,6 @@ h1{font-size:clamp(1rem, 0.5vw + 0.9rem, 1.2rem);font-weight:normal;letter-spaci
 
 @media (max-width: 768px){
     .view-panel{padding:clamp(10px, 2.5vw, 14px)}
-    .search-box{gap:8px;max-width:100%;margin-bottom:14px;}
-    .search-box input{flex:1 1 100%;order:-1;min-width:0;}
     .results-table th, .results-table td{padding:9px 10px;font-size:.86rem;}
     #reading-title{order:-1;flex:1 1 100%;margin-left:0;padding:0 0 6px 0;border-bottom:1px solid var(--border-color);font-size:.88rem;max-width:100%}
     .close-reader-btn{margin-left:auto}
@@ -245,51 +288,22 @@ h1{font-size:clamp(1rem, 0.5vw + 0.9rem, 1.2rem);font-weight:normal;letter-spaci
     .bookshelf-filters{flex-direction:column;align-items:stretch;gap:8px;}
     .bookshelf-filters input[type="text"]{min-width:0}
     .reprocess-all-btn{width:100%}
-    .source-toggle{width:100%;justify-content:center}
-    .source-toggle button{flex:1 1 auto;min-width:0;padding:8px 6px;font-size:.72rem;text-align:center}
 }
 
-/* ============================================================
-   スマホ縦：ソース切替を3列グリッド（5ボタンをキレイに配置）
-   修正版: 無効値 span 1.5 を撤去し、6列グリッドで均等割り
-   ============================================================ */
 @media (max-width: 480px){
     header{flex-direction:column;align-items:stretch;gap:8px}
     .header-title-wrap{justify-content:center;}
     h1{text-align:center}
     .nav-buttons{display:flex;gap:8px}
     .nav-buttons button{flex:1;margin:0;padding:8px 0;font-size:.9rem;}
-    .search-box{flex-direction:column;align-items:stretch;gap:8px;}
-    .search-box input{width:100%}
-    .search-box > button.go{width:100%}
-    .source-toggle, .mode-toggle{align-self:center;max-width:100%}
-
-    /* 6列グリッド：1〜3番は2列ぶん、4〜5番は3列ぶん使って2段組み */
-    .source-toggle{
-        width:100%;
-        display:grid;
-        grid-template-columns:repeat(6, 1fr);
-        gap:4px;
-        border-radius:0;
-        overflow:visible;
-    }
-    .source-toggle button{
-        border:1px solid var(--border-color) !important;
-        border-radius:4px;
-        padding:8px 4px;
-        font-size:.7rem;
-        min-height:36px;
-    }
-    .source-toggle button:nth-child(1),
-    .source-toggle button:nth-child(2),
-    .source-toggle button:nth-child(3){
-        grid-column:span 2;
-    }
-    .source-toggle button:nth-child(4),
-    .source-toggle button:nth-child(5){
-        grid-column:span 3;
-    }
-
+    .simple-search-box{flex-direction:column;align-items:stretch;}
+    .simple-search-box input{width:100%;}
+    .simple-search-box button.go{width:100%;}
+    .mode-toggle{align-self:center;}
+    .detail-row{flex-direction:column;align-items:stretch;gap:6px;}
+    .detail-row > label{width:auto;}
+    .detail-buttons{flex-direction:column;}
+    .detail-buttons button{width:100%;}
     .results-table th, .results-table td{padding:8px;font-size:.82rem;white-space:normal;}
     .reader-toolbar{gap:6px;}
     #page-nav{gap:6px;font-size:.8rem;}
@@ -341,25 +355,78 @@ h1{font-size:clamp(1rem, 0.5vw + 0.9rem, 1.2rem);font-weight:normal;letter-spaci
 
 <div class="container">
     <div id="search-view" class="view-panel active">
-        <div class="search-box">
-            <div class="source-toggle">
-                <button id="source-gutenberg-btn" class="active" onclick="setSource('gutenberg')">Gutenberg</button>
-                <button id="source-aozora-btn" onclick="setSource('aozora')">青空文庫</button>
-                <button id="source-ia-btn" onclick="setSource('internetarchive')">Internet Archive</button>
-                <button id="source-ndl-btn" onclick="setSource('ndl')">NDL</button>
-                <button id="source-wikisource-btn" onclick="setSource('wikisource')">Wikisource</button>
-            </div>
+        <!-- 簡易検索 -->
+        <div class="simple-search-box">
             <div class="mode-toggle" id="mode-toggle-wrap">
-                <button id="mode-title-btn" class="active" onclick="setSearchMode('title')">作品</button>
-                <button id="mode-author-btn" onclick="setSearchMode('author')">著者</button>
+                <button id="mode-title-btn" class="active" onclick="setSearchMode('title')">作品名</button>
+                <button id="mode-author-btn" onclick="setSearchMode('author')">著者名</button>
             </div>
-            <input type="text" id="search-input" placeholder="作品名（・がなくてもいけるようにした！）">
-            <button class="go" onclick="execSearch()">検索実行</button>
+            <input type="text" id="search-input" placeholder="作品名（・がなくてもいけるようにした！）"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();execSearch();}">
+            <button class="go" onclick="execSearch()">検索</button>
         </div>
+
+        <div class="detail-toggle-wrap">
+            <button id="detail-toggle-btn" class="detail-toggle-btn" onclick="toggleDetailSearch()">
+                <span class="detail-toggle-icon">▸</span>詳細検索
+            </button>
+        </div>
+
+        <!-- 詳細検索パネル -->
+        <div id="detail-search-panel" class="detail-search-panel">
+            <div class="detail-row">
+                <label for="detail-source">場所</label>
+                <select id="detail-source" class="detail-select">
+                    <option value="">すべて</option>
+                    <option value="gutenberg">Gutenberg</option>
+                    <option value="aozora">青空文庫</option>
+                    <option value="internetarchive">Internet Archive</option>
+                    <option value="ndl">NDL</option>
+                    <option value="wikisource">Wikisource</option>
+                </select>
+            </div>
+            <div class="detail-row">
+                <label for="detail-category">カテゴリ</label>
+                <select id="detail-category" class="detail-select">
+                    <option value="">すべて</option>
+                    <option value="novel">小説</option>
+                    <option value="poetry">詩歌</option>
+                    <option value="drama">戯曲</option>
+                    <option value="essay">随筆・評論</option>
+                    <option value="children">児童書</option>
+                    <option value="other">その他</option>
+                </select>
+            </div>
+            <div class="detail-row">
+                <label for="detail-year">年度</label>
+                <select id="detail-year" class="detail-select">
+                    <option value="">すべて</option>
+                    <option value="~1800">〜1800年</option>
+                    <option value="1801-1850">1801〜1850年</option>
+                    <option value="1851-1900">1851〜1900年</option>
+                    <option value="1901-1950">1901〜1950年</option>
+                    <option value="1951-2000">1951〜2000年</option>
+                    <option value="2001-">2001年〜</option>
+                </select>
+            </div>
+            <div class="detail-row">
+                <label for="detail-title">作品名</label>
+                <input type="text" id="detail-title" class="detail-input" placeholder="（空欄可）">
+            </div>
+            <div class="detail-row">
+                <label for="detail-author">著者名</label>
+                <input type="text" id="detail-author" class="detail-input" placeholder="（空欄可）">
+            </div>
+            <div class="detail-buttons">
+                <button class="go" onclick="execDetailSearch()">検索</button>
+                <button onclick="resetDetailSearch()">リセット</button>
+            </div>
+        </div>
+
         <div id="search-status" class="status-msg"></div>
         <table class="results-table" id="results-table" style="display:none;">
             <thead>
-                <tr><th>ID</th><th>タイトル</th><th>著者/抜粋</th><th>操作</th></tr>
+                <tr><th>場所</th><th>タイトル</th><th>著者</th><th>操作</th></tr>
             </thead>
             <tbody id="results-tbody"></tbody>
         </table>
@@ -512,7 +579,7 @@ setupViewportTracking();
 /* ============================================================
    定数
    ============================================================ */
-const FEATURE_VERSION = '2024-12-20T00:00:00Z';
+const FEATURE_VERSION = '2024-12-21T00:00:00Z';
 
 const LINGVA_INSTANCES = [
     'https://lingva.ml','https://translate.igna.wtf','https://translate.plausibility.cloud',
@@ -600,7 +667,6 @@ let maji_de_db = null;
 let db_closing = false;
 let current_font_size = 18;
 let v_project_cache = {};
-let current_source = 'gutenberg';
 let search_mode_v = "title";
 let drag_zaku_id = null;
 let menu_char_aznable_id = null;
@@ -993,40 +1059,8 @@ async function handleReprocessAll(){
 window.handleReprocessAll = handleReprocessAll;
 
 /* ============================================================
-   ソース切替
+   検索モード・詳細検索
    ============================================================ */
-function setSource(source){
-    current_source = source;
-    const btnMap = {
-        gutenberg: 'source-gutenberg-btn',
-        aozora: 'source-aozora-btn',
-        internetarchive: 'source-ia-btn',
-        ndl: 'source-ndl-btn',
-        wikisource: 'source-wikisource-btn'
-    };
-    Object.keys(btnMap).forEach(k=>{
-        const el = document.getElementById(btnMap[k]);
-        if(el) el.classList.toggle('active', source === k);
-    });
-    updateSearchPlaceholder();
-}
-window.setSource = setSource;
-
-function updateSearchPlaceholder(){
-    const in_e = document.getElementById("search-input");
-    if(!in_e) return;
-    const isTitle = search_mode_v === "title";
-    const ph = {
-        gutenberg: isTitle ? "作品名（・がなくてもいけるようにした！）" : "著者名（フルネームじゃなくても多分いける）",
-        aozora: isTitle ? "作品名で検索（青空文庫）" : "著者名で検索（青空文庫）",
-        internetarchive: isTitle ? "タイトルで検索（Internet Archive / PD限定）" : "著者名で検索（Internet Archive）",
-        ndl: isTitle ? "タイトルで検索（NDL / インターネット公開のみ）" : "著者名で検索（NDL）",
-        wikisource: isTitle ? "タイトルで検索（Wikisource / 日本語・英語自動判定）" : "著者名で検索（Wikisource）"
-    };
-    in_e.placeholder = ph[current_source] || in_e.placeholder;
-}
-window.updateSearchPlaceholder = updateSearchPlaceholder;
-
 function setSearchMode(mode){
     search_mode_v = mode;
     document.getElementById("mode-title-btn").classList.toggle("active", mode === "title");
@@ -1035,8 +1069,336 @@ function setSearchMode(mode){
 }
 window.setSearchMode = setSearchMode;
 
+function updateSearchPlaceholder(){
+    const in_e = document.getElementById("search-input");
+    if(!in_e) return;
+    in_e.placeholder = (search_mode_v === "title")
+        ? "作品名（・がなくてもいけるようにした！）"
+        : "著者名（フルネームじゃなくても多分いける）";
+}
+window.updateSearchPlaceholder = updateSearchPlaceholder;
+
+function toggleDetailSearch(){
+    const panel = document.getElementById('detail-search-panel');
+    const btn = document.getElementById('detail-toggle-btn');
+    const opening = !panel.classList.contains('active');
+    panel.classList.toggle('active', opening);
+    btn.classList.toggle('active', opening);
+}
+window.toggleDetailSearch = toggleDetailSearch;
+
+function resetDetailSearch(){
+    document.getElementById('detail-source').value = '';
+    document.getElementById('detail-category').value = '';
+    document.getElementById('detail-year').value = '';
+    document.getElementById('detail-title').value = '';
+    document.getElementById('detail-author').value = '';
+}
+window.resetDetailSearch = resetDetailSearch;
+
+async function execSearch(){
+    const q = document.getElementById("search-input").value.trim();
+    if(!q){ showToast('検索語を入力してください', 'warn', 3000); return; }
+    await unifiedSearch({ query: q, mode: search_mode_v, filters: {} });
+}
+window.execSearch = execSearch;
+
+async function execDetailSearch(){
+    const filters = {
+        source:   document.getElementById('detail-source').value,
+        category: document.getElementById('detail-category').value,
+        year:     document.getElementById('detail-year').value,
+        title:    document.getElementById('detail-title').value.trim(),
+        author:   document.getElementById('detail-author').value.trim()
+    };
+    if(!filters.title && !filters.author){
+        showToast('作品名か著者名を入力してください', 'warn', 3000);
+        return;
+    }
+    await unifiedSearch({ query: '', mode: null, filters });
+}
+window.execDetailSearch = execDetailSearch;
+
 /* ============================================================
-   外部API
+   統合検索
+   ============================================================ */
+async function unifiedSearch({query, mode, filters}){
+    const t = document.getElementById("results-table");
+    const tb = document.getElementById("results-tbody");
+    tb.innerHTML = "";
+    t.style.display = "none";
+    v_project_cache = {};
+
+    const allSources = ['gutenberg','aozora','internetarchive','ndl','wikisource'];
+    const sources = allSources.filter(s => !filters.source || filters.source === s);
+
+    setStatus("search-status", `${sources.length}つの場所を検索中...`, 'info');
+
+    const settled = await Promise.allSettled(
+        sources.map(src => searchSourceUnified(src, {query, mode, filters}))
+    );
+
+    let allResults = [];
+    settled.forEach((r, i) => {
+        if(r.status === 'fulfilled' && Array.isArray(r.value)) allResults = allResults.concat(r.value);
+        else if(r.status === 'rejected') console.warn(`[unified] ${sources[i]} failed:`, r.reason);
+    });
+
+    if(filters.year)     allResults = allResults.filter(r => matchYear(r.year, filters.year));
+    if(filters.category) allResults = allResults.filter(r => matchCategory(r.category, filters.category));
+    if(filters.title){ const q = filters.title.toLowerCase(); allResults = allResults.filter(r => (r.title||'').toLowerCase().includes(q)); }
+    if(filters.author){ const q = filters.author.toLowerCase(); allResults = allResults.filter(r => (r.author||'').toLowerCase().includes(q)); }
+
+    const seen = new Set();
+    const dedup = [];
+    for(const r of allResults){ if(!seen.has(r.id)){ seen.add(r.id); dedup.push(r); } }
+
+    if(!dedup.length){
+        setStatus("search-status", "見つかりませんでした", 'error');
+        showToast('検索結果0件', 'warn');
+        return;
+    }
+
+    t.style.display = "table";
+    dedup.forEach(r => renderUnifiedRow(r, tb));
+    setStatus("search-status", `見つかりました (${dedup.length}件)`, 'success');
+}
+
+async function searchSourceUnified(source, ctx){
+    switch(source){
+        case 'gutenberg':       return await searchGutenbergUnified(ctx);
+        case 'aozora':          return await searchAozoraUnified(ctx);
+        case 'internetarchive': return await searchIAUnified(ctx);
+        case 'ndl':             return await searchNDLUnified(ctx);
+        case 'wikisource':      return await searchWikisourceUnified(ctx);
+    }
+    return [];
+}
+
+function sourceNameOf(source){
+    return { aozora:'青空文庫', gutenberg:'Gutenberg', internetarchive:'Internet Archive',
+             wikisource:'Wikisource', ndl:'NDL' }[source] || source;
+}
+
+function renderUnifiedRow(r, tb){
+    const tr = document.createElement("tr");
+    const tdS = document.createElement("td");
+    const badge = document.createElement("span");
+    badge.className = "source-badge";
+    badge.textContent = sourceNameOf(r.source);
+    tdS.appendChild(badge);
+    const tdT = document.createElement("td"); tdT.textContent = r.title;
+    const tdA = document.createElement("td"); tdA.textContent = r.author || '—';
+    const tdO = document.createElement("td");
+    if(r.safe){
+        const btn = document.createElement("button");
+        btn.textContent = "保存・読む";
+        btn.addEventListener("click", ()=>downloadFromUnified(r));
+        tdO.appendChild(btn);
+    } else {
+        const span = document.createElement("span");
+        span.style.cssText = "color:#d9534f;font-size:.8rem;";
+        span.textContent = r.safetyNote || '保護期間内';
+        tdO.appendChild(span);
+    }
+    tr.appendChild(tdS); tr.appendChild(tdT); tr.appendChild(tdA); tr.appendChild(tdO);
+    tb.appendChild(tr);
+}
+
+function downloadFromUnified(r){
+    try{
+        switch(r.source){
+            case 'gutenberg':       return downloadAndSaveGutenberg(r.raw.id);
+            case 'aozora':          return downloadAndSaveAozora(r.raw.workId, r.raw.personId, r.raw.title, r.raw.personName, r.raw.zipName || '');
+            case 'internetarchive': return downloadAndSaveInternetArchive(r.raw.identifier, r.raw.title, false);
+            case 'ndl':             return downloadAndSaveNDL(r.raw.pid, r.raw.title, false);
+            case 'wikisource':      return downloadAndSaveWikisource(r.raw.pageid, r.raw.title, r.raw.lang, false);
+        }
+    }catch(e){ showToast('ダウンロード開始失敗: ' + e.message, 'error'); }
+}
+
+/* ============================================================
+   年度・カテゴリヘルパ
+   ============================================================ */
+function parseYear(dateStr){
+    if(!dateStr) return null;
+    const m = String(dateStr).match(/\b(1[0-9]{3}|20[0-9]{2})\b/);
+    return m ? parseInt(m[1], 10) : null;
+}
+function matchYear(year, rangeStr){
+    if(!rangeStr) return true;
+    if(year == null) return true;
+    if(rangeStr.startsWith('~')) return year <= parseInt(rangeStr.slice(1), 10);
+    if(rangeStr.endsWith('-')) return year >= parseInt(rangeStr.slice(0, -1), 10);
+    const [a, b] = rangeStr.split('-').map(s => parseInt(s, 10));
+    return year >= a && year <= b;
+}
+function matchCategory(resultCategory, filterCategory){
+    if(!filterCategory) return true;
+    if(resultCategory == null) return true;
+    return resultCategory === filterCategory;
+}
+function guessGutenbergCategory(b){
+    const s = ((b.subjects||[]).join(' ') + ' ' + (b.bookshelves||[]).join(' ')).toLowerCase();
+    if(/fiction|novel/.test(s)) return 'novel';
+    if(/poetry|poem/.test(s)) return 'poetry';
+    if(/drama|play/.test(s)) return 'drama';
+    if(/essay/.test(s)) return 'essay';
+    if(/children|juvenile/.test(s)) return 'children';
+    return null;
+}
+
+/* ============================================================
+   各ソース：統一形式
+   ============================================================ */
+async function searchGutenbergUnified(ctx){
+    const titleQ  = (ctx.mode === 'title'  ? ctx.query : null) || ctx.filters.title  || '';
+    const authorQ = (ctx.mode === 'author' ? ctx.query : null) || ctx.filters.author || '';
+    const inputQ = titleQ || authorQ;
+    if(!inputQ) return [];
+
+    let eng;
+    if(authorQ) eng = (await getAuthorEnglishNameFromWikipedia(authorQ)) || await translateText(authorQ, 'ja', 'en');
+    else        eng = await translateText(titleQ, 'ja', 'en');
+
+    const clean = (eng || inputQ).replace(/[^\w\s]/gi,' ').replace(/\s+/g,' ').trim();
+    if(!clean) return [];
+
+    try{
+        const api = `https://gutendex.com/books/?search=${encodeURIComponent(clean)}`;
+        const res = await fetchWithTimeout(CORS_PROXIES.aoi(api), {}, FETCH_TIMEOUT_API);
+        const data = await res.json();
+        return (data.results || []).slice(0, 50).map(b => {
+            v_project_cache[b.id] = b;
+            const a = b.authors[0] || {};
+            const safe = checkChosakukenSafe(a.death_year) || a.copyright === false;
+            return {
+                source: 'gutenberg',
+                id: 'gutenberg_' + b.id,
+                title: b.title,
+                author: a.name || '不明',
+                year: null,
+                category: guessGutenbergCategory(b),
+                safe,
+                safetyNote: '保護期間内',
+                raw: b
+            };
+        });
+    }catch(e){ console.warn('[unified-gutenberg]', e); return []; }
+}
+
+async function searchAozoraUnified(ctx){
+    const titleQ  = (ctx.mode === 'title'  ? ctx.query : null) || ctx.filters.title  || '';
+    const authorQ = (ctx.mode === 'author' ? ctx.query : null) || ctx.filters.author || '';
+    if(!titleQ && !authorQ) return [];
+
+    if(!aozora_catalog_ready){
+        if(!aozora_catalog_loading) fetchAozoraCatalog();
+        let waited = 0;
+        while(!aozora_catalog_ready && waited < 30000){ await sleep(300); waited += 300; }
+        if(!aozora_catalog_ready) return [];
+    }
+    const tq = titleQ.toLowerCase(), aq = authorQ.toLowerCase();
+    const results = aozora_catalog.filter(it => {
+        if(tq && !(it.title||'').toLowerCase().includes(tq)) return false;
+        if(aq && !(it.personName||'').toLowerCase().includes(aq)) return false;
+        return true;
+    });
+    return results.slice(0, 50).map(it => ({
+        source: 'aozora',
+        id: 'aozora_' + it.workId,
+        title: it.title,
+        author: it.personName,
+        year: null,
+        category: null,
+        safe: true,
+        raw: it
+    }));
+}
+
+async function searchIAUnified(ctx){
+    const titleQ  = (ctx.mode === 'title'  ? ctx.query : null) || ctx.filters.title  || '';
+    const authorQ = (ctx.mode === 'author' ? ctx.query : null) || ctx.filters.author || '';
+    const q = titleQ || authorQ;
+    if(!q) return [];
+
+    let searchQ = q;
+    if(/[^\x00-\x7F]/.test(q)){
+        const eng = await translateText(q, 'ja', 'en');
+        searchQ = (eng || q).replace(/[^\w\s]/g, ' ').replace(/\s+/g,' ').trim();
+    }
+    try{
+        const docs = await searchInternetArchive(searchQ, 30);
+        const out = [];
+        for(const item of docs){
+            const licenseSafe = isIAPublicDomain(item);
+            const cr = item.creator;
+            const creatorStr = Array.isArray(cr) ? cr.join(', ') : (cr || '不明');
+            const dInfo = await getAuthorDeathYear(creatorStr);
+            const cy = new Date().getFullYear();
+            const yearSafe = dInfo.deathYear ? (cy - dInfo.deathYear) >= 80 : false;
+            let safetyNote = '保護期間内';
+            if(!licenseSafe) safetyNote = 'ライセンスNG';
+            else if(!yearSafe) safetyNote = dInfo.deathYear ? `没年${dInfo.deathYear}` : '没年不明';
+            out.push({
+                source: 'internetarchive',
+                id: 'ia_' + item.identifier,
+                title: item.title || '(無題)',
+                author: creatorStr,
+                year: parseYear(item.date),
+                category: null,
+                safe: licenseSafe && yearSafe,
+                safetyNote,
+                raw: item
+            });
+        }
+        return out;
+    }catch(e){ console.warn('[unified-ia]', e); return []; }
+}
+
+async function searchNDLUnified(ctx){
+    const titleQ  = (ctx.mode === 'title'  ? ctx.query : null) || ctx.filters.title  || '';
+    const authorQ = (ctx.mode === 'author' ? ctx.query : null) || ctx.filters.author || '';
+    const q = titleQ || authorQ;
+    if(!q) return [];
+    try{
+        const records = await searchNDL(q);
+        return records.filter(r => r.accessLevel === NDL_ACCESS_PUBLIC).map(r => ({
+            source: 'ndl',
+            id: 'ndl_' + r.pid,
+            title: r.title,
+            author: r.creator,
+            year: parseYear(r.date),
+            category: null,
+            safe: true,
+            raw: r
+        }));
+    }catch(e){ console.warn('[unified-ndl]', e); return []; }
+}
+
+async function searchWikisourceUnified(ctx){
+    const titleQ  = (ctx.mode === 'title'  ? ctx.query : null) || ctx.filters.title  || '';
+    const authorQ = (ctx.mode === 'author' ? ctx.query : null) || ctx.filters.author || '';
+    const q = titleQ || authorQ;
+    if(!q) return [];
+    const lang = detectWikisourceLang(q);
+    try{
+        const results = await searchWikisource(q, lang);
+        return results.map(item => ({
+            source: 'wikisource',
+            id: 'wikisource_' + lang + '_' + item.pageid,
+            title: item.title,
+            author: '',
+            year: null,
+            category: null,
+            safe: true,
+            raw: { ...item, lang }
+        }));
+    }catch(e){ console.warn('[unified-wikisource]', e); return []; }
+}
+
+/* ============================================================
+   外部API（著者名・没年）
    ============================================================ */
 async function getAuthorEnglishNameFromWikipedia(jpName){
     if(/^[a-zA-Z0-9\s]+$/.test(jpName)) return null;
@@ -1058,27 +1420,68 @@ async function getAuthorEnglishNameFromWikipedia(jpName){
     return null;
 }
 
-/* 修正②: 没年取得をキャッシュ＋英語版フォールバック対応 */
+/* 没年取得：名前埋め込み年号 → ja/en Wikipedia フォールバック */
 const _deathYearCache = new Map();
 
 async function getAuthorDeathYear(authorName){
     if(!authorName || /^[0-9\s]+$/.test(authorName)){
         return { deathYear: null, birthYear: null, name: authorName };
     }
-    const primary = String(authorName).split(/[,;]/)[0].trim();
-    if(!primary) return { deathYear: null, birthYear: null, name: authorName };
+    const cacheKey = String(authorName).trim();
+    if(_deathYearCache.has(cacheKey)) return _deathYearCache.get(cacheKey);
 
-    if(_deathYearCache.has(primary)) return _deathYearCache.get(primary);
-
-    let result = await fetchDeathYearFromWiki(primary, 'ja');
-    if(!result || (!result.deathYear && !result.birthYear)){
-        const en = await fetchDeathYearFromWiki(primary, 'en');
-        if(en) result = en;
+    const embedded = extractYearsFromString(cacheKey);
+    if(embedded.deathYear || embedded.birthYear){
+        const r = { deathYear: embedded.deathYear, birthYear: embedded.birthYear, name: cacheKey };
+        _deathYearCache.set(cacheKey, r);
+        return r;
     }
-    if(!result) result = { deathYear: null, birthYear: null, name: primary };
 
-    _deathYearCache.set(primary, result);
-    return result;
+    const candidates = buildNameCandidates(cacheKey);
+    for(const name of candidates){
+        for(const lang of ['ja','en']){
+            const r = await fetchDeathYearFromWiki(name, lang);
+            if(r && (r.deathYear || r.birthYear)){
+                const out = { deathYear: r.deathYear, birthYear: r.birthYear, name };
+                _deathYearCache.set(cacheKey, out);
+                return out;
+            }
+        }
+    }
+    const fallback = { deathYear: null, birthYear: null, name: cacheKey };
+    _deathYearCache.set(cacheKey, fallback);
+    return fallback;
+}
+
+function extractYearsFromString(s){
+    let deathYear = null, birthYear = null;
+    const m1 = s.match(/(\d{4})\s*[-–—~]\s*(\d{4})/);
+    if(m1){ birthYear = parseInt(m1[1], 10); deathYear = parseInt(m1[2], 10); }
+    if(!deathYear){ const m2 = s.match(/\bd\.\s*(\d{4})/i); if(m2) deathYear = parseInt(m2[1], 10); }
+    if(!birthYear){ const m3 = s.match(/\bb\.\s*(\d{4})/i); if(m3) birthYear = parseInt(m3[1], 10); }
+    return { deathYear, birthYear };
+}
+
+function buildNameCandidates(raw){
+    const cleaned = raw.replace(/\s*\d{4}\s*[-–—~]\s*\d{4}\s*/g, ' ')
+                       .replace(/\s*\(\d{4}[^)]*\)\s*/g, ' ')
+                       .replace(/\s+/g, ' ')
+                       .trim();
+    const parts = cleaned.split(/[,;]/).map(s=>s.trim()).filter(Boolean);
+    const set = new Set();
+    set.add(cleaned);
+    if(parts.length >= 2){
+        set.add(`${parts[1]} ${parts[0]}`);
+        set.add(parts[0]);
+        set.add(parts[1]);
+    } else if(parts.length === 1){
+        set.add(parts[0]);
+    }
+    for(const c of [...set]){
+        const stripped = c.replace(/\b(?:Mr|Mrs|Ms|Dr|Sir|Prof)\.?\s*/gi, '').trim();
+        if(stripped) set.add(stripped);
+    }
+    return [...set].filter(s => s.length >= 2);
 }
 
 async function fetchDeathYearFromWiki(name, lang){
@@ -1102,7 +1505,8 @@ async function fetchDeathYearFromWiki(name, lang){
             ...content.matchAll(/死亡日\s*=\s*.*?(\d{4})年/g),
             ...content.matchAll(/(\d{4})年没/g),
             ...content.matchAll(/death_date\s*=\s*[^\n]*?(\d{4})/gi),
-            ...content.matchAll(/\|\s*death_date\s*=[^\n]*?(\d{4})/gi)
+            ...content.matchAll(/\|\s*death_date\s*=[^\n]*?(\d{4})/gi),
+            ...content.matchAll(/Died\s*=\s*[^\n]*?(\d{4})/gi)
         ];
         for(const m of deathMatches){
             const y = parseInt(m[1], 10);
@@ -1112,7 +1516,8 @@ async function fetchDeathYearFromWiki(name, lang){
             ...content.matchAll(/\{\{生年\s*\|\s*(\d{3,4})/g),
             ...content.matchAll(/生年月日\s*=\s*.*?(\d{4})年/g),
             ...content.matchAll(/誕生日\s*=\s*.*?(\d{4})年/g),
-            ...content.matchAll(/birth_date\s*=\s*[^\n]*?(\d{4})/gi)
+            ...content.matchAll(/birth_date\s*=\s*[^\n]*?(\d{4})/gi),
+            ...content.matchAll(/Born\s*=\s*[^\n]*?(\d{4})/gi)
         ];
         for(const m of birthMatches){
             const y = parseInt(m[1], 10);
@@ -1225,19 +1630,6 @@ function parseAozoraCardJson(json){
         }catch(e){}
     }
     return catalog;
-}
-async function searchAozora(query){
-    if(!aozora_catalog_ready){
-        if(!aozora_catalog_loading) fetchAozoraCatalog();
-        let waited = 0;
-        while(!aozora_catalog_ready && waited < 90000){ await sleep(300); waited += 300; }
-        if(!aozora_catalog_ready) throw new Error('青空文庫カタログの読み込みが完了していません。');
-    }
-    const q = query.toLowerCase();
-    let results;
-    if(search_mode_v === "author"){ results = aozora_catalog.filter(it => (it.personName||'').toLowerCase().includes(q)); }
-    else { results = aozora_catalog.filter(it => (it.title||'').toLowerCase().includes(q)); }
-    return results.slice(0, 100);
 }
 
 /* ============================================================
@@ -1553,82 +1945,8 @@ async function closeReader(){
 window.closeReader = closeReader;
 
 /* ============================================================
-   検索ディスパッチ
+   ダウンロード：Gutenberg
    ============================================================ */
-async function execSearch(){
-    const q = document.getElementById("search-input").value.trim();
-    const t = document.getElementById("results-table");
-    const tb = document.getElementById("results-tbody");
-    if(!q) return;
-    tb.innerHTML = "";
-    t.style.display = "none";
-    v_project_cache = {};
-    switch(current_source){
-        case 'aozora':          await execSearchAozora(q); break;
-        case 'internetarchive': await execSearchIA(q); break;
-        case 'ndl':             await execSearchNDL(q); break;
-        case 'wikisource':      await execSearchWikisource(q); break;
-        default:                await execSearchGutenberg(q);
-    }
-}
-window.execSearch = execSearch;
-
-/* ============================================================
-   Gutenberg
-   ============================================================ */
-async function execSearchGutenberg(q_v){
-    const t = document.getElementById("results-table");
-    const tb = document.getElementById("results-tbody");
-    const loose = q_v.replace(/[・＝ _]/g," ").replace(/\s+/g," ").trim();
-    let eng = "";
-    if(search_mode_v === "title"){
-        setStatus("search-status", `「${loose}」を英語化中...`, 'info');
-        eng = await translateText(loose, 'ja', 'en');
-        setStatus("search-status", `翻訳結果「${eng}」でGutendexを検索中...`, 'info');
-    } else {
-        setStatus("search-status", `Wikipediaで「${loose}」の英語表記を探り中...`, 'info');
-        eng = await getAuthorEnglishNameFromWikipedia(loose);
-        if(eng) setStatus("search-status", `Wikipediaで英語表記「${eng}」を発見！`, 'info');
-        else { setStatus("search-status", "Wikipediaにないので翻訳で英語化中...", 'info'); eng = await translateText(loose, 'ja', 'en'); setStatus("search-status", `翻訳結果「${eng}」でGutendexを検索中...`, 'info'); }
-    }
-    const clean = eng.replace(/[^\w\s]/gi,' ').replace(/\s+/g,' ').trim();
-    if(!clean){
-        setStatus("search-status", "検索キーワードを英語化できませんでした。別の語で試してください。", 'error');
-        showToast('検索キーワードを英語化できませんでした', 'warn');
-        return;
-    }
-    try{
-        const api = `https://gutendex.com/books/?search=${encodeURIComponent(clean)}`;
-        const res = await fetchWithTimeout(CORS_PROXIES.aoi(api), {}, FETCH_TIMEOUT_API);
-        const data = await res.json();
-        if(!data.results || !data.results.length){ setStatus("search-status", "見つかりませんでした", 'error'); showToast('検索結果0件', 'warn'); return; }
-        setStatus("search-status", `見つかりました (${data.results.length}件)`, 'success');
-        t.style.display = "table";
-        data.results.forEach((b)=>{
-            v_project_cache[b.id] = b;
-            const a = b.authors[0] || {name:"不明", death_year:null};
-            const safe = checkChosakukenSafe(a.death_year) || a.copyright === false;
-            const tr = document.createElement("tr");
-            const tdId = document.createElement("td"); tdId.textContent = b.id;
-            const tdTitle = document.createElement("td"); tdTitle.textContent = b.title;
-            const tdAuthor = document.createElement("td"); tdAuthor.textContent = a.name;
-            const tdOp = document.createElement("td");
-            if(safe){
-                const btn = document.createElement("button");
-                btn.textContent = "保存・読む";
-                btn.addEventListener("click", ()=>downloadAndSaveGutenberg(b.id));
-                tdOp.appendChild(btn);
-            } else {
-                const span = document.createElement("span");
-                span.style.color = "red"; span.style.fontSize = ".8rem";
-                span.textContent = "保護期間内";
-                tdOp.appendChild(span);
-            }
-            tr.appendChild(tdId); tr.appendChild(tdTitle); tr.appendChild(tdAuthor); tr.appendChild(tdOp);
-            tb.appendChild(tr);
-        });
-    }catch(err){ setStatus("search-status", `検索エラー: ${err.message}`, 'error'); showToast('検索エラー: ' + err.message, 'error'); }
-}
 async function fetchGutenbergBookById(bookId){
     try{
         const res = await fetchWithTimeout(`https://gutendex.com/books/${bookId}`, {}, FETCH_TIMEOUT_API);
@@ -1718,32 +2036,8 @@ async function downloadAndSaveGutenberg(bookId, silent){
 window.downloadAndSaveGutenberg = downloadAndSaveGutenberg;
 
 /* ============================================================
-   青空文庫
+   ダウンロード：青空文庫
    ============================================================ */
-async function execSearchAozora(q_v){
-    const t = document.getElementById("results-table");
-    const tb = document.getElementById("results-tbody");
-    if(!aozora_catalog_ready) setStatus("search-status", "青空文庫カタログを読み込み中...", 'info');
-    try{
-        const results = await searchAozora(q_v);
-        if(!results.length){ setStatus("search-status", "見つかりませんでした", 'error'); showToast('検索結果0件', 'warn'); return; }
-        setStatus("search-status", `見つかりました (${results.length}件)`, 'success');
-        t.style.display = "table";
-        results.forEach((item)=>{
-            const tr = document.createElement("tr");
-            const td1 = document.createElement("td"); td1.textContent = item.workId;
-            const td2 = document.createElement("td"); td2.textContent = item.title;
-            const td3 = document.createElement("td"); td3.textContent = item.personName;
-            const td4 = document.createElement("td");
-            const btn = document.createElement("button");
-            btn.textContent = "保存・読む";
-            btn.addEventListener("click", ()=>{ downloadAndSaveAozora(item.workId, item.personId, item.title, item.personName, item.zipName || ''); });
-            td4.appendChild(btn);
-            tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4);
-            tb.appendChild(tr);
-        });
-    }catch(err){ setStatus("search-status", `検索エラー: ${err.message}`, 'error'); showToast('検索エラー: ' + err.message, 'error'); }
-}
 async function resolveAozoraZipName(workId, personId, initialZipName){
     if(initialZipName) return { zipName: initialZipName, via: 'catalog' };
     const paddedPersonId = String(personId).padStart(6, '0');
@@ -1863,7 +2157,7 @@ async function downloadAndSaveAozora(workId, personId, title, personName, zipNam
 window.downloadAndSaveAozora = downloadAndSaveAozora;
 
 /* ============================================================
-   Internet Archive（PD明示＋著者没年80年以上）
+   Internet Archive
    ============================================================ */
 async function searchInternetArchive(query, rows){
     rows = rows || 50;
@@ -1881,87 +2175,6 @@ async function searchInternetArchive(query, rows){
     const data = await res.json();
     return (data.response && data.response.docs) || [];
 }
-
-/* 修正②: 並列数を5に制限してWikipedia API を叩きすぎない */
-async function execSearchIA(q_v){
-    const t = document.getElementById("results-table");
-    const tb = document.getElementById("results-tbody");
-    const loose = q_v.replace(/[・＝ _]/g," ").replace(/\s+/g," ").trim();
-    let query = loose;
-    if(search_mode_v === "title" && /[^\x00-\x7F]/.test(loose)){
-        setStatus("search-status", `「${loose}」を英語化中...`, 'info');
-        const eng = await translateText(loose, 'ja', 'en');
-        query = eng.replace(/[^\w\s]/g, ' ').replace(/\s+/g,' ').trim() || loose;
-    }
-    setStatus("search-status", `Internet Archive（PD限定）を検索中...（${query}）`, 'info');
-    try{
-        const docs = await searchInternetArchive(query);
-        if(!docs.length){ setStatus("search-status", "パブリックドメインの資料が見つかりませんでした", 'error'); showToast('検索結果0件（PD限定）', 'warn'); return; }
-        setStatus("search-status", `見つかりました (${docs.length}件 / 没年確認中...)`, 'info');
-        t.style.display = "table";
-
-        const buildIARow = async (item)=>{
-            const tr = document.createElement("tr");
-            const td1 = document.createElement("td"); td1.textContent = item.identifier;
-            const td2 = document.createElement("td"); td2.textContent = item.title || '(無題)';
-            const td3 = document.createElement("td");
-            const cr = item.creator;
-            const creatorStr = Array.isArray(cr) ? cr.join(', ') : (cr || '不明');
-            td3.textContent = creatorStr;
-            const td4 = document.createElement("td");
-            const btn = document.createElement("button");
-            btn.textContent = "保存・読む";
-            btn.disabled = true;
-            const licenseSafe = isIAPublicDomain(item);
-            const deathInfo = await getAuthorDeathYear(creatorStr);
-            const currentYear = new Date().getFullYear();
-            let yearSafe = false, yearNote = '';
-            if(deathInfo.deathYear){
-                const yearsSinceDeath = currentYear - deathInfo.deathYear;
-                yearSafe = yearsSinceDeath >= 80;
-                yearNote = `没年${deathInfo.deathYear}（${yearsSinceDeath}年経過）`;
-            } else { yearSafe = false; yearNote = '没年不明'; }
-            const isSafe = licenseSafe && yearSafe;
-            if(isSafe){
-                btn.disabled = false;
-                btn.addEventListener("click", ()=>downloadAndSaveInternetArchive(item.identifier, item.title, false));
-                const badge = document.createElement("span");
-                badge.style.cssText = "color:#4caf50;font-size:.75rem;margin-left:6px;";
-                badge.textContent = "PD";
-                badge.title = `ライセンス: ${item.licenseurl || 'PD'} / ${yearNote}`;
-                td4.appendChild(btn); td4.appendChild(badge);
-            } else {
-                const badge = document.createElement("span");
-                badge.style.cssText = "color:#d9534f;font-size:.75rem;margin-left:6px;";
-                if(!licenseSafe && !yearSafe){ badge.textContent = "ライセンス・没年NG"; }
-                else if(!licenseSafe){ badge.textContent = "ライセンスNG"; }
-                else { badge.textContent = yearNote; }
-                badge.title = `ライセンス: ${item.licenseurl || '不明'} / ${yearNote}`;
-                td4.appendChild(btn); td4.appendChild(badge);
-            }
-            tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4);
-            return tr;
-        };
-
-        const IA_CONCURRENCY = 5;
-        const rows = new Array(docs.length);
-        let cursor = 0;
-        const worker = async ()=>{
-            while(cursor < docs.length){
-                const i = cursor++;
-                rows[i] = await buildIARow(docs[i]);
-            }
-        };
-        await Promise.all(
-            Array.from({length: Math.min(IA_CONCURRENCY, docs.length)}, worker)
-        );
-        rows.forEach(tr => { if(tr) tb.appendChild(tr); });
-        setStatus("search-status", `見つかりました (${docs.length}件 / PD＆没年確認済み)`, 'success');
-    }catch(err){
-        setStatus("search-status", `検索エラー: ${err.message}`, 'error');
-        showToast('IA検索エラー: ' + err.message, 'error');
-    }
-}
 async function resolveIATextUrl(identifier){
     const res = await fetchWithTimeout(
         CORS_PROXIES.aoi(`${IA_METADATA_ENDPOINT}/${identifier}`), {}, FETCH_TIMEOUT_API
@@ -1975,8 +2188,6 @@ async function resolveIATextUrl(identifier){
     if(plain) return { url: `https://archive.org/download/${identifier}/${plain.name}`, meta };
     throw new Error('テキスト形式のファイルがありません');
 }
-
-/* 修正④: 再取得時にPD再チェックをスキップできるように */
 async function downloadAndSaveInternetArchive(identifier, titleHint, silent, skipPDCheck){
     silent = !!silent;
     const key = 'ia_' + identifier;
@@ -2050,35 +2261,6 @@ async function searchWikisource(query, lang){
     const data = await res.json();
     return (data.query && data.query.search) || [];
 }
-async function execSearchWikisource(q_v){
-    const t = document.getElementById("results-table");
-    const tb = document.getElementById("results-tbody");
-    const lang = detectWikisourceLang(q_v);
-    setStatus("search-status", `Wikisource (${lang}) を検索中...`, 'info');
-    try{
-        const results = await searchWikisource(q_v, lang);
-        if(!results.length){ setStatus("search-status", "見つかりませんでした", 'error'); showToast('検索結果0件', 'warn'); return; }
-        setStatus("search-status", `見つかりました (${results.length}件 / CC BY-SA)`, 'success');
-        t.style.display = "table";
-        results.forEach(item=>{
-            const tr = document.createElement("tr");
-            const td1 = document.createElement("td"); td1.textContent = item.pageid;
-            const td2 = document.createElement("td"); td2.textContent = item.title;
-            const td3 = document.createElement("td"); td3.textContent = (item.snippet || '').replace(/<[^>]+>/g, '');
-            const td4 = document.createElement("td");
-            const btn = document.createElement("button");
-            btn.textContent = "保存・読む";
-            btn.addEventListener("click", ()=>downloadAndSaveWikisource(item.pageid, item.title, lang, false));
-            td4.appendChild(btn);
-            const badge = document.createElement("span");
-            badge.style.cssText = "color:#9c27b0;font-size:.75rem;margin-left:6px;";
-            badge.textContent = "CC BY-SA";
-            td4.appendChild(badge);
-            tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4);
-            tb.appendChild(tr);
-        });
-    }catch(err){ setStatus("search-status", `検索エラー: ${err.message}`, 'error'); showToast('Wikisource検索エラー: ' + err.message, 'error'); }
-}
 async function fetchWikisourceHtml(pageId, lang){
     const api = WIKISOURCE_APIS[lang] || WIKISOURCE_APIS.ja;
     const p = new URLSearchParams({ action: 'parse', pageid: String(pageId), prop: 'text', format: 'json', origin: '*', disabletoc: '1', disableeditsection: '1' });
@@ -2139,7 +2321,7 @@ async function downloadAndSaveWikisource(pageId, title, lang, silent){
 window.downloadAndSaveWikisource = downloadAndSaveWikisource;
 
 /* ============================================================
-   NDL（インターネット公開のみ）
+   NDL
    ============================================================ */
 function detectNDLAccessLevel(record){
     const desc = (record.description || '').toLowerCase();
@@ -2148,8 +2330,6 @@ function detectNDLAccessLevel(record){
     if(desc.includes('館内限定') || desc.includes('図書館送信') || desc.includes('library')) return NDL_ACCESS_LIBRARY;
     return NDL_ACCESS_UNKNOWN;
 }
-
-/* 修正③: CQLエスケープ */
 function escapeCQL(s){
     return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
@@ -2181,45 +2361,6 @@ async function searchNDL(query, startRecord, maximumRecords){
         records.push(record);
     });
     return records.filter(r => r.pid);
-}
-async function execSearchNDL(q_v){
-    const t = document.getElementById("results-table");
-    const tb = document.getElementById("results-tbody");
-    setStatus("search-status", `NDLデジタルコレクションを検索中...（${q_v}）`, 'info');
-    try{
-        const allRecords = await searchNDL(q_v);
-        const records = allRecords.filter(r => r.accessLevel === NDL_ACCESS_PUBLIC);
-        if(!records.length){
-            const excluded = allRecords.length - records.length;
-            if(excluded > 0){
-                setStatus("search-status", `インターネット公開の資料は見つかりませんでした（${excluded}件は個人送信/館内限定のため除外）`, 'warn');
-                showToast(`個人送信・館内限定の資料 ${excluded}件 を除外しました`, 'warn');
-            } else {
-                setStatus("search-status", "見つかりませんでした", 'error');
-                showToast('検索結果0件', 'warn');
-            }
-            return;
-        }
-        setStatus("search-status", `見つかりました (${records.length}件 / インターネット公開のみ)`, 'success');
-        t.style.display = "table";
-        records.forEach(item=>{
-            const tr = document.createElement("tr");
-            const td1 = document.createElement("td"); td1.textContent = item.pid;
-            const td2 = document.createElement("td"); td2.textContent = item.title;
-            const td3 = document.createElement("td"); td3.textContent = item.creator || '不明';
-            const td4 = document.createElement("td");
-            const btn = document.createElement("button");
-            btn.textContent = "保存・読む";
-            btn.addEventListener("click", ()=>downloadAndSaveNDL(item.pid, item.title, false));
-            td4.appendChild(btn);
-            const badge = document.createElement("span");
-            badge.style.cssText = "color:#4caf50;font-size:.75rem;margin-left:6px;";
-            badge.textContent = "インターネット公開";
-            td4.appendChild(badge);
-            tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4);
-            tb.appendChild(tr);
-        });
-    }catch(err){ setStatus("search-status", `検索エラー: ${err.message}`, 'error'); showToast('NDL検索エラー: ' + err.message, 'error'); }
 }
 async function fetchNDLOcrFullText(pid){
     const url = `${NDL_BOOK_API}/${pid}/text`;
@@ -2370,7 +2511,6 @@ async function redownloadOutdatedBooks(){
                 await downloadAndSaveGutenberg(si.bookId, true);
                 ok++;
             } else if(book.source === 'internetarchive' && si){
-                /* 修正④: 再取得時は PD 再チェックをスキップ */
                 await downloadAndSaveInternetArchive(si.identifier, book.title, true, true);
                 ok++;
             } else if(book.source === 'wikisource' && si){
@@ -2976,6 +3116,7 @@ window.onload = async ()=>{
     applyTheme(appSettings.theme);
     applyFontFamily();
     updateSettingsUI();
+    updateSearchPlaceholder();
     try{ await initDB(); }
     catch(err){ showToast('DB初期化失敗: ' + err.message, 'error', 15000); return; }
     resumePendingTranslations();
