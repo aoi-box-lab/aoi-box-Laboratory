@@ -59,7 +59,7 @@ h1{font-size:clamp(1rem, 0.5vw + 0.9rem, 1.2rem);font-weight:normal;letter-spaci
 .view-panel.active{display:block}
 .search-box{display:flex;gap:10px;max-width:900px;margin:0 auto 20px auto;align-items:center;flex-wrap:wrap}
 
-/* ソース切替：5つ + 折り返し対応 */
+/* ソース切替 */
 .source-toggle{
     display:flex;flex-shrink:0;flex-wrap:wrap;gap:0;
     border-radius:4px;overflow:hidden;
@@ -245,11 +245,14 @@ h1{font-size:clamp(1rem, 0.5vw + 0.9rem, 1.2rem);font-weight:normal;letter-spaci
     .bookshelf-filters{flex-direction:column;align-items:stretch;gap:8px;}
     .bookshelf-filters input[type="text"]{min-width:0}
     .reprocess-all-btn{width:100%}
-    /* ソース切替を横幅いっぱいに */
     .source-toggle{width:100%;justify-content:center}
     .source-toggle button{flex:1 1 auto;min-width:0;padding:8px 6px;font-size:.72rem;text-align:center}
 }
 
+/* ============================================================
+   スマホ縦：ソース切替を3列グリッド（5ボタンをキレイに配置）
+   修正版: 無効値 span 1.5 を撤去し、6列グリッドで均等割り
+   ============================================================ */
 @media (max-width: 480px){
     header{flex-direction:column;align-items:stretch;gap:8px}
     .header-title-wrap{justify-content:center;}
@@ -260,27 +263,33 @@ h1{font-size:clamp(1rem, 0.5vw + 0.9rem, 1.2rem);font-weight:normal;letter-spaci
     .search-box input{width:100%}
     .search-box > button.go{width:100%}
     .source-toggle, .mode-toggle{align-self:center;max-width:100%}
-    /* ソースボタン2段組みレイアウト */
+
+    /* 6列グリッド：1〜3番は2列ぶん、4〜5番は3列ぶん使って2段組み */
     .source-toggle{
         width:100%;
         display:grid;
-        grid-template-columns:repeat(3, 1fr);
+        grid-template-columns:repeat(6, 1fr);
         gap:4px;
         border-radius:0;
         overflow:visible;
     }
     .source-toggle button{
-        border:1px solid var(--border-color);
+        border:1px solid var(--border-color) !important;
         border-radius:4px;
         padding:8px 4px;
         font-size:.7rem;
         min-height:36px;
     }
+    .source-toggle button:nth-child(1),
+    .source-toggle button:nth-child(2),
+    .source-toggle button:nth-child(3){
+        grid-column:span 2;
+    }
     .source-toggle button:nth-child(4),
     .source-toggle button:nth-child(5){
-        grid-column:span 1.5;
+        grid-column:span 3;
     }
-    .source-toggle button:last-child{border-right:1px solid var(--border-color)}
+
     .results-table th, .results-table td{padding:8px;font-size:.82rem;white-space:normal;}
     .reader-toolbar{gap:6px;}
     #page-nav{gap:6px;font-size:.8rem;}
@@ -502,15 +511,6 @@ setupViewportTracking();
 
 /* ============================================================
    定数
-   ============================================================
-   実装ソース:
-     ✅ Gutenberg              パブリックドメイン
-     ✅ 青空文庫                パブリックドメイン
-     ✅ Internet Archive       PD明示 ＆ 著者没年80年以上
-     ✅ Wikisource             CC BY-SA 4.0（出典明記）
-     ✅ NDLデジタルコレクション  インターネット公開のみ
-   除外ソース:
-     ❌ J-TEXTS 日本文学電子図書館（利用規約で禁止）
    ============================================================ */
 const FEATURE_VERSION = '2024-12-20T00:00:00Z';
 
@@ -1057,46 +1057,72 @@ async function getAuthorEnglishNameFromWikipedia(jpName){
     }catch(e){}
     return null;
 }
+
+/* 修正②: 没年取得をキャッシュ＋英語版フォールバック対応 */
+const _deathYearCache = new Map();
+
 async function getAuthorDeathYear(authorName){
-    if(!authorName || /^[0-9\s]+$/.test(authorName)) return { deathYear: null, birthYear: null, name: authorName };
+    if(!authorName || /^[0-9\s]+$/.test(authorName)){
+        return { deathYear: null, birthYear: null, name: authorName };
+    }
     const primary = String(authorName).split(/[,;]/)[0].trim();
     if(!primary) return { deathYear: null, birthYear: null, name: authorName };
+
+    if(_deathYearCache.has(primary)) return _deathYearCache.get(primary);
+
+    let result = await fetchDeathYearFromWiki(primary, 'ja');
+    if(!result || (!result.deathYear && !result.birthYear)){
+        const en = await fetchDeathYearFromWiki(primary, 'en');
+        if(en) result = en;
+    }
+    if(!result) result = { deathYear: null, birthYear: null, name: primary };
+
+    _deathYearCache.set(primary, result);
+    return result;
+}
+
+async function fetchDeathYearFromWiki(name, lang){
     try{
-        const api = `https://ja.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&titles=${encodeURIComponent(primary)}&format=json&origin=*&redirects=1`;
+        const api = `https://${lang}.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&titles=${encodeURIComponent(name)}&format=json&origin=*&redirects=1`;
         const res = await fetchWithTimeout(CORS_PROXIES.aoi(api), {}, FETCH_TIMEOUT_API);
         const data = await res.json();
         const pages = data && data.query && data.query.pages;
-        if(!pages) return { deathYear: null, birthYear: null, name: primary };
+        if(!pages) return null;
         const page = Object.values(pages)[0];
-        if(!page || page.missing !== undefined) return { deathYear: null, birthYear: null, name: primary };
+        if(!page || page.missing !== undefined) return null;
         const content = page.revisions && page.revisions[0] && page.revisions[0].slots && page.revisions[0].slots.main
             ? page.revisions[0].slots.main['*'] : '';
-        if(!content) return { deathYear: null, birthYear: null, name: primary };
+        if(!content) return null;
+
+        let deathYear = null, birthYear = null;
         const deathMatches = [
             ...content.matchAll(/\{\{没年\s*\|\s*(\d{3,4})/g),
             ...content.matchAll(/死去日\s*=\s*.*?(\d{4})年/g),
             ...content.matchAll(/没年月日\s*=\s*.*?(\d{4})年/g),
             ...content.matchAll(/死亡日\s*=\s*.*?(\d{4})年/g),
-            ...content.matchAll(/(\d{4})年没/g)
+            ...content.matchAll(/(\d{4})年没/g),
+            ...content.matchAll(/death_date\s*=\s*[^\n]*?(\d{4})/gi),
+            ...content.matchAll(/\|\s*death_date\s*=[^\n]*?(\d{4})/gi)
         ];
-        let deathYear = null;
         for(const m of deathMatches){
             const y = parseInt(m[1], 10);
             if(y >= 1000 && y <= new Date().getFullYear()){ deathYear = y; break; }
         }
-        let birthYear = null;
         const birthMatches = [
             ...content.matchAll(/\{\{生年\s*\|\s*(\d{3,4})/g),
             ...content.matchAll(/生年月日\s*=\s*.*?(\d{4})年/g),
-            ...content.matchAll(/誕生日\s*=\s*.*?(\d{4})年/g)
+            ...content.matchAll(/誕生日\s*=\s*.*?(\d{4})年/g),
+            ...content.matchAll(/birth_date\s*=\s*[^\n]*?(\d{4})/gi)
         ];
         for(const m of birthMatches){
             const y = parseInt(m[1], 10);
             if(y >= 1000 && y <= new Date().getFullYear()){ birthYear = y; break; }
         }
-        return { deathYear, birthYear, name: primary };
-    }catch(e){ console.warn('[Wikipedia] 没年取得失敗:', primary, e.message); return { deathYear: null, birthYear: null, name: primary }; }
+        if(deathYear || birthYear) return { deathYear, birthYear, name };
+        return null;
+    }catch(e){ return null; }
 }
+
 async function translateText(text, source, target){
     if(!text || !text.trim()) return text;
     for(const inst of shuffled(LINGVA_INSTANCES)){
@@ -1855,6 +1881,8 @@ async function searchInternetArchive(query, rows){
     const data = await res.json();
     return (data.response && data.response.docs) || [];
 }
+
+/* 修正②: 並列数を5に制限してWikipedia API を叩きすぎない */
 async function execSearchIA(q_v){
     const t = document.getElementById("results-table");
     const tb = document.getElementById("results-tbody");
@@ -1871,7 +1899,8 @@ async function execSearchIA(q_v){
         if(!docs.length){ setStatus("search-status", "パブリックドメインの資料が見つかりませんでした", 'error'); showToast('検索結果0件（PD限定）', 'warn'); return; }
         setStatus("search-status", `見つかりました (${docs.length}件 / 没年確認中...)`, 'info');
         t.style.display = "table";
-        const rowPromises = docs.map(async (item)=>{
+
+        const buildIARow = async (item)=>{
             const tr = document.createElement("tr");
             const td1 = document.createElement("td"); td1.textContent = item.identifier;
             const td2 = document.createElement("td"); td2.textContent = item.title || '(無題)';
@@ -1902,7 +1931,6 @@ async function execSearchIA(q_v){
                 badge.title = `ライセンス: ${item.licenseurl || 'PD'} / ${yearNote}`;
                 td4.appendChild(btn); td4.appendChild(badge);
             } else {
-                btn.disabled = true;
                 const badge = document.createElement("span");
                 badge.style.cssText = "color:#d9534f;font-size:.75rem;margin-left:6px;";
                 if(!licenseSafe && !yearSafe){ badge.textContent = "ライセンス・没年NG"; }
@@ -1913,9 +1941,21 @@ async function execSearchIA(q_v){
             }
             tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4);
             return tr;
-        });
-        const rows = await Promise.all(rowPromises);
-        rows.forEach(tr => tb.appendChild(tr));
+        };
+
+        const IA_CONCURRENCY = 5;
+        const rows = new Array(docs.length);
+        let cursor = 0;
+        const worker = async ()=>{
+            while(cursor < docs.length){
+                const i = cursor++;
+                rows[i] = await buildIARow(docs[i]);
+            }
+        };
+        await Promise.all(
+            Array.from({length: Math.min(IA_CONCURRENCY, docs.length)}, worker)
+        );
+        rows.forEach(tr => { if(tr) tb.appendChild(tr); });
         setStatus("search-status", `見つかりました (${docs.length}件 / PD＆没年確認済み)`, 'success');
     }catch(err){
         setStatus("search-status", `検索エラー: ${err.message}`, 'error');
@@ -1935,7 +1975,9 @@ async function resolveIATextUrl(identifier){
     if(plain) return { url: `https://archive.org/download/${identifier}/${plain.name}`, meta };
     throw new Error('テキスト形式のファイルがありません');
 }
-async function downloadAndSaveInternetArchive(identifier, titleHint, silent){
+
+/* 修正④: 再取得時にPD再チェックをスキップできるように */
+async function downloadAndSaveInternetArchive(identifier, titleHint, silent, skipPDCheck){
     silent = !!silent;
     const key = 'ia_' + identifier;
     if(!silent){ setStatus("search-status", `「${titleHint || identifier}」をダウンロード中...`, 'info'); showToast(`ダウンロード開始: ${titleHint || identifier}`, 'info'); }
@@ -1947,7 +1989,8 @@ async function downloadAndSaveInternetArchive(identifier, titleHint, silent){
         const deathInfo = await getAuthorDeathYear(creatorStr);
         const currentYear = new Date().getFullYear();
         const yearSafe = deathInfo.deathYear ? (currentYear - deathInfo.deathYear) >= 80 : false;
-        if(!licenseSafe || !yearSafe){
+
+        if(!skipPDCheck && (!licenseSafe || !yearSafe)){
             const reason = `ライセンス:${licenseSafe ? 'OK' : 'NG'} / 没年:${deathInfo.deathYear || '不明'}`;
             throw new Error(`パブリックドメイン確認不可（${reason}）`);
         }
@@ -2105,10 +2148,16 @@ function detectNDLAccessLevel(record){
     if(desc.includes('館内限定') || desc.includes('図書館送信') || desc.includes('library')) return NDL_ACCESS_LIBRARY;
     return NDL_ACCESS_UNKNOWN;
 }
+
+/* 修正③: CQLエスケープ */
+function escapeCQL(s){
+    return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
 async function searchNDL(query, startRecord, maximumRecords){
     startRecord = startRecord || 1;
     maximumRecords = maximumRecords || 50;
-    const cql = `title="${query}" OR creator="${query}"`;
+    const q = escapeCQL(query);
+    const cql = `title="${q}" OR creator="${q}"`;
     const params = new URLSearchParams({
         operation: 'searchRetrieve', query: cql,
         startRecord: String(startRecord), maximumRecords: String(maximumRecords),
@@ -2321,7 +2370,8 @@ async function redownloadOutdatedBooks(){
                 await downloadAndSaveGutenberg(si.bookId, true);
                 ok++;
             } else if(book.source === 'internetarchive' && si){
-                await downloadAndSaveInternetArchive(si.identifier, book.title, true);
+                /* 修正④: 再取得時は PD 再チェックをスキップ */
+                await downloadAndSaveInternetArchive(si.identifier, book.title, true, true);
                 ok++;
             } else if(book.source === 'wikisource' && si){
                 await downloadAndSaveWikisource(si.pageId, book.title, si.lang, true);
