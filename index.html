@@ -420,7 +420,7 @@ setupViewportTracking();
 /* ============================================================
    定数
    ============================================================ */
-const FEATURE_VERSION = '2024-12-22T00:00:00Z';
+const FEATURE_VERSION = '2024-12-23T00:00:00Z';
 
 const LINGVA_INSTANCES = [
     'https://lingva.ml','https://translate.igna.wtf','https://translate.plausibility.cloud',
@@ -452,6 +452,10 @@ const CATALOG_CACHE_KEY = 'aozora_catalog_v3';
 const AOZORA_TEXT_MIRROR = 'https://raw.githubusercontent.com/aozorahack/aozorabunko_text/master/cards';
 const BOOK_FORMAT_VERSION = 3;
 const SETTINGS_KEY = 'yamabiko_settings_v1';
+
+/* 並列度設定 */
+const IA_DEATH_CONCURRENCY = 100;
+const IA_PAGE_CONCURRENCY = 16;
 
 const IA_SEARCH_ENDPOINT = 'https://archive.org/advancedsearch.php';
 const IA_METADATA_ENDPOINT = 'https://archive.org/metadata';
@@ -505,6 +509,7 @@ let readingDirection = 'ltr';
 let currentSearchResults = [];
 let currentSortField = 'relevance';
 let currentSortAsc = false;
+let currentSearchGen = 0;
 
 let appSettings = { viewMode: 'scroll', bookFlipStyle: 'both', theme: 'light', fontFamily: 'mincho' };
 const FONT_STACKS = {
@@ -843,9 +848,10 @@ async function execDetailSearch(){
 window.execDetailSearch = execDetailSearch;
 
 /* ============================================================
-   統合検索
+   統合検索（ヘッダースピナー＋世代キャンセル対応）
    ============================================================ */
 async function unifiedSearch({query, filters}){
+    const myGen = ++currentSearchGen;
     const t = document.getElementById("results-table");
     const tb = document.getElementById("results-tbody");
     const sortBar = document.getElementById("sort-bar");
@@ -858,42 +864,49 @@ async function unifiedSearch({query, filters}){
     const allSources = ['gutenberg','aozora','internetarchive','ndl','wikisource'];
     const sources = allSources.filter(s => !filters.source || filters.source === s);
 
+    showHeaderSpinner();
     setStatus("search-status", `${sources.length}つの場所を検索中...`, 'info');
 
-    const settled = await Promise.allSettled(
-        sources.map(src => searchSourceUnified(src, {query, filters}))
-    );
+    try{
+        const settled = await Promise.allSettled(
+            sources.map(src => searchSourceUnified(src, {query, filters}))
+        );
 
-    let allResults = [];
-    settled.forEach((r, i) => {
-        if(r.status === 'fulfilled' && Array.isArray(r.value)) allResults = allResults.concat(r.value);
-        else if(r.status === 'rejected') console.warn(`[unified] ${sources[i]} failed:`, r.reason);
-    });
+        if(myGen !== currentSearchGen) return;
 
-    if(filters.year)     allResults = allResults.filter(r => matchYear(r.year, filters.year));
-    if(filters.category) allResults = allResults.filter(r => matchCategory(r.category, filters.category));
+        let allResults = [];
+        settled.forEach((r, i) => {
+            if(r.status === 'fulfilled' && Array.isArray(r.value)) allResults = allResults.concat(r.value);
+            else if(r.status === 'rejected') console.warn(`[unified] ${sources[i]} failed:`, r.reason);
+        });
 
-    const seen = new Set();
-    const dedup = [];
-    for(const r of allResults){ if(!seen.has(r.id)){ seen.add(r.id); dedup.push(r); } }
+        if(filters.year)     allResults = allResults.filter(r => matchYear(r.year, filters.year));
+        if(filters.category) allResults = allResults.filter(r => matchCategory(r.category, filters.category));
 
-    if(!dedup.length){
-        setStatus("search-status", "見つかりませんでした", 'error');
-        return;
+        const seen = new Set();
+        const dedup = [];
+        for(const r of allResults){ if(!seen.has(r.id)){ seen.add(r.id); dedup.push(r); } }
+
+        if(!dedup.length){
+            setStatus("search-status", "見つかりませんでした", 'error');
+            return;
+        }
+
+        const relevanceQuery = (query || filters.title || filters.author || '').trim();
+        currentSearchResults = dedup.map(r => ({ ...r, relevance: computeRelevance(r, relevanceQuery) }));
+
+        currentSortField = 'relevance';
+        currentSortAsc = false;
+        document.getElementById('sort-field').value = 'relevance';
+        updateSortDirectionButton();
+
+        t.style.display = "table";
+        sortBar.style.display = "flex";
+        renderSearchResults();
+        setStatus("search-status", `見つかりました (${currentSearchResults.length}件)`, 'success');
+    } finally {
+        if(myGen === currentSearchGen) hideHeaderSpinner();
     }
-
-    const relevanceQuery = (query || filters.title || filters.author || '').trim();
-    currentSearchResults = dedup.map(r => ({ ...r, relevance: computeRelevance(r, relevanceQuery) }));
-
-    currentSortField = 'relevance';
-    currentSortAsc = false;
-    document.getElementById('sort-field').value = 'relevance';
-    updateSortDirectionButton();
-
-    t.style.display = "table";
-    sortBar.style.display = "flex";
-    renderSearchResults();
-    setStatus("search-status", `見つかりました (${currentSearchResults.length}件)`, 'success');
 }
 
 function applySort(){ currentSortField = document.getElementById('sort-field').value; updateSortDirectionButton(); renderSearchResults(); }
@@ -1068,6 +1081,7 @@ async function searchAozoraUnified(ctx){
     }));
 }
 
+/* IA検索：没年チェックを並列20で実行（著作権チェックは維持） */
 async function searchIAUnified(ctx){
     const titleQ  = (ctx.filters.title || '').trim();
     const authorQ = (ctx.filters.author || '').trim();
@@ -1081,22 +1095,55 @@ async function searchIAUnified(ctx){
     }
     try{
         const docs = await searchInternetArchiveAll(searchQ || '', ctx.filters.year);
-        const out = [];
-        for(const item of docs){
-            const licenseSafe = isIAPublicDomain(item);
-            const cr = item.creator;
-            const creatorStr = Array.isArray(cr) ? cr.join(', ') : (cr || '不明');
-            const dInfo = await getAuthorDeathYear(creatorStr);
-            const cy = new Date().getFullYear();
-            const yearSafe = dInfo.deathYear ? (cy - dInfo.deathYear) >= 80 : false;
-            let safetyNote = '保護期間内';
-            if(!licenseSafe) safetyNote = 'ライセンスNG';
-            else if(!yearSafe) safetyNote = dInfo.deathYear ? `没年${dInfo.deathYear}` : '没年不明';
-            out.push({ source: 'internetarchive', id: 'ia_' + item.identifier, title: item.title || '(無題)',
-                       author: creatorStr, year: parseYear(item.date), category: null,
-                       safe: licenseSafe && yearSafe, safetyNote, raw: item });
-        }
-        return out;
+        if(!docs.length) return [];
+
+        const out = new Array(docs.length);
+        let cursor = 0;
+
+        const worker = async () => {
+            while(true){
+                const i = cursor++;
+                if(i >= docs.length) return;
+                const item = docs[i];
+                try{
+                    const licenseSafe = isIAPublicDomain(item);
+                    const cr = item.creator;
+                    const creatorStr = Array.isArray(cr) ? cr.join(', ') : (cr || '不明');
+                    const dInfo = await getAuthorDeathYear(creatorStr);
+                    const cy = new Date().getFullYear();
+                    const yearSafe = dInfo.deathYear ? (cy - dInfo.deathYear) >= 80 : false;
+                    let safetyNote = '保護期間内';
+                    if(!licenseSafe) safetyNote = 'ライセンスNG';
+                    else if(!yearSafe) safetyNote = dInfo.deathYear ? `没年${dInfo.deathYear}` : '没年不明';
+                    out[i] = {
+                        source: 'internetarchive',
+                        id: 'ia_' + item.identifier,
+                        title: item.title || '(無題)',
+                        author: creatorStr,
+                        year: parseYear(item.date),
+                        category: null,
+                        safe: licenseSafe && yearSafe,
+                        safetyNote,
+                        raw: item
+                    };
+                }catch(e){
+                    out[i] = {
+                        source: 'internetarchive',
+                        id: 'ia_' + item.identifier,
+                        title: item.title || '(無題)',
+                        author: Array.isArray(item.creator) ? item.creator.join(', ') : (item.creator || '不明'),
+                        year: parseYear(item.date),
+                        category: null,
+                        safe: false,
+                        safetyNote: '確認失敗',
+                        raw: item
+                    };
+                }
+            }
+        };
+
+        await Promise.all(Array.from({length: Math.min(IA_DEATH_CONCURRENCY, docs.length)}, worker));
+        return out.filter(Boolean);
     }catch(e){ console.warn('[unified-ia]', e); return []; }
 }
 
@@ -1132,7 +1179,7 @@ async function searchWikisourceUnified(ctx){
 }
 
 /* ============================================================
-   外部API（著者名・没年）
+   外部API（著者名・没年） - ja/en 並列
    ============================================================ */
 async function getAuthorEnglishNameFromWikipedia(jpName){
     if(/^[a-zA-Z0-9\s]+$/.test(jpName)) return null;
@@ -1166,12 +1213,14 @@ async function getAuthorDeathYear(authorName){
     }
     const candidates = buildNameCandidates(cacheKey);
     for(const name of candidates){
-        for(const lang of ['ja','en']){
-            const r = await fetchDeathYearFromWiki(name, lang);
-            if(r && (r.deathYear || r.birthYear)){
-                const out = { deathYear: r.deathYear, birthYear: r.birthYear, name };
-                _deathYearCache.set(cacheKey, out); return out;
-            }
+        const [ja, en] = await Promise.all([
+            fetchDeathYearFromWiki(name, 'ja'),
+            fetchDeathYearFromWiki(name, 'en')
+        ]);
+        const r = ja || en;
+        if(r && (r.deathYear || r.birthYear)){
+            const out = { deathYear: r.deathYear, birthYear: r.birthYear, name };
+            _deathYearCache.set(cacheKey, out); return out;
         }
     }
     const fallback = { deathYear: null, birthYear: null, name: cacheKey };
@@ -1639,13 +1688,13 @@ async function downloadAndSaveAozora(workId, personId, title, personName, zipNam
 window.downloadAndSaveAozora = downloadAndSaveAozora;
 
 /* ============================================================
-   Internet Archive（全件ページング）
+   Internet Archive（ページ並列8で全件取得）
    ============================================================ */
 async function searchInternetArchiveAll(query, yearRange){
-    const all = [];
     const rowsPerPage = 100;
-    const maxPages = 30;
-    for(let page = 1; page <= maxPages; page++){
+    const maxPages = 15;
+
+    const buildUrl = (page) => {
         const p = new URLSearchParams();
         let q = `mediatype:texts AND licenseurl:(*publicdomain*)`;
         if(query && query.trim()) q = `${query} AND ` + q;
@@ -1663,18 +1712,41 @@ async function searchInternetArchiveAll(query, yearRange){
         p.append('page', String(page));
         p.append('output', 'json');
         p.append('sort[]', 'downloads desc');
-        const url = `${IA_SEARCH_ENDPOINT}?${p.toString()}`;
+        return `${IA_SEARCH_ENDPOINT}?${p.toString()}`;
+    };
+
+    const fetchPage = async (page) => {
         try{
-            const res = await fetchWithTimeout(CORS_PROXIES.aoi(url), {}, FETCH_TIMEOUT_API);
-            if(!res.ok) break;
-            const data = await res.json();
-            const docs = (data.response && data.response.docs) || [];
-            if(!docs.length) break;
-            all.push(...docs);
-            if(docs.length < rowsPerPage) break;
-        }catch(e){ break; }
+            const res = await fetchWithTimeout(CORS_PROXIES.aoi(buildUrl(page)), {}, FETCH_TIMEOUT_API);
+            if(!res.ok) return null;
+            return await res.json();
+        }catch(e){ return null; }
+    };
+
+    const first = await fetchPage(1);
+    if(!first) return [];
+    const docs = (first.response && first.response.docs) || [];
+    const numFound = (first.response && first.response.numFound) || docs.length;
+    const totalPages = Math.min(maxPages, Math.ceil(numFound / rowsPerPage));
+    if(totalPages <= 1) return docs;
+
+    const pageResults = new Array(totalPages - 1);
+    let pageCursor = 2;
+
+    const pageWorker = async () => {
+        while(true){
+            const p = pageCursor++;
+            if(p > totalPages) return;
+            pageResults[p - 2] = await fetchPage(p);
+        }
+    };
+    await Promise.all(Array.from({length: Math.min(IA_PAGE_CONCURRENCY, totalPages - 1)}, pageWorker));
+
+    const rest = [];
+    for(const r of pageResults){
+        if(r && r.response && r.response.docs) rest.push(...r.response.docs);
     }
-    return all;
+    return docs.concat(rest);
 }
 async function resolveIATextUrl(identifier){
     const res = await fetchWithTimeout(CORS_PROXIES.aoi(`${IA_METADATA_ENDPOINT}/${identifier}`), {}, FETCH_TIMEOUT_API);
