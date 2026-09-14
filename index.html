@@ -317,7 +317,6 @@ h1 {
     cursor: pointer;
 }
 
-/* PC のみ：列幅を固定して長いタイトルで暴走しないようにする */
 @media (min-width: 769px) {
     .results-table {
         table-layout: fixed;
@@ -329,7 +328,6 @@ h1 {
         vertical-align: top;
     }
 
-    /* 検索結果：場所 / タイトル / 著者 / 操作 */
     #results-table th:nth-child(1),
     #results-table td:nth-child(1) { width: 12%; }
     #results-table th:nth-child(2),
@@ -339,7 +337,6 @@ h1 {
     #results-table th:nth-child(4),
     #results-table td:nth-child(4) { width: 12%; }
 
-    /* 本棚：ID / タイトル / 著者 / 状態 / 操作 */
     #bookshelf-table th:nth-child(1),
     #bookshelf-table td:nth-child(1) { width: 22%; }
     #bookshelf-table th:nth-child(2),
@@ -1568,6 +1565,15 @@ h1 {
             </select>
         </div>
         <div class="settings-group">
+            <label>翻訳エンジン</label>
+            <div class="settings-info">
+                ・著者名検索: Wikipedia 言語間リンク<br>
+                ・作品名検索: Wikidata SPARQL<br>
+                ・本文翻訳: Transformers.js（ブラウザ内、初回のみモデルDL）<br>
+                <span id="local-engine-status">ローカルエンジン: 未準備</span>
+            </div>
+        </div>
+        <div class="settings-group">
             <label>データソースについて</label>
             <div class="settings-info">
                 ・Gutenberg / 青空文庫: パブリックドメイン<br>
@@ -1632,22 +1638,7 @@ setupViewportTracking();
 /* ============================================================
    定数
    ============================================================ */
-const FEATURE_VERSION = '2025-01-20T00:00:00Z';
-
-const LINGVA_INSTANCES = [
-    'https://lingva.ml',
-    'https://translate.igna.wtf',
-    'https://translate.plausibility.cloud',
-    'https://lingva.lunar.icu',
-    'https://translate.projectsegfau.lt',
-    'https://translate.garudalinux.org',
-    'https://translate.dr460nf1r3.org',
-    'https://translate.jae.fi'
-];
-
-const LIBRETRANSLATE_INSTANCES = [
-    'https://translate.cutie.dating'
-];
+const FEATURE_VERSION = '2026-09-14T00:00:00Z';
 
 const CORS_PROXIES = {
     codetabs:   (u) => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
@@ -1677,14 +1668,13 @@ const LANGUAGE_NAMES = {
     ru: 'ロシア語'
 };
 
-const INITIAL_PARALLELISM = 32;
+const INITIAL_PARALLELISM = 4;
 const WORKER_DELAY_MS = 10;
-const MAX_RETRY_PER_PARAGRAPH = 20;
-const FAILS_TO_DROP_CONCURRENCY = 20;
-const MIN_PARALLELISM = 8;
+const MAX_RETRY_PER_PARAGRAPH = 5;
+const FAILS_TO_DROP_CONCURRENCY = 10;
+const MIN_PARALLELISM = 2;
 const CHUNK_MAX_LEN = 1500;
 const BOOKMARK_SAVE_DEBOUNCE_MS = 500;
-const FETCH_TIMEOUT_TRANSLATE = 4000;
 const FETCH_TIMEOUT_API = 8000;
 const FETCH_TIMEOUT_BOOK = 90000;
 const CATALOG_CACHE_KEY = 'aozora_catalog_v3';
@@ -1693,6 +1683,14 @@ const BOOK_FORMAT_VERSION = 3;
 const SETTINGS_KEY = 'yamabiko_settings_v1';
 const AUTHOR_YEAR_CACHE_PREFIX = 'author_year_v1:';
 const AUTHOR_YEAR_BATCH_SIZE = 50;
+
+/* ★ローカル翻訳エンジン */
+const LOCAL_MODEL_JA_EN = 'Xenova/opus-mt-ja-en';
+const LOCAL_MODEL_EN_JA = 'Xenova/opus-mt-en-jap';
+const LOCAL_ENGINE_INIT_DELAY_MS = 1500;
+const LOCAL_ENGINE_MAX_WAIT_MS = 30000;
+
+const WIKISOURCE_USER_AGENT = 'Yamabiko/1.0 (personal reading app)';
 
 const IA_SEARCH_ENDPOINT = 'https://archive.org/advancedsearch.php';
 const IA_METADATA_ENDPOINT = 'https://archive.org/metadata';
@@ -1761,7 +1759,6 @@ const WIKISOURCE_LANG_NAMES = {
     fa: 'ペルシャ語版'
 };
 
-const WIKISOURCE_USER_AGENT = 'Yamabiko/1.0 (personal reading app)';
 const WIKISOURCE_LICENSE = 'CC BY-SA 4.0';
 
 /* Standard Ebooks */
@@ -1841,6 +1838,16 @@ const FONT_STACKS = {
     kyokasho: "'Yu Kyokasho','UD デジタル 教科書体 NK-R','Hiragino Kyokasho',serif",
     ud:       "'BIZ UDPMincho','BIZ UDGothic','UD デジタル 教科書体 NP-R',sans-serif"
 };
+
+/* ★ローカル翻訳エンジン */
+let localTranslatorJaEn = null;
+let localTranslatorEnJa = null;
+let localEngineReady = false;
+let localEngineLoading = false;
+
+/* ★クエリ翻訳キャッシュ */
+const _authorNameCache = new Map();
+const _workTitleCache = new Map();
 
 /* ============================================================
    設定の読み書き
@@ -1958,7 +1965,6 @@ async function fetchWithTimeout(url, options, timeoutMs) {
     }
 }
 
-/* 礼儀正しい fetch：ホストごとに直列化＋最小間隔。IA/OpenLibraryは特に厳しめ */
 const _hostQueues = {};
 const _lastRequestTime = {};
 
@@ -1991,88 +1997,189 @@ async function politeFetch(url, options, timeoutMs) {
     }
 }
 
-function shuffled(arr) {
-    const a = arr.slice();
-    for (let i = a.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-}
+/* ============================================================
+   ★Transformers.js ローカル翻訳エンジン
+   ============================================================ */
+async function initLocalTranslator(){
+    if(localEngineReady || localEngineLoading) return;
+    localEngineLoading = true;
+    updateLocalEngineStatus('モデルDL中...');
 
-function decodeJapaneseText(buf) {
-    if (buf.byteLength >= 3) {
-        const b0 = buf[0], b1 = buf[1], b2 = buf[2];
-        if (b0 === 0xEF && b1 === 0xBB && b2 === 0xBF) {
-            return new TextDecoder('utf-8').decode(buf);
+    try{
+        const mod = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers');
+        const { pipeline } = mod;
+
+        localTranslatorJaEn = await pipeline('translation', LOCAL_MODEL_JA_EN, {
+            dtype: 'q4',
+            device: 'wasm'
+        });
+        updateLocalEngineStatus('日→英 準備完了');
+
+        try{
+            localTranslatorEnJa = await pipeline('translation', LOCAL_MODEL_EN_JA, {
+                dtype: 'q4',
+                device: 'wasm'
+            });
+            updateLocalEngineStatus('日↔英 準備完了');
+        }catch(e){
+            console.warn('[local-translator] en-ja 失敗:', e);
         }
+
+        localEngineReady = true;
+        showToast('ローカル翻訳エンジン準備完了', 'success', 6000);
+    }catch(e){
+        console.warn('[local-translator] 初期化失敗:', e);
+        updateLocalEngineStatus('初期化失敗');
+    }finally{
+        localEngineLoading = false;
     }
-    let sjis = '', utf8 = '';
-    try { sjis = new TextDecoder('shift_jis').decode(buf); } catch (e) {}
-    try { utf8 = new TextDecoder('utf-8').decode(buf); } catch (e) {}
-    const sjisBad = (sjis.match(/\uFFFD/g) || []).length;
-    const utf8Bad = (utf8.match(/\uFFFD/g) || []).length;
-    if (utf8Bad === 0 && sjisBad > 0) return utf8;
-    if (sjisBad === 0 && utf8Bad > 0) return sjis;
-    return sjisBad <= utf8Bad ? sjis : utf8;
 }
 
-function showHeaderSpinner() {
-    const el = document.getElementById('header-spinner');
-    if (el) el.classList.add('active');
-}
-
-function hideHeaderSpinner() {
-    const el = document.getElementById('header-spinner');
-    if (el) el.classList.remove('active');
-}
-
-function showErrorBanner(msg, detail) {
-    const banner = document.getElementById('error-banner');
-    if (!banner) return;
-    banner.querySelector('.eb-msg').textContent = msg;
-    banner.querySelector('.eb-detail').textContent = detail || '';
-    banner.classList.add('active');
-    setTimeout(() => banner.classList.remove('active'), 15000);
-}
-
-function showToast(msg, type, duration) {
-    type = type || 'info';
-    duration = duration || (type === 'error' ? 12000 : 6000);
-    const c = document.getElementById('toast-container');
-    if (!c) return;
-    const el = document.createElement('div');
-    el.className = 'toast ' + type;
-    el.textContent = msg;
-    c.appendChild(el);
-    setTimeout(() => {
-        el.style.transition = 'opacity .3s, transform .3s';
-        el.style.opacity = '0';
-        el.style.transform = 'translateX(100%)';
-        setTimeout(() => el.remove(), 320);
-    }, duration);
-}
-
-function setStatus(elId, msg, type) {
-    const el = document.getElementById(elId);
-    if (!el) return;
-    el.textContent = msg;
-    el.classList.remove('error', 'success', 'info');
-    if (type) el.classList.add(type);
-}
-
-function escapeHtml(str) {
-    if (str == null) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+function updateLocalEngineStatus(msg){
+    const el = document.getElementById('local-engine-status');
+    if(el) el.textContent = 'ローカルエンジン: ' + msg;
 }
 
 /* ============================================================
-   検索用の緩いマッチング
+   ★Wikipedia langlinks（著者名英語化）
+   ============================================================ */
+async function getAuthorEnglishNameFromWikipedia(jpName){
+    if(!jpName || /^[a-zA-Z0-9\s]+$/.test(jpName)) return null;
+    if(_authorNameCache.has(jpName)) return _authorNameCache.get(jpName);
+
+    try{
+        const api = `https://ja.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(jpName)}&gsrlimit=5&prop=langlinks&lllang=en&format=json&origin=*&indexpageids=1`;
+        const res = await politeFetch(api, {
+            headers: { 'User-Agent': WIKISOURCE_USER_AGENT }
+        }, FETCH_TIMEOUT_API);
+        if(!res.ok) return null;
+
+        const data = await res.json();
+        const q = data && data.query;
+        if(!q || !q.pages) return null;
+
+        const ids = (q.pageids && q.pageids.length) ? q.pageids : Object.keys(q.pages);
+        for(const id of ids){
+            const p = q.pages[id];
+            if(!p) continue;
+            if(p.title && /曖昧さ回避|一覧|の作品|作品一覧/.test(p.title)) continue;
+            const ll = p.langlinks;
+            if(ll && ll[0] && ll[0]['*']){
+                _authorNameCache.set(jpName, ll[0]['*']);
+                return ll[0]['*'];
+            }
+        }
+    }catch(e){
+        console.warn('[wiki-langlinks]', e);
+    }
+    return null;
+}
+
+/* ============================================================
+   ★Wikidata SPARQL（作品名英語化）
+   ============================================================ */
+async function getWorkEnglishTitle(jpTitle){
+    if(!jpTitle || /^[a-zA-Z0-9\s]+$/.test(jpTitle)) return null;
+    if(_workTitleCache.has(jpTitle)) return _workTitleCache.get(jpTitle);
+
+    const escaped = jpTitle.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const sparql = `
+        SELECT ?enLabel WHERE {
+            ?item rdfs:label "${escaped}"@ja .
+            ?item wdt:P31/wdt:P279* wd:Q7725634 .
+            ?item wikibase:sitelinks ?sitelinks .
+            FILTER NOT EXISTS {
+                ?item schema:description ?desc .
+                FILTER(lang(?desc) = "ja" && CONTAINS(?desc, "曖昧さ回避"))
+            }
+            SERVICE wikibase:label {
+                bd:serviceParam wikibase:language "en" .
+            }
+        }
+        ORDER BY DESC(?sitelinks)
+        LIMIT 1
+    `;
+
+    try{
+        const url = `https://query.wikidata.org/sparql?query=${encodeURIComponent(sparql)}&format=json`;
+        const res = await politeFetch(url, {
+            headers: {
+                'Accept': 'application/sparql-results+json',
+                'User-Agent': WIKISOURCE_USER_AGENT
+            }
+        }, FETCH_TIMEOUT_API);
+        if(!res.ok) return null;
+
+        const data = await res.json();
+        const bindings = data.results && data.results.bindings;
+        if(bindings && bindings.length > 0){
+            const en = bindings[0].enLabel && bindings[0].enLabel.value;
+            if(en){
+                _workTitleCache.set(jpTitle, en);
+                return en;
+            }
+        }
+    }catch(e){
+        console.warn('[wikidata-sparql]', e);
+    }
+    return null;
+}
+
+/* ============================================================
+   ★検索クエリ統合翻訳
+   ============================================================ */
+async function translateQueryForSearch(query, filters){
+    if(!query || !query.trim()) return query;
+    if(/^[a-zA-Z0-9\s]+$/.test(query)) return query;
+
+    const isAuthorSearch = filters && filters.author && !filters.title;
+
+    if(isAuthorSearch){
+        const wiki = await getAuthorEnglishNameFromWikipedia(query);
+        if(wiki) return wiki;
+    } else {
+        const wiki = await getWorkEnglishTitle(query);
+        if(wiki) return wiki;
+        const asAuthor = await getAuthorEnglishNameFromWikipedia(query);
+        if(asAuthor) return asAuthor;
+    }
+    return query;
+}
+
+/* ============================================================
+   ★本文翻訳：Transformers.js ローカルエンジン
+   ============================================================ */
+async function translateChunk(text, source, target){
+    if(!text || !text.trim()) return { ok: true, text };
+
+    if(localEngineReady){
+        try{
+            if(source === 'ja' && target === 'en' && localTranslatorJaEn){
+                const out = await localTranslatorJaEn(text, { max_new_tokens: 512 });
+                if(out && out[0] && out[0].translation_text){
+                    return { ok: true, text: out[0].translation_text, endpoint: 'local' };
+                }
+            }
+            if(source === 'en' && target === 'ja' && localTranslatorEnJa){
+                const out = await localTranslatorEnJa(text, { max_new_tokens: 512 });
+                if(out && out[0] && out[0].translation_text){
+                    return { ok: true, text: out[0].translation_text, endpoint: 'local' };
+                }
+            }
+        }catch(e){
+            console.warn('[local-translate]', e);
+        }
+    }
+
+    return { ok: false, error: 'ローカル翻訳エンジン未準備' };
+}
+
+async function translateText(text, source, target){
+    return text;
+}
+
+/* ============================================================
+   検索用マッチング
    ============================================================ */
 function normalizeForSearch(s) {
     if (s == null) return '';
@@ -2520,7 +2627,6 @@ async function execSearch() {
 }
 window.execSearch = execSearch;
 
-/* 詳細検索：条件1つでもOK。全部空白ならID順昇順で全件表示 */
 async function execDetailSearch() {
     const filters = {
         source:   document.getElementById('detail-source').value,
@@ -2543,7 +2649,7 @@ async function execDetailSearch() {
 window.execDetailSearch = execDetailSearch;
 
 /* ============================================================
-   統合検索（到着順に逐次反映）
+   統合検索
    ============================================================ */
 async function unifiedSearch({ query, filters, defaultSort }) {
     const myGen = ++currentSearchGen;
@@ -2849,7 +2955,7 @@ async function getAuthorYearFromCache(name) {
 
 async function saveAuthorYearToCache(name, info) {
     if (!info) return;
-    if (!info.birthYear && !info.deathYear) return; // 失敗は保存しない
+    if (!info.birthYear && !info.deathYear) return;
     try {
         await saveCacheToDB(AUTHOR_YEAR_CACHE_PREFIX + name, {
             birthYear: info.birthYear || null,
@@ -2910,7 +3016,6 @@ async function resolveYearsBatch50(names) {
     const qidByName = {};
     const qidSet = new Set();
 
-    // 日本語版 Wikipedia で一括タイトル検索
     try {
         const wUrl = `https://ja.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(titlesParam)}&prop=pageprops&format=json&origin=*&redirects=1`;
         const wRes = await politeFetch(wUrl, {}, FETCH_TIMEOUT_API);
@@ -2937,7 +3042,6 @@ async function resolveYearsBatch50(names) {
         console.warn('[wikidata-batch] ja-wp failed:', e);
     }
 
-    // 見つからない分は英語版でも試す
     const missing = names.filter(n => !qidByName[n]);
     if (missing.length) {
         try {
@@ -2966,7 +3070,6 @@ async function resolveYearsBatch50(names) {
         } catch (e) {}
     }
 
-    // Wikidata で生没年を取得
     const qidYears = {};
     const qids = [...qidSet];
     if (qids.length) {
@@ -3073,11 +3176,9 @@ async function getAuthorDeathYear(authorName) {
             return out;
         }
     }
-    // 失敗はメモリに残さない（次回リトライ可能に）
     return { deathYear: null, birthYear: null, name: cacheKey };
 }
 
-/* 著者1名のPD判定 */
 function judgePD(info) {
     const cy = new Date().getFullYear();
     const yearExpired =
@@ -3100,20 +3201,6 @@ function judgePD(info) {
         safe: false,
         note: info.birthYear ? `没年不明（生年${info.birthYear}）` : '没年不明'
     };
-}
-
-async function translateText(text, source, target) {
-    if (!text || !text.trim()) return text;
-    for (const inst of shuffled(LINGVA_INSTANCES)) {
-        try {
-            const url = `${inst}/api/v1/${source}/${target}/${encodeURIComponent(text)}`;
-            const res = await fetchWithTimeout(url, { cache: 'no-store' }, FETCH_TIMEOUT_TRANSLATE);
-            if (!res.ok) continue;
-            const data = await res.json();
-            if (data && data.translation) return data.translation;
-        } catch (e) {}
-    }
-    return text;
 }
 
 /* ============================================================
@@ -3243,11 +3330,7 @@ async function searchGutenbergUnified(ctx) {
     const query = (ctx.query || ctx.filters.title || ctx.filters.author || '').trim();
     if (!query) return [];
 
-    let eng = query;
-    if (/[^\x00-\x7F]/.test(query)) {
-        const t = await translateText(query, 'ja', 'en');
-        if (t) eng = t;
-    }
+    const eng = await translateQueryForSearch(query, ctx.filters);
     const clean = eng.replace(/[^\w\s]/gi, ' ').replace(/\s+/g, ' ').trim();
     if (!clean) return [];
 
@@ -3288,7 +3371,7 @@ async function searchGutenbergUnified(ctx) {
 }
 
 /* ============================================================
-   各ソース：青空文庫（条件なしでも全件返す）
+   各ソース：青空文庫
    ============================================================ */
 async function searchAozoraUnified(ctx) {
     const titleQ = (ctx.filters.title || '').trim();
@@ -3428,7 +3511,7 @@ async function searchIAUnified(ctx) {
 
     let searchQ = q;
     if (q && /[^\x00-\x7F]/.test(q)) {
-        const eng = await translateText(q, 'ja', 'en');
+        const eng = await translateQueryForSearch(q, ctx.filters);
         searchQ = (eng || q).replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
     }
 
@@ -3492,7 +3575,7 @@ async function searchIAUnified(ctx) {
 }
 
 /* ============================================================
-   Open Library：著者＋訳者を両方チェック
+   Open Library
    ============================================================ */
 async function searchOpenLibraryUnified(ctx) {
     const titleQ = (ctx.filters.title || '').trim();
@@ -3502,7 +3585,7 @@ async function searchOpenLibraryUnified(ctx) {
     if (!q) return [];
 
     if (/[^\x00-\x7F]/.test(q)) {
-        const eng = await translateText(q, 'ja', 'en');
+        const eng = await translateQueryForSearch(q, ctx.filters);
         if (eng && eng !== q) q = eng;
     }
 
@@ -3589,7 +3672,7 @@ async function searchPoetryDBUnified(ctx) {
     if (!q) return [];
 
     if (/[^\x00-\x7F]/.test(q)) {
-        const eng = await translateText(q, 'ja', 'en');
+        const eng = await translateQueryForSearch(q, ctx.filters);
         if (eng && eng !== q) q = eng;
     }
 
@@ -3718,7 +3801,7 @@ async function downloadAndSavePoetryDB(poem, silent) {
 window.downloadAndSavePoetryDB = downloadAndSavePoetryDB;
 
 /* ============================================================
-   Faded Page（カナダ）※著者名指定時のみ
+   Faded Page
    ============================================================ */
 async function searchFadedPageUnified(ctx) {
     const authorQ = (ctx.filters.author || '').trim() || (ctx.query || '').trim();
@@ -3858,7 +3941,7 @@ async function searchDoajUnified(ctx) {
     if (!q) return [];
     let searchQ = q;
     if (/[^\x00-\x7F]/.test(q)) {
-        const eng = await translateText(q, 'ja', 'en');
+        const eng = await translateQueryForSearch(q, ctx.filters);
         if (eng && eng !== q) searchQ = eng;
     }
     try {
@@ -3916,7 +3999,7 @@ async function searchZenodoUnified(ctx) {
     if (!q) return [];
     let searchQ = q;
     if (/[^\x00-\x7F]/.test(q)) {
-        const eng = await translateText(q, 'ja', 'en');
+        const eng = await translateQueryForSearch(q, ctx.filters);
         if (eng && eng !== q) searchQ = eng;
     }
     try {
@@ -3975,7 +4058,7 @@ async function searchCoreUnified(ctx) {
     if (!q) return [];
     let searchQ = q;
     if (/[^\x00-\x7F]/.test(q)) {
-        const eng = await translateText(q, 'ja', 'en');
+        const eng = await translateQueryForSearch(q, ctx.filters);
         if (eng && eng !== q) searchQ = eng;
     }
     try {
@@ -4033,7 +4116,7 @@ async function searchArxivUnified(ctx) {
     if (!q) return [];
     let searchQ = q;
     if (/[^\x00-\x7F]/.test(q)) {
-        const eng = await translateText(q, 'ja', 'en');
+        const eng = await translateQueryForSearch(q, ctx.filters);
         if (eng && eng !== q) searchQ = eng;
     }
     try {
@@ -4406,7 +4489,7 @@ async function downloadAndSaveStandardEbooks(key, epubUrl, titleHint, authorHint
 window.downloadAndSaveStandardEbooks = downloadAndSaveStandardEbooks;
 
 /* ============================================================
-   Project Runeberg（没年チェック付き）
+   Project Runeberg
    ============================================================ */
 async function searchRunebergUnified(ctx) {
     const titleQ = (ctx.filters.title || '').trim();
@@ -5198,36 +5281,6 @@ function splitTextRoughly(text, maxLen) {
     return chunks;
 }
 
-async function translateChunk(text, source, target) {
-    if (!text || !text.trim()) return { ok: true, text };
-    for (const inst of shuffled(LINGVA_INSTANCES)) {
-        try {
-            const url = `${inst}/api/v1/${source}/${target}/${encodeURIComponent(text)}`;
-            const res = await fetchWithTimeout(url, { cache: 'no-store' }, FETCH_TIMEOUT_TRANSLATE);
-            if (!res.ok) continue;
-            const data = await res.json();
-            if (data && data.translation) {
-                return { ok: true, text: data.translation, endpoint: 'Lingva' };
-            }
-        } catch (e) {}
-    }
-    for (const inst of shuffled(LIBRETRANSLATE_INSTANCES)) {
-        try {
-            const res = await fetchWithTimeout(`${inst}/translate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ q: text, source, target })
-            }, FETCH_TIMEOUT_TRANSLATE);
-            if (!res.ok) continue;
-            const data = await res.json();
-            if (data && data.translatedText) {
-                return { ok: true, text: data.translatedText, endpoint: 'LibreTranslate' };
-            }
-        } catch (e) {}
-    }
-    return { ok: false, error: '全翻訳APIが失敗しました' };
-}
-
 async function translateParagraph(text, source, target) {
     if (!text || !text.trim()) return { ok: true, text };
     if (text.length <= CHUNK_MAX_LEN) return await translateChunk(text, source, target);
@@ -5342,6 +5395,26 @@ async function startBackgroundTranslation(bookId) {
 
         const srcLang = book.sourceLang || 'en';
         const tgtLang = book.targetLang || 'ja';
+
+        if (!localEngineReady && !localEngineLoading) {
+            initLocalTranslator().catch(() => {});
+        }
+
+        let waitMs = 0;
+        while (!localEngineReady && waitMs < LOCAL_ENGINE_MAX_WAIT_MS && translation_generation[bookId] === myGen) {
+            await sleep(500);
+            waitMs += 500;
+        }
+
+        if (!localEngineReady) {
+            book.translationStatus = 'error';
+            book.lastError = 'ローカル翻訳エンジンが準備できませんでした';
+            await saveBookToDB(book);
+            onTranslationTick(book);
+            showToast(`「${bookTitleForToast}」の翻訳を開始できません（ローカルエンジン未準備）`, 'warn', 10000);
+            return;
+        }
+
         book.translationStatus = 'translating';
         book.translationTotal = total;
         book.translationDone = already;
@@ -5350,7 +5423,6 @@ async function startBackgroundTranslation(bookId) {
         const queue = buildBidirectionalQueue(total).filter(i => book.translatedTexts[i] == null);
         let qi = 0;
         let lastSave = 0;
-        let fails = 0;
         let para = INITIAL_PARALLELISM;
 
         const worker = async (worker_id) => {
@@ -5379,24 +5451,12 @@ async function startBackgroundTranslation(bookId) {
                         break;
                     }
                     lastErr = r.error || 'unknown';
-                    await sleep(Math.min(50 * (attempt + 1), 250));
+                    await sleep(100);
                 }
 
-                if (ok) {
-                    fails = 0;
-                } else {
-                    fails++;
+                if (!ok) {
                     book.lastError = `段落${idx}: ${lastErr}`;
-                    if (fails >= FAILS_TO_DROP_CONCURRENCY) {
-                        if (para > MIN_PARALLELISM) {
-                            para = para === 32 ? 16 : MIN_PARALLELISM;
-                            fails = 0;
-                        } else {
-                            fails = 0;
-                        }
-                    }
                 }
-
                 await sleep(WORKER_DELAY_MS);
             }
         };
@@ -6240,7 +6300,7 @@ function computePageLayout(keep) {
 
     const measured = Math.max(flow.scrollWidth, flow.offsetWidth, contentW);
     const step = contentW + gata_gap_haba;
-    zenbu_page_su = Math.max(1, Math.round((measured + gata_gap_haba) / step));
+    zenbu_page_su = Math.max(1, Math.ceil((measured + gata_gap_haba) / step));
     const totalW = zenbu_page_su * contentW + (zenbu_page_su - 1) * gata_gap_haba;
     flow.style.columnWidth = `${contentW}px`;
     flow.style.columnCount = String(zenbu_page_su);
@@ -6441,6 +6501,10 @@ window.onload = async () => {
     }
 
     resumePendingTranslations();
+
+    setTimeout(() => {
+        initLocalTranslator().catch(e => console.warn('[init-local]', e));
+    }, LOCAL_ENGINE_INIT_DELAY_MS);
 
     setTimeout(() => {
         redownloadOutdatedBooks().catch(e => console.warn('[再DL] 失敗:', e));
