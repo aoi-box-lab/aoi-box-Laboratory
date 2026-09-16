@@ -329,7 +329,7 @@ h1 {
     }
 
     #results-table th:nth-child(1),
-    #results-table td:nth-child(1) { width: 12%; }
+    #results-table td:nth-child(1) { width: 14%; }
     #results-table th:nth-child(2),
     #results-table td:nth-child(2) { width: auto; }
     #results-table th:nth-child(3),
@@ -338,7 +338,7 @@ h1 {
     #results-table td:nth-child(4) { width: 12%; }
 
     #bookshelf-table th:nth-child(1),
-    #bookshelf-table td:nth-child(1) { width: 12%; }
+    #bookshelf-table td:nth-child(1) { width: 14%; }
     #bookshelf-table th:nth-child(2),
     #bookshelf-table td:nth-child(2) { width: auto; }
     #bookshelf-table th:nth-child(3),
@@ -346,7 +346,17 @@ h1 {
     #bookshelf-table th:nth-child(4),
     #bookshelf-table td:nth-child(4) { width: 14%; }
     #bookshelf-table th:nth-child(5),
-    #bookshelf-table td:nth-child(5) { width: 14%; }
+    #bookshelf-table td:nth-child(5) {
+        width: 52px;
+        padding-left: 4px;
+        padding-right: 4px;
+        text-align: center;
+    }
+
+    /* 本棚の「出典」列ヘッダーを、中身（バッジ）の左端に揃える。
+       中身は [ドラッグハンドル14px][gap6px][バッジ] の並びなので、
+       ヘッダーの padding-left を 15px(td) + 14px + 6px = 35px に。 */
+    #bookshelf-table th:nth-child(1) { padding-left: 35px; }
 }
 
 .source-badge {
@@ -359,11 +369,10 @@ h1 {
     white-space: nowrap;
 }
 
-/* 本棚の「場所」列：短いソース名だけなので折り返し不要 */
 .id-cell {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
     white-space: nowrap;
 }
 
@@ -371,7 +380,7 @@ h1 {
     display: flex;
     flex-direction: column;
     gap: 3px;
-    width: 16px;
+    width: 14px;
     cursor: grab;
     flex-shrink: 0;
 }
@@ -1336,6 +1345,94 @@ h1 {
     font-weight: bold;
 }
 
+/* ============================================================
+   作品詳細モーダル
+   ============================================================ */
+#detail-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 9200;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+#detail-modal.active { display: flex; }
+.detail-modal-box {
+    background: var(--card-bg);
+    color: var(--text-color);
+    border-radius: 8px;
+    max-width: 520px;
+    width: 100%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 24px rgba(0,0,0,.25);
+    overflow: hidden;
+}
+.detail-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+.detail-modal-header h3 { font-size: 1.05rem; font-weight: bold; }
+.detail-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--text-color);
+    padding: 4px 10px;
+    border-radius: 4px;
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+}
+.detail-modal-close:hover { background: rgba(0,0,0,.05); }
+.detail-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    overscroll-behavior: contain;
+}
+.detail-info-label {
+    font-size: .75rem;
+    opacity: .6;
+    margin-bottom: 4px;
+    font-weight: bold;
+}
+.detail-info-value {
+    font-size: .9rem;
+    line-height: 1.55;
+    margin-bottom: 16px;
+    word-break: break-word;
+}
+.detail-info-value.is-title {
+    font-weight: bold;
+    font-size: 1.05rem;
+}
+.detail-info-value.is-mono {
+    font-family: monospace;
+    font-size: .8rem;
+    background: rgba(0,0,0,.04);
+    padding: 6px 8px;
+    border-radius: 4px;
+    word-break: break-all;
+}
+.detail-info-value a {
+    color: var(--accent-color);
+    text-decoration: none;
+    word-break: break-all;
+}
+.detail-info-value a:hover { text-decoration: underline; }
+.detail-info-value .muted {
+    opacity: .55;
+    font-style: italic;
+}
+
 @media (max-width: 1024px) {
     #reading-title { font-size: .9rem; max-width: 35%; }
 }
@@ -1363,6 +1460,7 @@ h1 {
     }
     .bookshelf-filters input[type="text"] { min-width: 0; }
     .reprocess-all-btn { width: 100%; }
+    #bookshelf-table th:nth-child(1) { padding-left: 30px; }
 }
 
 @media (max-width: 480px) {
@@ -1400,6 +1498,7 @@ h1 {
     .detail-buttons button { width: 100%; }
     .results-table th,
     .results-table td { padding: 8px; font-size: .82rem; white-space: normal; }
+    #bookshelf-table th:nth-child(1) { padding-left: 28px; }
     .reader-toolbar { gap: 6px; }
     #page-nav { gap: 6px; font-size: .8rem; }
     #page-nav button { padding: 5px 8px; font-size: .78rem; min-height: 32px; }
@@ -1494,7 +1593,7 @@ h1 {
 
         <div id="detail-search-panel" class="detail-search-panel">
             <div class="detail-row">
-                <label for="detail-source">場所</label>
+                <label for="detail-source">出典</label>
                 <select id="detail-source" class="detail-select">
                     <option value="">すべて</option>
                     <option value="gutenberg">Gutenberg</option>
@@ -1563,7 +1662,7 @@ h1 {
                 <option value="title">タイトル</option>
                 <option value="author">著者</option>
                 <option value="year">年度</option>
-                <option value="source">場所</option>
+                <option value="source">出典</option>
             </select>
             <button id="sort-direction" onclick="toggleSortDirection()" title="昇順・降順を切り替え">↓</button>
             <span id="sort-count" class="sort-count"></span>
@@ -1572,7 +1671,7 @@ h1 {
         <table class="results-table" id="results-table" style="display:none;">
             <thead>
                 <tr>
-                    <th>場所</th>
+                    <th>出典</th>
                     <th>タイトル</th>
                     <th>著者</th>
                     <th>操作</th>
@@ -1595,11 +1694,11 @@ h1 {
         <table class="results-table" id="bookshelf-table" style="display:none;">
             <thead>
                 <tr>
-                    <th>場所</th>
+                    <th>出典</th>
                     <th>タイトル</th>
                     <th>著者</th>
                     <th>状態</th>
-                    <th>操作</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody id="bookshelf-tbody"></tbody>
@@ -1723,6 +1822,16 @@ h1 {
     </div>
 </div>
 
+<div id="detail-modal" onclick="if(event.target===this) closeBookDetail()">
+    <div class="detail-modal-box">
+        <div class="detail-modal-header">
+            <h3>作品の詳細</h3>
+            <button class="detail-modal-close" onclick="closeBookDetail()" aria-label="閉じる">×</button>
+        </div>
+        <div class="detail-modal-body" id="detail-modal-body"></div>
+    </div>
+</div>
+
 <div class="toast-container" id="toast-container"></div>
 
 <script>
@@ -1830,10 +1939,29 @@ function isJapaneseName(name) {
    ■ 更新のたびに必ずお知らせを追加する
      ・アプリを更新してユーザーに見える変化があれば、
        必ず ANNOUNCEMENTS の先頭に新しい要素を push する。
-     ・id は日付＋連番（例: ann_2026_09_16_01）にする。
+     ・id は日付＋連番（例: ann_2026_09_17_01）にする。
      ・id を変えると「未読」扱いになって再表示される。
    ============================================================ */
 const ANNOUNCEMENTS = [
+    {
+        id: 'ann_2026_09_17_01',
+        date: '2026-09-17',
+        title: '本棚に「詳細」を追加しました',
+        showInBar: true,
+        body: [
+            '【今回の変更点】',
+            '',
+            '■ 本棚の「詳細」',
+            '本棚の右端「...」メニューに「詳細」を追加しました。',
+            '作品の出典・タイトル・著者・状態・ID・対応URLが確認できます。',
+            'あらすじ欄は準備中で、今後表示されるようになります。',
+            '',
+            '■ 列の表記',
+            '「場所」という列名を「出典」に変更しました。',
+            'また、本棚の「操作」列見出しを外して点々（...）ボタンだけにしました。'
+        ].join('\n'),
+        important: false
+    },
     {
         id: 'ann_2026_09_16_02',
         date: '2026-09-16',
@@ -1861,10 +1989,10 @@ const ANNOUNCEMENTS = [
             '■ 検索結果のページング',
             '検索結果が500件ずつ表示されるようになりました。件数が多い検索でも固まりにくく、',
             '一覧の一番下の「続きを読み込む」ボタンを押すと、次の500件が追加表示されます。',
-            '（例: 青空文庫を場所指定だけで検索したときなど）',
+            '（例: 青空文庫を出典指定だけで検索したときなど）',
             '',
             '■ 本棚の列',
-            '本棚の先頭列を「ID」から「場所」に変更しました。',
+            '本棚の先頭列を「ID」から「出典」に変更しました。',
             'どこから取り込んだ作品かがひと目で分かります。',
             '',
             '■ ヘッダーの設定ボタン',
@@ -1897,7 +2025,7 @@ const ANNOUNCEMENTS = [
             '',
             '【基本的な使い方】',
             '・「検索」タブで作品名か著者名を入力して検索します。',
-            '・「詳細検索」からは、場所・カテゴリ・年度で絞り込めます。',
+            '・「詳細検索」からは、出典・カテゴリ・年度で絞り込めます。',
             '・結果一覧の「保存・読む」を押すと、本棚に保存されてすぐ読めます。',
             '',
             '【翻訳】',
@@ -1908,7 +2036,7 @@ const ANNOUNCEMENTS = [
             '【本棚】',
             '・「本棚」タブに保存した作品が並びます。',
             '・行をドラッグすると並べ替えできます。',
-            '・「お気に入りのみ」で絞り込んだり、右端の「...」から削除できます。',
+            '・「お気に入りのみ」で絞り込んだり、右端の「...」から詳細確認・削除ができます。',
             '',
             '【設定（右上の「設定」ボタン）】',
             '・表示モード: スクロール／本モード（縦書きページめくり）',
@@ -3164,6 +3292,142 @@ function sourceNameOf(source) {
     }[source] || source;
 }
 
+/* ============================================================
+   出典URLの自動生成（book.sourceUrl が最優先）
+   ============================================================ */
+function getSourceUrl(book) {
+    if (!book) return '';
+    if (book.sourceUrl) return String(book.sourceUrl);
+    const si = book.sourceInfo || {};
+    if (si.url) return String(si.url);
+    switch (book.source) {
+        case 'aozora': {
+            if (si.workId && si.personId) {
+                const pid = String(si.personId).padStart(6, '0');
+                return `https://www.aozora.gr.jp/cards/${pid}/card${si.workId}.html`;
+            }
+            return '';
+        }
+        case 'gutenberg': {
+            if (si.bookId) return `https://www.gutenberg.org/ebooks/${si.bookId}`;
+            const m = String(book.id).match(/^gutenberg_(\d+)$/);
+            return m ? `https://www.gutenberg.org/ebooks/${m[1]}` : '';
+        }
+        case 'internetarchive': {
+            if (si.identifier) return `https://archive.org/details/${si.identifier}`;
+            const m = String(book.id).match(/^ia_(.+)$/);
+            return m ? `https://archive.org/details/${m[1]}` : '';
+        }
+        case 'openlibrary': {
+            const m = String(book.id).match(/^openlibrary_(.+)$/);
+            return m ? `https://archive.org/details/${m[1]}` : '';
+        }
+        case 'wikisource': {
+            if (si.lang) {
+                const base = WIKISOURCE_BASE_URLS[si.lang] || WIKISOURCE_BASE_URLS.ja;
+                return `${base}${encodeURIComponent(book.title)}`;
+            }
+            const m = String(book.id).match(/^wikisource_([a-z]+)_(\d+)$/);
+            if (m) {
+                const base = WIKISOURCE_BASE_URLS[m[1]] || WIKISOURCE_BASE_URLS.ja;
+                return `${base}${encodeURIComponent(book.title)}`;
+            }
+            return '';
+        }
+        case 'ndl': {
+            if (si.pid) return `https://dl.ndl.go.jp/pid/${si.pid}`;
+            const m = String(book.id).match(/^ndl_(\d+)$/);
+            return m ? `https://dl.ndl.go.jp/pid/${m[1]}` : '';
+        }
+        case 'standardebooks': {
+            if (si.epubUrl) return String(si.epubUrl).replace(/\/downloads\/.*$/, '').replace(/\/epub\/.*$/, '');
+            const m = String(book.id).match(/^standardebooks_(.+)$/);
+            return m ? `https://standardebooks.org/ebooks/${m[1]}` : '';
+        }
+        case 'runeberg': {
+            if (si.href) return `https://runeberg.org${si.href}`;
+            const m = String(book.id).match(/^runeberg_(.+)$/);
+            return m ? `https://runeberg.org/${m[1].replace(/_/g, '/')}` : '';
+        }
+        case 'poetrydb': {
+            const p = si.poem;
+            if (p && p.author && p.title) {
+                return `https://poetrydb.org/title/${encodeURIComponent(p.title)}`;
+            }
+            return '';
+        }
+        case 'fadedpage': {
+            if (si.bookid) return `https://www.fadedpage.com/showbook.php?pid=${si.bookid}`;
+            const m = String(book.id).match(/^fadedpage_([A-Za-z0-9]+)$/);
+            return m ? `https://www.fadedpage.com/showbook.php?pid=${m[1]}` : '';
+        }
+    }
+    return '';
+}
+
+/* ============================================================
+   作品詳細モーダル
+   ============================================================ */
+async function openBookDetail(bookId) {
+    closeAllRowMenus();
+    const book = await getBookFromDB(bookId);
+    if (!book) { showToast('作品が見つかりません', 'error'); return; }
+    renderBookDetail(book);
+    document.getElementById('detail-modal').classList.add('active');
+}
+window.openBookDetail = openBookDetail;
+
+function closeBookDetail() {
+    const m = document.getElementById('detail-modal');
+    if (m) m.classList.remove('active');
+}
+window.closeBookDetail = closeBookDetail;
+
+function renderBookDetail(book) {
+    const body = document.getElementById('detail-modal-body');
+    if (!body) return;
+    const title = book.title || '(無題)';
+    const author = book.author || '—';
+    const source = sourceNameOf(book.source);
+    const st = formatTranslationStatus(book);
+    const url = getSourceUrl(book);
+    const summary = book.summary || '';
+
+    const urlHtml = url
+        ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`
+        : `<span class="muted">（この作品には URL が登録されていません）</span>`;
+
+    const summaryHtml = summary
+        ? escapeHtml(summary)
+        : `<span class="muted">（あらすじは準備中です）</span>`;
+
+    body.innerHTML = `
+        <div class="detail-info-label">タイトル</div>
+        <div class="detail-info-value is-title">${escapeHtml(title)}</div>
+
+        <div class="detail-info-label">著者</div>
+        <div class="detail-info-value">${escapeHtml(author)}</div>
+
+        <div class="detail-info-label">出典</div>
+        <div class="detail-info-value">${escapeHtml(source)}</div>
+
+        <div class="detail-info-label">状態</div>
+        <div class="detail-info-value">${escapeHtml(st)}</div>
+
+        <div class="detail-info-label">ID</div>
+        <div class="detail-info-value is-mono">${escapeHtml(book.id || '')}</div>
+
+        <div class="detail-info-label">対応URL</div>
+        <div class="detail-info-value">${urlHtml}</div>
+
+        <div class="detail-info-label">あらすじ</div>
+        <div class="detail-info-value">${summaryHtml}</div>
+    `;
+}
+
+/* ============================================================
+   検索結果の行
+   ============================================================ */
 function renderUnifiedRow(r, tb) {
     const tr = document.createElement('tr');
     const tdS = document.createElement('td');
@@ -4163,7 +4427,7 @@ async function downloadAndSavePoetryDB(poem, silent) {
             targetLang: 'ja',
             bookmark: null,
             source: 'poetrydb',
-            sourceInfo: { poem },
+            sourceInfo: { poem, url: `${POETRYDB_BASE}/title/${encodeURIComponent(poem.title)}` },
             savedAt: new Date().toISOString(),
             sortOrder: Date.now(),
             favorite: false,
@@ -6176,22 +6440,6 @@ function updateReprocessButton(count) {
     }
 }
 
-function sourceBadgeHtml(source) {
-    switch (source) {
-        case 'aozora':          return '<span style="font-size:.7rem;color:#4caf50;margin-left:6px;">青空文庫</span>';
-        case 'gutenberg':       return '<span style="font-size:.7rem;color:#2196f3;margin-left:6px;">Gutenberg</span>';
-        case 'internetarchive': return '<span style="font-size:.7rem;color:#ff9800;margin-left:6px;">IA/PD</span>';
-        case 'openlibrary':     return '<span style="font-size:.7rem;color:#00acc1;margin-left:6px;">OpenLibrary</span>';
-        case 'wikisource':      return '<span style="font-size:.7rem;color:#9c27b0;margin-left:6px;">Wikisource/CC</span>';
-        case 'ndl':             return '<span style="font-size:.7rem;color:#e91e63;margin-left:6px;">NDL</span>';
-        case 'standardebooks':  return '<span style="font-size:.7rem;color:#00bcd4;margin-left:6px;">StdEbooks/PD</span>';
-        case 'runeberg':        return '<span style="font-size:.7rem;color:#795548;margin-left:6px;">Runeberg/PD</span>';
-        case 'poetrydb':        return '<span style="font-size:.7rem;color:#7e57c2;margin-left:6px;">PoetryDB</span>';
-        case 'fadedpage':       return '<span style="font-size:.7rem;color:#8d6e63;margin-left:6px;">FadedPage/CA</span>';
-        default: return '';
-    }
-}
-
 function loadBookshelf() {
     const s = document.getElementById('bookshelf-status');
     const t = document.getElementById('bookshelf-table');
@@ -6283,6 +6531,7 @@ function loadBookshelf() {
                         <div class="menu-wrap">
                             <button class="dots-btn" onclick="toggleRowMenu(event, '${escapeHtml(b.id)}')">...</button>
                             <div class="row-menu" id="menu-${escapeHtml(b.id)}">
+                                <button onclick="openBookDetail('${escapeHtml(b.id)}')">詳細</button>
                                 ${reprocessBtn}${retryBtn}
                                 <button onclick="toggleFavorite('${escapeHtml(b.id)}')">${b.favorite ? 'お気に入り解除' : 'お気に入りに追加'}</button>
                                 <button onclick="confirmDeleteBook('${escapeHtml(b.id)}')" style="color:#d9534f;">削除</button>
@@ -6396,6 +6645,7 @@ function closeAllRowMenus() {
 document.addEventListener('click', (ev) => {
     if (ev.target && ev.target.closest && ev.target.closest('.modal-overlay')) return;
     if (ev.target && ev.target.closest && ev.target.closest('#announce-modal')) return;
+    if (ev.target && ev.target.closest && ev.target.closest('#detail-modal')) return;
     closeAllRowMenus();
 });
 document.addEventListener('scroll', () => closeAllRowMenus(), true);
@@ -7029,7 +7279,8 @@ Object.assign(window, {
     toggleFavorite, confirmDeleteBook, closeConfirmModal, executeConfirmedDelete,
     closeReader, switchTab, changeFontSize, turnPage,
     toggleTranslationView, changeTargetLang,
-    openAnnounceModal, closeAnnounceModal, dismissAllAnnouncements
+    openAnnounceModal, closeAnnounceModal, dismissAllAnnouncements,
+    openBookDetail, closeBookDetail
 });
 </script>
 </body>
