@@ -353,9 +353,6 @@ h1 {
         text-align: center;
     }
 
-    /* 本棚の「出典」列ヘッダーを、中身（バッジ）の左端に揃える。
-       中身は [ドラッグハンドル14px][gap6px][バッジ] の並びなので、
-       ヘッダーの padding-left を 15px(td) + 14px + 6px = 35px に。 */
     #bookshelf-table th:nth-child(1) { padding-left: 35px; }
 }
 
@@ -1174,11 +1171,6 @@ h1 {
     line-height: 1.5;
 }
 
-/* ============================================================
-   設定ボタン（テキスト表記）
-   ・他のヘッダーボタン（検索／本棚）と完全に同じ見た目にする
-     ため、font-family / font-size をあえて指定しない。
-   ============================================================ */
 .settings-gear-btn {
     flex: 0 0 auto;
     min-height: var(--tap-min);
@@ -1196,9 +1188,6 @@ h1 {
 }
 .settings-gear-btn:hover { background: rgba(0,0,0,.04); }
 
-/* ============================================================
-   お知らせバー
-   ============================================================ */
 #announce-bar {
     position: fixed;
     top: calc(env(safe-area-inset-top) + 58px);
@@ -1242,9 +1231,6 @@ h1 {
 }
 #announce-bar .ab-close:hover { background: rgba(255,255,255,.18); opacity: 1; }
 
-/* ============================================================
-   設定パネル内お知らせボタン
-   ============================================================ */
 .settings-announce-btn {
     display: flex;
     align-items: center;
@@ -1272,9 +1258,6 @@ h1 {
     text-align: center;
 }
 
-/* ============================================================
-   お知らせモーダル
-   ============================================================ */
 #announce-modal {
     display: none;
     position: fixed;
@@ -1348,9 +1331,6 @@ h1 {
     font-weight: bold;
 }
 
-/* ============================================================
-   作品詳細モーダル
-   ============================================================ */
 #detail-modal {
     display: none;
     position: fixed;
@@ -1434,6 +1414,133 @@ h1 {
 .detail-info-value .muted {
     opacity: .55;
     font-style: italic;
+}
+
+/* ============================================================
+   診断モーダル
+   ============================================================ */
+#diagnostics-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 9300;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+#diagnostics-modal.active { display: flex; }
+.diagnostics-box {
+    background: var(--card-bg);
+    color: var(--text-color);
+    border-radius: 8px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 24px rgba(0,0,0,.25);
+    overflow: hidden;
+}
+.diagnostics-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 12px 12px 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+.diagnostics-header h3 {
+    flex: 1;
+    font-size: 1.05rem;
+    font-weight: bold;
+}
+.diagnostics-header button {
+    border: 1px solid var(--border-color);
+    background: none;
+    color: var(--text-color);
+    border-radius: 4px;
+    cursor: pointer;
+    min-height: 36px;
+    padding: 4px 12px;
+    font-size: .85rem;
+}
+.diagnostics-header button:disabled {
+    opacity: .5;
+    cursor: default;
+}
+.diagnostics-header .diag-rerun-all {
+    background: var(--accent-color);
+    color: #fff;
+    border-color: var(--accent-color);
+}
+.diagnostics-header .diag-close {
+    font-size: 1.4rem;
+    padding: 2px 10px;
+    line-height: 1;
+}
+.diagnostics-body {
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.diag-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    font-size: .88rem;
+    transition: background .15s;
+}
+.diag-row:last-child { border-bottom: none; }
+.diag-row:hover { background: rgba(0,0,0,.03); }
+.diag-row.diag-running { cursor: default; }
+.diag-icon {
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+    font-size: 1rem;
+    line-height: 1.4;
+}
+.diag-running .diag-icon {
+    display: inline-block;
+    animation: spin .8s linear infinite;
+    color: var(--accent-color);
+}
+.diag-ok .diag-icon { color: #4caf50; }
+.diag-warn .diag-icon { color: #f0ad4e; }
+.diag-fail .diag-icon { color: #d9534f; }
+.diag-skip .diag-icon { color: #999; }
+.diag-content { flex: 1; min-width: 0; }
+.diag-label { font-weight: bold; margin-bottom: 2px; }
+.diag-msg {
+    font-size: .82rem;
+    opacity: .85;
+    word-break: break-word;
+}
+.diag-detail {
+    font-family: monospace;
+    font-size: .7rem;
+    background: rgba(0,0,0,.05);
+    padding: 6px 8px;
+    border-radius: 4px;
+    margin: 6px 0 0 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 140px;
+    overflow-y: auto;
+    line-height: 1.5;
+}
+.diag-time {
+    flex-shrink: 0;
+    font-size: .7rem;
+    opacity: .5;
+    white-space: nowrap;
+}
+@media (max-width: 480px) {
+    .diag-time { display: none; }
+    .diagnostics-box { max-width: 100%; }
 }
 
 @media (max-width: 1024px) {
@@ -1740,6 +1847,10 @@ h1 {
             <span>お知らせ</span>
             <span class="sa-badge" id="announce-badge" style="display:none;">0</span>
         </button>
+        <button class="settings-announce-btn" onclick="openDiagnostics()">
+            <span>接続・動作診断</span>
+            <span style="opacity:.5;font-size:.85rem;">🔧</span>
+        </button>
         <div class="settings-group">
             <label>表示モード</label>
             <div class="settings-options" data-setting="viewMode">
@@ -1832,6 +1943,17 @@ h1 {
             <button class="detail-modal-close" onclick="closeBookDetail()" aria-label="閉じる">×</button>
         </div>
         <div class="detail-modal-body" id="detail-modal-body"></div>
+    </div>
+</div>
+
+<div id="diagnostics-modal" onclick="if(event.target===this) closeDiagnostics()">
+    <div class="diagnostics-box">
+        <div class="diagnostics-header">
+            <h3>診断</h3>
+            <button class="diag-rerun-all" onclick="runAllDiagnostics()" title="全項目を診断し直す">↻ 全部</button>
+            <button class="diag-close" onclick="closeDiagnostics()" aria-label="閉じる">×</button>
+        </div>
+        <div class="diagnostics-body" id="diagnostics-body"></div>
     </div>
 </div>
 
@@ -1946,6 +2068,35 @@ function isJapaneseName(name) {
      ・id を変えると「未読」扱いになって再表示される。
    ============================================================ */
 const ANNOUNCEMENTS = [
+    {
+        id: 'ann_2026_09_17_04',
+        date: '2026-09-17',
+        title: '接続・動作診断を追加しました',
+        showInBar: true,
+        body: [
+            '【今回の変更点】',
+            '',
+            '■ 接続・動作診断',
+            '設定に「接続・動作診断」ボタンを追加しました。',
+            '検索で何も出ないとき、翻訳が動かないとき、何が原因かを確認できます。',
+            '',
+            '・押すと14項目を自動でチェックします',
+            '・項目をタップすると、その項目だけやり直せます',
+            '・右上の「↻ 全部」で全項目を最初から診断し直せます',
+            '',
+            'チェック内容:',
+            '・ブラウザのオンライン状態',
+            '・基本通信 / GitHub直叩き',
+            '・3種のプロキシ疎通（どれが生きているか）',
+            '・Gutenberg / 青空のカタログ読み込み状況',
+            '・日本語→英語の翻訳チェーン',
+            '・Gutenberg検索の動作（英語・日本語）',
+            '・Internet Archive API / CORS直叩きソース',
+            '・本棚（IndexedDB）の件数',
+            '・NDLのフラグ状態'
+        ].join('\n'),
+        important: false
+    },
     {
         id: 'ann_2026_09_17_03',
         date: '2026-09-17',
@@ -2095,7 +2246,11 @@ const ANNOUNCEMENTS = [
             '',
             '【お知らせ】',
             '・更新内容は画面上部のバーに一言で出ます。',
-            '・バーをタップするか、設定→「お知らせ」で全文が読めます。'
+            '・バーをタップするか、設定→「お知らせ」で全文が読めます。',
+            '',
+            '【困ったとき】',
+            '・検索で何も出ない、翻訳が動かないときは、',
+            '  設定→「接続・動作診断」で原因を確認できます。'
         ].join('\n'),
         important: false
     }
@@ -2134,17 +2289,12 @@ const AOZORA_CATALOG_SOURCES = [
 
 /* ============================================================
    Gutenberg 公式CSVカタログ
-   ── 全作品のメタデータ（タイトル・著者・言語・公開日・件名）を
-      含むCSV（プレーンテキスト）を取得する。公式配布。
-   ── 初回のみDL、以降はIndexedDBキャッシュから読む。
-   ── DL失敗時はOPDS検索に自動フォールバック。
    ============================================================ */
 const GUTENBERG_CSV_URL = 'https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv';
-const GUTENBERG_CATALOG_KEY = 'gutenberg_catalog_v2'; /* RDF版(v1)と区別 */
-const GUTENBERG_OLD_CATALOG_KEY = 'gutenberg_catalog_v1'; /* 旧キャッシュ削除用 */
-const GUTENBERG_CATALOG_TTL_MS = 24 * 60 * 60 * 1000; /* 24時間 */
+const GUTENBERG_CATALOG_KEY = 'gutenberg_catalog_v2';
+const GUTENBERG_OLD_CATALOG_KEY = 'gutenberg_catalog_v1';
+const GUTENBERG_CATALOG_TTL_MS = 24 * 60 * 60 * 1000;
 
-/* Gutenberg公式ミラー（本文ダウンロード用。カタログとは別経路） */
 const GUTENBERG_MIRRORS = [
     'https://gutenberg.pglaf.org',
     'https://mirror.cs.odu.edu/gutenberg',
@@ -2429,7 +2579,6 @@ window.setFontFamily = setFontFamily;
 
 /* ============================================================
    NDL ステータスを UI に反映
-   ── NDL_ENABLED に応じて「出典」ドロップダウンと設定説明文を書き換える
    ============================================================ */
 function applyNDLStatusToUI() {
     const label = NDL_ENABLED ? 'NDL' : 'NDL（現在停止中）';
@@ -2494,12 +2643,6 @@ async function politeFetch(url, options, timeoutMs) {
     }
 }
 
-/* ============================================================
-   プロキシのフォールバック
-   ── aoi（自前）→ codetabs → allorigins → 直接、の順で試す。
-   ── 普段は aoi が生きているのでそのまま通る。
-   ── 落ちていたときだけ自動で他へ流れる安全網。
-   ============================================================ */
 async function smartFetch(url, options, timeoutMs) {
     const order = ['aoi', 'codetabs', 'allorigins'];
     const errors = [];
@@ -2622,9 +2765,6 @@ function renderAnnounceBar() {
     if (!bar) return;
     const readerActive = document.getElementById('reader-view').classList.contains('active');
     const unread = getUnreadAnnouncements();
-    // バーには「更新内容のまとめ」だけを出す。
-    // showInBar: false のもの（ウェルカム・使い方ガイド等）は
-    // モーダル止まりにしてバーには出さない。
     const barTargets = unread.filter(a => a.showInBar !== false);
     if (readerActive || !barTargets.length) {
         bar.classList.remove('active');
@@ -2636,7 +2776,6 @@ function renderAnnounceBar() {
     bar.classList.add('active');
 }
 
-// お知らせバー: タップ/クリックに加えて Enter・Space でも開けるように
 (function bindAnnounceBarKeys() {
     const bar = document.getElementById('announce-bar');
     if (!bar) return;
@@ -2895,9 +3034,6 @@ function isBookOutdated(book) {
 
 /* ============================================================
    Wikipedia 経由の英題ルックアップ
-   ── 日本語クエリを外国語ソースに投げる前に、
-      ja.wikipedia の言語間リンク or Wikidata sitelinks で
-      正しい英題を引く。見つからなければ機械翻訳にフォールバック。
    ============================================================ */
 async function lookupEnglishTitle(query) {
     const cacheKey = WIKI_TITLE_CACHE_PREFIX + query;
@@ -2941,10 +3077,6 @@ async function lookupEnglishTitle(query) {
     return null;
 }
 
-/* 日本語クエリを英語クエリに変換する統合ヘルパ。
-   1) Wikipedia 言語間リンク
-   2) 機械翻訳
-   3) 元のまま */
 async function toEnglishQuery(query) {
     if (!query || !query.trim()) return query;
     if (!/[^\x00-\x7F]/.test(query)) return query;
@@ -3347,7 +3479,7 @@ async function unifiedSearch({ query, filters, defaultSort }) {
     hideHeaderSpinner();
 
     if (!currentSearchResults.length) {
-        setStatus('search-status', '見つかりませんでした', 'error');
+        setStatus('search-status', '見つかりませんでした（設定 →「接続・動作診断」で原因を確認できます）', 'error');
         t.style.display = 'none';
         sortBar.style.display = 'none';
         return;
@@ -3950,7 +4082,6 @@ async function getAuthorDeathYear(authorName) {
     return { deathYear: null, birthYear: null, name: cacheKey };
 }
 
-/* 著者1名のPD判定（日本語名70年 / 非日本語名81年 / 生年120年） */
 function judgePD(info, authorName) {
     const cy = new Date().getFullYear();
     const name = authorName || info.name || '';
@@ -4114,16 +4245,12 @@ function parseAozoraCardJson(json) {
 
 /* ============================================================
    Gutenberg CSVカタログ
-   ── 公式配布のメタデータカタログ（CSV形式）。
-   ── 初回起動時に一度だけDL → IndexedDBに24時間キャッシュ。
-   ── カタログがあればローカル検索、なければOPDSにフォールバック。
    ============================================================ */
 async function fetchGutenbergCatalog() {
     if (gutenberg_catalog_loading || gutenberg_catalog_ready) return;
     gutenberg_catalog_loading = true;
     showHeaderSpinner();
 
-    // 旧v1キャッシュ（動かなかったRDF版の残骸）を削除
     try {
         await safeDBOp(['cache'], 'readwrite', (tx, resolve) => {
             tx.objectStore('cache').delete(GUTENBERG_OLD_CATALOG_KEY);
@@ -4132,7 +4259,6 @@ async function fetchGutenbergCatalog() {
         });
     } catch (e) {}
 
-    // 24時間以内のキャッシュがあれば使う
     try {
         const cached = await getCacheFromDB(GUTENBERG_CATALOG_KEY);
         if (cached && cached.value && cached.value.length > 1000 && cached.savedAt) {
@@ -4148,7 +4274,6 @@ async function fetchGutenbergCatalog() {
         }
     } catch (e) {}
 
-    // DL（CSVはテキストなのでJSZip不要）
     try {
         const res = await smartFetch(GUTENBERG_CSV_URL, {}, FETCH_TIMEOUT_BOOK);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -4174,19 +4299,9 @@ async function fetchGutenbergCatalog() {
     }
 }
 
-/* ============================================================
-   Gutenberg CSVカタログのパーサ
-   ── RFC 4180準拠（ダブルクォート内のカンマ・改行・"" に対応）
-   ── 実際のヘッダー: Text#,Type,Issued,Title,Language,Authors,Subjects,LoCC,Bookshelves
-   ── Authors/Subjects は ";" 区切りの複数値
-   ── Language も念のため ";" で分割（多言語作品対策）
-   ── "Various" / "Anonymous" 等の特殊値をそのまま保持
-   ============================================================ */
 function parseGutenbergCsv(text) {
-    // BOM除去
     if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
 
-    // ---- RFC 4180 準拠のCSV行分割 ----
     const rows = [];
     let row = [];
     let field = '';
@@ -4244,7 +4359,6 @@ function parseGutenbergCsv(text) {
 
     if (rows.length < 2) return [];
 
-    // ---- ヘッダー解析 ----
     const header = rows[0].map(h => h.trim().toLowerCase());
     const colIndex = (name) => header.indexOf(name);
 
@@ -4261,7 +4375,6 @@ function parseGutenbergCsv(text) {
         return [];
     }
 
-    // ---- 行をパース ----
     const catalog = [];
     for (let r = 1; r < rows.length; r++) {
         const row = rows[r];
@@ -4271,26 +4384,21 @@ function parseGutenbergCsv(text) {
         const title  = (row[idxTitle] || '').trim();
         if (!bookId || !title) continue;
 
-        // Type: "Text" 以外（"Sound" など）は除外（念のため）
         const type = idxType >= 0 ? (row[idxType] || '').trim() : 'Text';
         if (type && type.toLowerCase() !== 'text') continue;
 
         const issued = idxIssued >= 0 ? (row[idxIssued] || '').trim() : '';
 
-        // Language: "en" が基本だが "en;fr" のような複数形にも対応
         const langRaw = idxLang >= 0 ? (row[idxLang] || '').trim() : '';
         const languages = langRaw
             ? langRaw.split(';').map(s => s.trim()).filter(Boolean)
             : [];
 
-        // Authors: "Austen, Jane; Editor, Some" のような ";" 区切り
-        // 空欄、"Various"、"Anonymous" 等はそのまま保持
         const authorsRaw = idxAuthor >= 0 ? (row[idxAuthor] || '').trim() : '';
         const authors = authorsRaw
             ? authorsRaw.split(';').map(s => s.trim()).filter(Boolean)
             : [];
 
-        // Subjects: "Fiction; Romance" のような ";" 区切り
         const subjectsRaw = idxSubj >= 0 ? (row[idxSubj] || '').trim() : '';
         const subjects = subjectsRaw
             ? subjectsRaw.split(';').map(s => s.trim()).filter(Boolean)
@@ -4310,7 +4418,6 @@ function parseGutenbergCsv(text) {
     return catalog;
 }
 
-/* OPDSフォールバック（CSVカタログが使えないときのみ） */
 async function searchGutenbergViaOPDS(query) {
     try {
         const searchQ = await toEnglishQuery(query);
@@ -4361,7 +4468,6 @@ async function searchGutenbergUnified(ctx) {
     const query = simpleQ || [titleQ, authorQ].filter(Boolean).join(' ').trim();
     if (!query) return [];
 
-    // カタログ未読み込みなら読み込む
     if (!gutenberg_catalog_ready) {
         if (!gutenberg_catalog_loading) fetchGutenbergCatalog();
         let waited = 0;
@@ -4370,13 +4476,11 @@ async function searchGutenbergUnified(ctx) {
             waited += 300;
         }
         if (!gutenberg_catalog_ready) {
-            // カタログDL失敗 → OPDS検索にフォールバック
             console.warn('[gutenberg] CSV catalog unavailable, using OPDS fallback');
             return await searchGutenbergViaOPDS(query);
         }
     }
 
-    // ローカル検索
     const searchQ = await toEnglishQuery(query);
     const results = [];
 
@@ -4408,7 +4512,6 @@ async function searchGutenbergUnified(ctx) {
     results.sort((a, b) => b.score - a.score);
 
     return results.slice(0, 1000).map(({ book }) => {
-        // 言語配列が空でも安全に 'en' にフォールバック
         const lang = (Array.isArray(book.languages) && book.languages.length)
             ? book.languages[0]
             : 'en';
@@ -4566,7 +4669,6 @@ async function searchInternetArchiveAll(query, yearRange) {
     return docs.concat(rest);
 }
 
-/* 全著者のPD判定（全員PDのときだけsafe=true） */
 async function searchIAUnified(ctx) {
     const titleQ = (ctx.filters.title || '').trim();
     const authorQ = (ctx.filters.author || '').trim();
@@ -5348,14 +5450,12 @@ async function searchWikisourceUnified(ctx) {
         } catch (e) {}
     }
 
-    /* 非日本語版しかヒットしなかった場合、対応する日本語版を探して追加する。
-       （すでに同じ pageid の日本語版が結果に入っている場合はスキップ） */
     if (!langs.includes('ja')) {
         const hasJa = allResults.some(r => r.raw && r.raw.lang === 'ja');
         if (!hasJa) {
             const candidates = allResults
                 .filter(r => r.raw && r.raw.lang !== 'ja')
-                .slice(0, 3); /* 上位3件だけ確認 */
+                .slice(0, 3);
             for (const c of candidates) {
                 const ja = await preferJapaneseWikisource(c.title);
                 if (ja) {
@@ -5952,13 +6052,11 @@ async function downloadAndSaveGutenberg(bookId, silent) {
         showToast(`ダウンロード開始: 作品ID ${bookId}`, 'info');
     }
     try {
-        // ローカルCSVカタログからメタデータ取得
         let meta = null;
         if (gutenberg_catalog_ready && gutenberg_catalog) {
             meta = gutenberg_catalog.find(b => b.bookId === String(bookId));
         }
 
-        // 全ミラー × 全形式 を順に試す（pglaf → odu → 本家）
         const urls = [];
         for (const base of GUTENBERG_MIRRORS) {
             urls.push(`${base}/cache/epub/${bookId}/pg${bookId}-images.html`);
@@ -6019,7 +6117,6 @@ async function downloadAndSaveGutenberg(bookId, silent) {
             return `<${p.tag}${cls}>${inner}</${p.tag}>`;
         }).join('');
 
-        // メタデータから書誌情報を組み立て（なければ安全にフォールバック）
         const title = (meta && meta.title) ? meta.title : `作品ID ${bookId}`;
         const author = (meta && Array.isArray(meta.authors) && meta.authors.length)
             ? meta.authors.join(', ')
@@ -7091,6 +7188,7 @@ document.addEventListener('click', (ev) => {
     if (ev.target && ev.target.closest && ev.target.closest('.modal-overlay')) return;
     if (ev.target && ev.target.closest && ev.target.closest('#announce-modal')) return;
     if (ev.target && ev.target.closest && ev.target.closest('#detail-modal')) return;
+    if (ev.target && ev.target.closest && ev.target.closest('#diagnostics-modal')) return;
     closeAllRowMenus();
 });
 document.addEventListener('scroll', () => closeAllRowMenus(), true);
@@ -7633,6 +7731,372 @@ function changeFontSize(d) {
 window.changeFontSize = changeFontSize;
 
 /* ============================================================
+   診断機能
+   ============================================================ */
+const DIAGNOSTICS = [
+    {
+        id: 'browser',
+        label: 'ブラウザ環境',
+        run: async () => {
+            const ua = navigator.userAgent;
+            const on = navigator.onLine;
+            const isiOS = /iPhone|iPad|iPod/.test(ua);
+            const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS/.test(ua);
+            const mem = navigator.deviceMemory || '不明';
+            const detail =
+                'オンライン: ' + on + '\n' +
+                'デバイスメモリ: ' + mem + (mem === '不明' ? '' : 'GB') + '\n' +
+                'iOS: ' + isiOS + '\n' +
+                'Safari: ' + isSafari + '\n' +
+                'UA: ' + ua;
+            if (!on) return { status: 'fail', msg: 'オフライン', detail };
+            return { status: 'ok', msg: 'オンライン', detail };
+        }
+    },
+    {
+        id: 'basic-fetch',
+        label: '基本通信（CDN）',
+        run: async () => {
+            try {
+                const r = await fetchWithTimeout(
+                    'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+                    {}, 8000
+                );
+                return { status: r.ok ? 'ok' : 'warn', msg: 'HTTP ' + r.status };
+            } catch (e) {
+                return { status: 'fail', msg: e.message || 'failed' };
+            }
+        }
+    },
+    {
+        id: 'github-direct',
+        label: 'GitHub直叩き（青空の経路）',
+        run: async () => {
+            try {
+                const r = await fetchWithTimeout(
+                    'https://raw.githubusercontent.com/takahashim/aozora_json_scrape/master/README.md',
+                    {}, 8000
+                );
+                return { status: r.ok ? 'ok' : 'fail', msg: 'HTTP ' + r.status };
+            } catch (e) {
+                return { status: 'fail', msg: e.message || 'failed' };
+            }
+        }
+    },
+    {
+        id: 'proxies',
+        label: 'プロキシ疎通（3種）',
+        run: async () => {
+            const testUrl = 'https://www.gutenberg.org/cache/epub/11/pg11.txt';
+            const names = ['aoi', 'codetabs', 'allorigins'];
+            const results = await Promise.all(names.map(n => testProxy(n, testUrl)));
+            const detail = names.map((n, i) => {
+                const r = results[i];
+                return '[' + n + '] ' + (r.ok ? 'OK' : 'NG') + ' — ' + r.msg;
+            }).join('\n');
+            const okCount = results.filter(r => r.ok).length;
+            if (okCount === names.length) return { status: 'ok', msg: '全' + names.length + '種OK', detail };
+            if (okCount === 0) return { status: 'fail', msg: '全滅（プロキシ死亡）', detail };
+            return { status: 'warn', msg: okCount + '/' + names.length + ' OK', detail };
+        }
+    },
+    {
+        id: 'gutenberg-catalog',
+        label: 'Gutenbergカタログ',
+        run: async () => {
+            if (gutenberg_catalog_loading) return { status: 'warn', msg: '読み込み中' };
+            if (!gutenberg_catalog_ready) {
+                return {
+                    status: 'fail',
+                    msg: '未読み込み（CSVのDL失敗）',
+                    detail: '起動6秒後に自動読み込みされます。\n20MBのCSVをプロキシ経由で取得します。'
+                };
+            }
+            if (!gutenberg_catalog) return { status: 'fail', msg: 'null' };
+            const n = gutenberg_catalog.length;
+            if (n < 1000) return { status: 'warn', msg: '件数が少ない: ' + n };
+            return { status: 'ok', msg: n.toLocaleString() + '件' };
+        }
+    },
+    {
+        id: 'aozora-catalog',
+        label: '青空文庫カタログ',
+        run: async () => {
+            if (aozora_catalog_loading) return { status: 'warn', msg: '読み込み中' };
+            if (!aozora_catalog_ready) return { status: 'fail', msg: '未読み込み' };
+            if (!aozora_catalog) return { status: 'fail', msg: 'null' };
+            return { status: 'ok', msg: aozora_catalog.length.toLocaleString() + '件' };
+        }
+    },
+    {
+        id: 'translate',
+        label: '翻訳チェーン（日→英）',
+        run: async () => {
+            const t0 = performance.now();
+            try {
+                const en = await toEnglishQuery('夏目漱石');
+                const ms = Math.round(performance.now() - t0);
+                if (en === '夏目漱石') {
+                    return {
+                        status: 'fail',
+                        msg: '翻訳失敗（日本語のまま）',
+                        detail: '所要時間: ' + ms + 'ms\n' +
+                                'Lingva インスタンスが落ちているか、\n' +
+                                'Wikipedia への問い合わせが失敗しています。'
+                    };
+                }
+                return { status: 'ok', msg: '→ "' + en + '"', detail: '所要時間: ' + ms + 'ms' };
+            } catch (e) {
+                return { status: 'fail', msg: e.message || 'failed' };
+            }
+        }
+    },
+    {
+        id: 'search-gutenberg-en',
+        label: 'Gutenberg検索（英語）',
+        run: async () => {
+            try {
+                const r = await searchGutenbergUnified({ query: 'Soseki', filters: {} });
+                if (!r.length) return { status: 'warn', msg: '0件', detail: 'カタログに "Soseki" がヒットしません' };
+                return { status: 'ok', msg: r.length + '件' };
+            } catch (e) {
+                return { status: 'fail', msg: e.message || 'failed' };
+            }
+        }
+    },
+    {
+        id: 'search-gutenberg-ja',
+        label: 'Gutenberg検索（日本語）',
+        run: async () => {
+            try {
+                const r = await searchGutenbergUnified({ query: '夏目漱石', filters: {} });
+                if (!r.length) return {
+                    status: 'warn', msg: '0件',
+                    detail: '翻訳チェーンが死んでいるとここで0件になります'
+                };
+                return { status: 'ok', msg: r.length + '件' };
+            } catch (e) {
+                return { status: 'fail', msg: e.message || 'failed' };
+            }
+        }
+    },
+    {
+        id: 'ia-api',
+        label: 'Internet Archive API',
+        run: async () => {
+            try {
+                const url = 'https://archive.org/advancedsearch.php?q=shakespeare&rows=1&output=json';
+                const r = await smartFetch(url, {}, 12000);
+                if (!r.ok) return { status: 'fail', msg: 'HTTP ' + r.status };
+                const data = await r.json();
+                const n = (data.response && data.response.numFound) || 0;
+                return { status: 'ok', msg: 'numFound: ' + n.toLocaleString() };
+            } catch (e) {
+                return { status: 'fail', msg: e.message || 'failed' };
+            }
+        }
+    },
+    {
+        id: 'cors-sources',
+        label: 'CORS直叩きソース',
+        run: async () => {
+            const targets = [
+                ['Wikisource', 'https://ja.wikisource.org/w/api.php?action=query&meta=siteinfo&format=json&origin=*'],
+                ['DOAJ', 'https://doaj.org/api/search/articles/test?pageSize=1'],
+                ['Zenodo', 'https://zenodo.org/api/records?q=test&size=1'],
+                ['arXiv', 'https://export.arxiv.org/api/query?search_query=all:test&max_results=1']
+            ];
+            const results = await Promise.all(targets.map(async (pair) => {
+                const name = pair[0], url = pair[1];
+                try {
+                    const r = await fetchWithTimeout(url, {}, 8000);
+                    return { name: name, ok: r.ok, status: r.status };
+                } catch (e) {
+                    return { name: name, ok: false, error: e.message || 'failed' };
+                }
+            }));
+            const detail = results.map(r => r.ok
+                ? '[' + r.name + '] OK (HTTP ' + r.status + ')'
+                : '[' + r.name + '] NG (' + (r.error || 'HTTP ' + r.status) + ')'
+            ).join('\n');
+            const okCount = results.filter(r => r.ok).length;
+            if (okCount === results.length) return { status: 'ok', msg: '全' + results.length + '件OK', detail };
+            if (okCount === 0) return { status: 'fail', msg: '全部失敗', detail };
+            return { status: 'warn', msg: okCount + '/' + results.length + ' OK', detail };
+        }
+    },
+    {
+        id: 'indexeddb',
+        label: 'IndexedDB（本棚）',
+        run: async () => {
+            try {
+                const books = await getAllBooksFromDB();
+                const pending = books.filter(b =>
+                    b.paragraphs && (b.translationDone || 0) < (b.translationTotal || b.paragraphs.length)
+                ).length;
+                return {
+                    status: 'ok',
+                    msg: '本棚 ' + books.length + '件',
+                    detail: pending > 0 ? '翻訳未完了: ' + pending + '件' : null
+                };
+            } catch (e) {
+                return { status: 'fail', msg: e.message || 'failed' };
+            }
+        }
+    },
+    {
+        id: 'ndl',
+        label: 'NDL（フラグ状態）',
+        run: async () => {
+            if (!NDL_ENABLED) return { status: 'skip', msg: '停止中（NDL_ENABLED = false）' };
+            return { status: 'ok', msg: '有効' };
+        }
+    }
+];
+
+async function testProxy(name, url) {
+    const proxied = CORS_PROXIES[name](url);
+    const t0 = performance.now();
+    try {
+        const r = await fetchWithTimeout(proxied, {}, 12000);
+        const ms = Math.round(performance.now() - t0);
+        if (!r.ok) return { ok: false, msg: 'HTTP ' + r.status + ' (' + ms + 'ms)' };
+        const text = await r.text();
+        if (text.length < 500) return { ok: false, msg: '応答が短い (' + text.length + 'B, ' + ms + 'ms)' };
+        return { ok: true, msg: (text.length / 1024).toFixed(1) + 'KB / ' + ms + 'ms' };
+    } catch (e) {
+        const ms = Math.round(performance.now() - t0);
+        return { ok: false, msg: (e.message || 'failed') + ' (' + ms + 'ms)' };
+    }
+}
+
+let diagnosticsState = {};
+let _allDiagRunning = false;
+
+function iconForDiag(status) {
+    switch (status) {
+        case 'ok': return '✓';
+        case 'warn': return '!';
+        case 'fail': return '×';
+        case 'running': return '⟳';
+        case 'skip': return '－';
+        default: return '·';
+    }
+}
+
+function renderDiagnostics() {
+    const body = document.getElementById('diagnostics-body');
+    if (!body) return;
+    body.innerHTML = '';
+    DIAGNOSTICS.forEach(d => {
+        const s = diagnosticsState[d.id] || { status: 'pending' };
+        const row = document.createElement('div');
+        row.className = 'diag-row diag-' + s.status;
+        row.title = 'タップで再診断';
+
+        const icon = document.createElement('span');
+        icon.className = 'diag-icon';
+        icon.textContent = iconForDiag(s.status);
+
+        const content = document.createElement('div');
+        content.className = 'diag-content';
+
+        const label = document.createElement('div');
+        label.className = 'diag-label';
+        label.textContent = d.label;
+
+        const msg = document.createElement('div');
+        msg.className = 'diag-msg';
+        msg.textContent = s.msg || '未診断';
+
+        content.appendChild(label);
+        content.appendChild(msg);
+
+        if (s.detail) {
+            const detail = document.createElement('pre');
+            detail.className = 'diag-detail';
+            detail.textContent = s.detail;
+            content.appendChild(detail);
+        }
+
+        const time = document.createElement('span');
+        time.className = 'diag-time';
+        time.textContent = (s.durationMs != null) ? s.durationMs + 'ms' : '';
+
+        row.appendChild(icon);
+        row.appendChild(content);
+        row.appendChild(time);
+
+        row.addEventListener('click', () => {
+            if (s.status === 'running' || _allDiagRunning) return;
+            runDiagnostic(d.id);
+        });
+
+        body.appendChild(row);
+    });
+}
+
+async function runDiagnostic(id) {
+    const item = DIAGNOSTICS.find(d => d.id === id);
+    if (!item) return;
+    diagnosticsState[id] = { status: 'running', msg: '診断中...' };
+    renderDiagnostics();
+    const t0 = performance.now();
+    try {
+        const result = await item.run();
+        diagnosticsState[id] = {
+            status: result.status || 'ok',
+            msg: result.msg || '',
+            detail: result.detail || null,
+            durationMs: Math.round(performance.now() - t0)
+        };
+    } catch (e) {
+        diagnosticsState[id] = {
+            status: 'fail',
+            msg: e.message || String(e),
+            durationMs: Math.round(performance.now() - t0)
+        };
+    }
+    renderDiagnostics();
+}
+
+async function runAllDiagnostics() {
+    if (_allDiagRunning) return;
+    _allDiagRunning = true;
+    const btn = document.querySelector('.diag-rerun-all');
+    if (btn) { btn.disabled = true; btn.textContent = '診断中...'; }
+    diagnosticsState = {};
+    renderDiagnostics();
+    try {
+        for (const d of DIAGNOSTICS) {
+            await runDiagnostic(d.id);
+        }
+    } finally {
+        _allDiagRunning = false;
+        if (btn) { btn.disabled = false; btn.textContent = '↻ 全部'; }
+    }
+}
+
+function openDiagnostics() {
+    closeSettings();
+    const m = document.getElementById('diagnostics-modal');
+    if (!m) return;
+    m.classList.add('active');
+    renderDiagnostics();
+    runAllDiagnostics();
+}
+
+function closeDiagnostics() {
+    const m = document.getElementById('diagnostics-modal');
+    if (m) m.classList.remove('active');
+}
+
+window.openDiagnostics = openDiagnostics;
+window.closeDiagnostics = closeDiagnostics;
+window.runAllDiagnostics = runAllDiagnostics;
+window.runDiagnostic = runDiagnostic;
+
+/* ============================================================
    起動処理
    ============================================================ */
 window.onload = async () => {
@@ -7667,7 +8131,6 @@ window.onload = async () => {
         } catch (e) {}
     }, 2000);
 
-    /* Gutenberg CSVカタログ */
     setTimeout(async () => {
         try {
             await fetchGutenbergCatalog();
@@ -7728,7 +8191,8 @@ Object.assign(window, {
     closeReader, switchTab, changeFontSize, turnPage,
     toggleTranslationView, changeTargetLang,
     openAnnounceModal, closeAnnounceModal, dismissAllAnnouncements,
-    openBookDetail, closeBookDetail
+    openBookDetail, closeBookDetail,
+    openDiagnostics, closeDiagnostics, runAllDiagnostics, runDiagnostic
 });
 </script>
 </body>
