@@ -1955,7 +1955,7 @@ const ANNOUNCEMENTS = [
             '【今回の変更点】',
             '',
             '■ Gutenbergの書誌情報が正確に',
-            'Gutenbergの公式カタログ（RDF）を取得するようにしました。',
+            'Gutenbergの公式カタログ（CSV）を取得するようにしました。',
             'これまでは作品の著者名や言語が「不明」「en」固定になっていましたが、',
             '正しい著者名・言語・公開日が自動で入るようになります。',
             '',
@@ -2133,29 +2133,23 @@ const AOZORA_CATALOG_SOURCES = [
 ];
 
 /* ============================================================
-   Gutenberg 公式RDFカタログ
+   Gutenberg 公式CSVカタログ
    ── 全作品のメタデータ（タイトル・著者・言語・公開日・件名）を
-      含むRDF/XMLをZIPで取得する。公式推奨。
+      含むCSV（プレーンテキスト）を取得する。公式配布。
    ── 初回のみDL、以降はIndexedDBキャッシュから読む。
    ── DL失敗時はOPDS検索に自動フォールバック。
    ============================================================ */
-const GUTENBERG_RDF_URL = 'https://www.gutenberg.org/cache/epub/feeds/pg_catalog.rdf.zip';
-const GUTENBERG_CATALOG_KEY = 'gutenberg_catalog_v1';
+const GUTENBERG_CSV_URL = 'https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv';
+const GUTENBERG_CATALOG_KEY = 'gutenberg_catalog_v2'; /* RDF版(v1)と区別 */
+const GUTENBERG_OLD_CATALOG_KEY = 'gutenberg_catalog_v1'; /* 旧キャッシュ削除用 */
 const GUTENBERG_CATALOG_TTL_MS = 24 * 60 * 60 * 1000; /* 24時間 */
 
-/* Gutenberg公式ミラー（RDFカタログが使えない場合のダウンロード経路） */
+/* Gutenberg公式ミラー（本文ダウンロード用。カタログとは別経路） */
 const GUTENBERG_MIRRORS = [
     'https://gutenberg.pglaf.org',
     'https://mirror.cs.odu.edu/gutenberg',
     'https://www.gutenberg.org'
 ];
-
-function buildGutenbergMirrorUrl(id, format) {
-    const base = GUTENBERG_MIRRORS[0];
-    if (format === 'html') return `${base}/cache/epub/${id}/pg${id}-images.html`;
-    if (format === 'epub') return `${base}/cache/epub/${id}/pg${id}.epub`;
-    return `${base}/cache/epub/${id}/pg${id}.txt`;
-}
 
 const LANGUAGE_NAMES = {
     ja: '日本語',
@@ -2292,7 +2286,6 @@ const MK_BR   = '\x01BR\x01';
 let maji_de_db = null;
 let db_closing = false;
 let current_font_size = 18;
-let v_project_cache = {};
 let drag_zaku_id = null;
 let menu_char_aznable_id = null;
 let delete_kill_confirm_id = null;
@@ -3270,7 +3263,6 @@ async function unifiedSearch({ query, filters, defaultSort }) {
     sortBar.style.display = 'none';
     currentSearchResults = [];
     currentDisplayCount = SEARCH_PAGE_SIZE;
-    v_project_cache = {};
 
     const allSources = [
         'gutenberg', 'aozora', 'internetarchive', 'openlibrary', 'ndl',
@@ -4121,8 +4113,8 @@ function parseAozoraCardJson(json) {
 }
 
 /* ============================================================
-   Gutenberg RDFカタログ
-   ── 公式が推奨するメタデータカタログ。
+   Gutenberg CSVカタログ
+   ── 公式配布のメタデータカタログ（CSV形式）。
    ── 初回起動時に一度だけDL → IndexedDBに24時間キャッシュ。
    ── カタログがあればローカル検索、なければOPDSにフォールバック。
    ============================================================ */
@@ -4130,6 +4122,15 @@ async function fetchGutenbergCatalog() {
     if (gutenberg_catalog_loading || gutenberg_catalog_ready) return;
     gutenberg_catalog_loading = true;
     showHeaderSpinner();
+
+    // 旧v1キャッシュ（動かなかったRDF版の残骸）を削除
+    try {
+        await safeDBOp(['cache'], 'readwrite', (tx, resolve) => {
+            tx.objectStore('cache').delete(GUTENBERG_OLD_CATALOG_KEY);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => resolve();
+        });
+    } catch (e) {}
 
     // 24時間以内のキャッシュがあれば使う
     try {
@@ -4147,21 +4148,14 @@ async function fetchGutenbergCatalog() {
         }
     } catch (e) {}
 
-    // DL
+    // DL（CSVはテキストなのでJSZip不要）
     try {
-        const res = await smartFetch(GUTENBERG_RDF_URL, {}, FETCH_TIMEOUT_BOOK);
+        const res = await smartFetch(GUTENBERG_CSV_URL, {}, FETCH_TIMEOUT_BOOK);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const buf = await res.arrayBuffer();
-        const zip = await JSZip.loadAsync(buf);
+        const text = await res.text();
+        if (!text || text.length < 10000) throw new Error('CSVが短すぎます');
 
-        let rdfFile = null;
-        zip.forEach((path, file) => {
-            if (!rdfFile && /\.rdf$/i.test(path) && !file.dir) rdfFile = file;
-        });
-        if (!rdfFile) throw new Error('RDF file not found in zip');
-
-        const xml = await rdfFile.async('string');
-        const catalog = parseGutenbergRdf(xml);
+        const catalog = parseGutenbergCsv(text);
         if (!catalog.length) throw new Error('カタログが空');
 
         gutenberg_catalog = catalog;
@@ -4180,61 +4174,143 @@ async function fetchGutenbergCatalog() {
     }
 }
 
-function parseGutenbergRdf(xml) {
-    const catalog = [];
-    const doc = new DOMParser().parseFromString(xml, 'application/xml');
-    const RDF_NS = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
+/* ============================================================
+   Gutenberg CSVカタログのパーサ
+   ── RFC 4180準拠（ダブルクォート内のカンマ・改行・"" に対応）
+   ── 実際のヘッダー: Text#,Type,Issued,Title,Language,Authors,Subjects,LoCC,Bookshelves
+   ── Authors/Subjects は ";" 区切りの複数値
+   ── Language も念のため ";" で分割（多言語作品対策）
+   ── "Various" / "Anonymous" 等の特殊値をそのまま保持
+   ============================================================ */
+function parseGutenbergCsv(text) {
+    // BOM除去
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
 
-    doc.querySelectorAll('ebook').forEach(ebook => {
-        try {
-            const about = ebook.getAttributeNS(RDF_NS, 'about');
-            const idMatch = about && about.match(/\/ebooks\/(\d+)/);
-            if (!idMatch) return;
-            const bookId = idMatch[1];
+    // ---- RFC 4180 準拠のCSV行分割 ----
+    const rows = [];
+    let row = [];
+    let field = '';
+    let inQuotes = false;
+    let i = 0;
+    const len = text.length;
 
-            const titleEl = ebook.querySelector('title');
-            const title = titleEl ? titleEl.textContent.trim() : '';
+    while (i < len) {
+        const ch = text[i];
 
-            const authors = [];
-            ebook.querySelectorAll('creator').forEach(a => {
-                const nameEl = a.querySelector('name');
-                if (nameEl) {
-                    const n = nameEl.textContent.trim();
-                    if (n) authors.push(n);
+        if (inQuotes) {
+            if (ch === '"') {
+                if (text[i + 1] === '"') {
+                    field += '"';
+                    i += 2;
+                } else {
+                    inQuotes = false;
+                    i++;
                 }
-            });
+            } else {
+                field += ch;
+                i++;
+            }
+        } else {
+            if (ch === '"') {
+                inQuotes = true;
+                i++;
+            } else if (ch === ',') {
+                row.push(field);
+                field = '';
+                i++;
+            } else if (ch === '\r') {
+                row.push(field);
+                field = '';
+                rows.push(row);
+                row = [];
+                if (text[i + 1] === '\n') i += 2;
+                else i++;
+            } else if (ch === '\n') {
+                row.push(field);
+                field = '';
+                rows.push(row);
+                row = [];
+                i++;
+            } else {
+                field += ch;
+                i++;
+            }
+        }
+    }
+    if (field.length > 0 || row.length > 0) {
+        row.push(field);
+        rows.push(row);
+    }
 
-            const languages = [];
-            ebook.querySelectorAll('language').forEach(l => {
-                const val = l.querySelector('value');
-                if (val) languages.push(val.textContent.trim());
-            });
+    if (rows.length < 2) return [];
 
-            const subjects = [];
-            ebook.querySelectorAll('subject').forEach(s => {
-                const val = s.querySelector('value');
-                if (val) subjects.push(val.textContent.trim());
-            });
+    // ---- ヘッダー解析 ----
+    const header = rows[0].map(h => h.trim().toLowerCase());
+    const colIndex = (name) => header.indexOf(name);
 
-            const issuedEl = ebook.querySelector('issued');
-            const issued = issuedEl ? issuedEl.textContent.trim() : null;
+    const idxText   = colIndex('text#');
+    const idxType   = colIndex('type');
+    const idxIssued = colIndex('issued');
+    const idxTitle  = colIndex('title');
+    const idxLang   = colIndex('language');
+    const idxAuthor = colIndex('authors');
+    const idxSubj   = colIndex('subjects');
 
-            if (!title) return;
-            catalog.push({
-                bookId,
-                title,
-                authors,
-                languages,
-                subjects,
-                issued
-            });
-        } catch (e) {}
-    });
+    if (idxText < 0 || idxTitle < 0) {
+        console.warn('[gutenberg-csv] 予期しないヘッダー:', header);
+        return [];
+    }
+
+    // ---- 行をパース ----
+    const catalog = [];
+    for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row || row.length < 2) continue;
+
+        const bookId = (row[idxText] || '').trim();
+        const title  = (row[idxTitle] || '').trim();
+        if (!bookId || !title) continue;
+
+        // Type: "Text" 以外（"Sound" など）は除外（念のため）
+        const type = idxType >= 0 ? (row[idxType] || '').trim() : 'Text';
+        if (type && type.toLowerCase() !== 'text') continue;
+
+        const issued = idxIssued >= 0 ? (row[idxIssued] || '').trim() : '';
+
+        // Language: "en" が基本だが "en;fr" のような複数形にも対応
+        const langRaw = idxLang >= 0 ? (row[idxLang] || '').trim() : '';
+        const languages = langRaw
+            ? langRaw.split(';').map(s => s.trim()).filter(Boolean)
+            : [];
+
+        // Authors: "Austen, Jane; Editor, Some" のような ";" 区切り
+        // 空欄、"Various"、"Anonymous" 等はそのまま保持
+        const authorsRaw = idxAuthor >= 0 ? (row[idxAuthor] || '').trim() : '';
+        const authors = authorsRaw
+            ? authorsRaw.split(';').map(s => s.trim()).filter(Boolean)
+            : [];
+
+        // Subjects: "Fiction; Romance" のような ";" 区切り
+        const subjectsRaw = idxSubj >= 0 ? (row[idxSubj] || '').trim() : '';
+        const subjects = subjectsRaw
+            ? subjectsRaw.split(';').map(s => s.trim()).filter(Boolean)
+            : [];
+
+        catalog.push({
+            bookId,
+            title,
+            authors,
+            languages,
+            subjects,
+            issued,
+            type
+        });
+    }
 
     return catalog;
 }
 
-/* OPDSフォールバック（RDFカタログが使えないときのみ） */
+/* OPDSフォールバック（CSVカタログが使えないときのみ） */
 async function searchGutenbergViaOPDS(query) {
     try {
         const searchQ = await toEnglishQuery(query);
@@ -4294,8 +4370,8 @@ async function searchGutenbergUnified(ctx) {
             waited += 300;
         }
         if (!gutenberg_catalog_ready) {
-            // RDFカタログDL失敗 → OPDS検索にフォールバック
-            console.warn('[gutenberg] RDF catalog unavailable, using OPDS fallback');
+            // カタログDL失敗 → OPDS検索にフォールバック
+            console.warn('[gutenberg] CSV catalog unavailable, using OPDS fallback');
             return await searchGutenbergViaOPDS(query);
         }
     }
@@ -4332,14 +4408,17 @@ async function searchGutenbergUnified(ctx) {
     results.sort((a, b) => b.score - a.score);
 
     return results.slice(0, 1000).map(({ book }) => {
-        const lang = (book.languages && book.languages[0]) || 'en';
+        // 言語配列が空でも安全に 'en' にフォールバック
+        const lang = (Array.isArray(book.languages) && book.languages.length)
+            ? book.languages[0]
+            : 'en';
         return {
             source: 'gutenberg',
             id: 'gutenberg_' + book.bookId,
             title: book.title,
             author: book.authors.length ? book.authors.join(', ') : '不明',
             year: parseYear(book.issued),
-            category: null,
+            category: guessGutenbergCategory(book.subjects, null),
             safe: true,
             safetyNote: '保護期間内',
             raw: {
@@ -5873,16 +5952,18 @@ async function downloadAndSaveGutenberg(bookId, silent) {
         showToast(`ダウンロード開始: 作品ID ${bookId}`, 'info');
     }
     try {
-        // RDFカタログからメタデータ取得
+        // ローカルCSVカタログからメタデータ取得
         let meta = null;
         if (gutenberg_catalog_ready && gutenberg_catalog) {
             meta = gutenberg_catalog.find(b => b.bookId === String(bookId));
         }
 
-        const urls = [
-            buildGutenbergMirrorUrl(bookId, 'html'),
-            buildGutenbergMirrorUrl(bookId, 'txt')
-        ];
+        // 全ミラー × 全形式 を順に試す（pglaf → odu → 本家）
+        const urls = [];
+        for (const base of GUTENBERG_MIRRORS) {
+            urls.push(`${base}/cache/epub/${bookId}/pg${bookId}-images.html`);
+            urls.push(`${base}/cache/epub/${bookId}/pg${bookId}.txt`);
+        }
 
         let ok = null, rt = '', final_url = '', lastErr = '';
         for (const u of urls) {
@@ -5938,10 +6019,14 @@ async function downloadAndSaveGutenberg(bookId, silent) {
             return `<${p.tag}${cls}>${inner}</${p.tag}>`;
         }).join('');
 
-        // メタデータから書誌情報を組み立て（なければフォールバック）
-        const title = meta ? meta.title : `作品ID ${bookId}`;
-        const author = meta && meta.authors.length ? meta.authors.join(', ') : '不明';
-        const srcLang = meta && meta.languages.length ? meta.languages[0] : 'en';
+        // メタデータから書誌情報を組み立て（なければ安全にフォールバック）
+        const title = (meta && meta.title) ? meta.title : `作品ID ${bookId}`;
+        const author = (meta && Array.isArray(meta.authors) && meta.authors.length)
+            ? meta.authors.join(', ')
+            : '不明';
+        const srcLang = (meta && Array.isArray(meta.languages) && meta.languages.length)
+            ? meta.languages[0]
+            : 'en';
 
         const bd = {
             id: 'gutenberg_' + bookId,
@@ -7582,7 +7667,7 @@ window.onload = async () => {
         } catch (e) {}
     }, 2000);
 
-    /* Gutenberg RDFカタログ */
+    /* Gutenberg CSVカタログ */
     setTimeout(async () => {
         try {
             await fetchGutenbergCatalog();
