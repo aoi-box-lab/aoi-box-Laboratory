@@ -365,6 +365,18 @@ h1 {
     gap: 10px;
 }
 
+/* 本棚ID列：文字を縮小して縦伸びを防ぐ */
+#bookshelf-table td.id-cell {
+    font-size: .7rem;
+    line-height: 1.3;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    vertical-align: top;
+}
+#bookshelf-table td.id-cell .drag-handle {
+    margin-top: 2px;
+}
+
 .drag-handle {
     display: flex;
     flex-direction: column;
@@ -1161,7 +1173,7 @@ h1 {
 }
 
 /* ============================================================
-   設定ギアボタン
+   設定ボタン（テキスト表記）
    ============================================================ */
 .settings-gear-btn {
     flex: 0 0 auto;
@@ -1170,16 +1182,17 @@ h1 {
     background: none;
     border: 1px solid var(--border-color);
     color: var(--text-color);
-    padding: 6px 10px;
+    padding: 6px 14px;
     margin-left: 8px;
     border-radius: 4px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    font-size: .9rem;
+    font-family: inherit;
 }
 .settings-gear-btn:hover { background: rgba(0,0,0,.04); }
-.settings-gear-btn svg { display: block; }
 
 /* ============================================================
    お知らせバー
@@ -1192,7 +1205,7 @@ h1 {
     z-index: 500;
     background: var(--accent-color);
     color: #fff;
-    padding: 10px 48px 10px 16px;
+    padding: 14px 52px 14px 16px;
     font-size: .88rem;
     line-height: 1.5;
     box-shadow: 0 2px 8px rgba(0,0,0,.15);
@@ -1211,19 +1224,21 @@ h1 {
 }
 #announce-bar .ab-close {
     position: absolute;
-    right: 6px;
-    top: 50%;
+    right: 8px;
+    top: calc(50% + 3px);
     transform: translateY(-50%);
     background: none;
     border: none;
     color: #fff;
-    font-size: 1.4rem;
+    font-size: 1rem;
+    font-weight: 300;
     line-height: 1;
     cursor: pointer;
-    padding: 4px 10px;
+    padding: 4px 8px;
     border-radius: 4px;
+    opacity: .85;
 }
-#announce-bar .ab-close:hover { background: rgba(255,255,255,.18); }
+#announce-bar .ab-close:hover { background: rgba(255,255,255,.18); opacity: 1; }
 
 /* ============================================================
    設定パネル内お知らせボタン
@@ -1376,8 +1391,8 @@ h1 {
         font-size: .9rem;
     }
     .nav-buttons .settings-gear-btn {
-        flex: 0 0 var(--tap-min);
-        padding: 8px;
+        flex: 0 0 auto;
+        padding: 8px 14px;
     }
     .simple-search-box {
         flex-direction: column;
@@ -1413,7 +1428,11 @@ h1 {
     #announce-bar {
         top: calc(env(safe-area-inset-top) + 100px);
         font-size: .82rem;
-        padding: 8px 44px 8px 12px;
+        padding: 12px 46px 12px 12px;
+    }
+    #announce-bar .ab-close {
+        font-size: .95rem;
+        padding: 4px 8px;
     }
 }
 
@@ -1462,11 +1481,7 @@ h1 {
     <div class="nav-buttons">
         <button onclick="switchTab('search')">検索</button>
         <button onclick="switchTab('bookshelf')">本棚</button>
-        <button class="settings-gear-btn" onclick="openSettings()" aria-label="設定" title="設定">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
-                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
-            </svg>
-        </button>
+        <button class="settings-gear-btn" onclick="openSettings()" aria-label="設定" title="設定">設定</button>
     </div>
 </header>
 
@@ -1879,6 +1894,7 @@ const BOOK_FORMAT_VERSION = 3;
 const SETTINGS_KEY = 'yamabiko_settings_v1';
 const AUTHOR_YEAR_CACHE_PREFIX = 'author_year_v1:';
 const AUTHOR_YEAR_BATCH_SIZE = 50;
+const SEARCH_PAGE_SIZE = 500;
 
 const IA_SEARCH_ENDPOINT = 'https://archive.org/advancedsearch.php';
 const IA_METADATA_ENDPOINT = 'https://archive.org/metadata';
@@ -2005,6 +2021,7 @@ let currentSearchResults = [];
 let currentSortField = 'relevance';
 let currentSortAsc = false;
 let currentSearchGen = 0;
+let currentDisplayCount = SEARCH_PAGE_SIZE;
 
 let appSettings = {
     viewMode: 'scroll',
@@ -2828,6 +2845,7 @@ async function unifiedSearch({ query, filters, defaultSort }) {
     t.style.display = 'none';
     sortBar.style.display = 'none';
     currentSearchResults = [];
+    currentDisplayCount = SEARCH_PAGE_SIZE;
     v_project_cache = {};
 
     const allSources = [
@@ -2942,6 +2960,9 @@ function updateSortDirectionButton() {
     btn.title = currentSortAsc ? '昇順（クリックで降順）' : '降順（クリックで昇順）';
 }
 
+/* ============================================================
+   検索結果の描画（500件ずつページング）
+   ============================================================ */
 function renderSearchResults() {
     const tb = document.getElementById('results-tbody');
     const countEl = document.getElementById('sort-count');
@@ -2966,8 +2987,35 @@ function renderSearchResults() {
         return 0;
     });
 
-    sorted.forEach(r => renderUnifiedRow(r, tb));
-    if (countEl) countEl.textContent = `${sorted.length}件`;
+    const showCount = Math.min(currentDisplayCount, sorted.length);
+    for (let i = 0; i < showCount; i++) {
+        renderUnifiedRow(sorted[i], tb);
+    }
+
+    if (sorted.length > currentDisplayCount) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 4;
+        td.style.textAlign = 'center';
+        td.style.padding = '18px';
+        td.style.background = 'rgba(0,0,0,.02)';
+        const btn = document.createElement('button');
+        const remain = sorted.length - currentDisplayCount;
+        btn.textContent = `続きを読み込む（残り ${remain}件）`;
+        btn.style.cssText =
+            'padding:10px 28px;min-height:40px;border:none;' +
+            'background:var(--accent-color);color:#fff;border-radius:4px;' +
+            'cursor:pointer;font-size:.9rem;';
+        btn.onclick = () => {
+            currentDisplayCount += SEARCH_PAGE_SIZE;
+            renderSearchResults();
+        };
+        td.appendChild(btn);
+        tr.appendChild(td);
+        tb.appendChild(tr);
+    }
+
+    if (countEl) countEl.textContent = `${showCount} / ${sorted.length}件`;
 }
 
 async function searchSourceUnified(source, ctx) {
@@ -3700,6 +3748,7 @@ async function searchInternetArchiveAll(query, yearRange) {
     return docs.concat(rest);
 }
 
+/* 全著者のPD判定（全員PDのときだけsafe=true） */
 async function searchIAUnified(ctx) {
     const titleQ = (ctx.filters.title || '').trim();
     const authorQ = (ctx.filters.author || '').trim();
@@ -3741,34 +3790,46 @@ async function searchIAUnified(ctx) {
             const names = perDocCreators[di];
             const creatorStr = names.length ? names.join(', ') : '不明';
 
-            let dInfo = { deathYear: null, birthYear: null };
-            let matchedName = '';
-            for (const n of names) {
+            const judgments = names.map(n => {
+                let info = null, matched = '';
                 for (const cand of buildNameCandidates(n)) {
-                    const info = yearMap[cand];
-                    if (info && (info.birthYear || info.deathYear)) {
-                        dInfo = info;
-                        matchedName = cand;
-                        break;
+                    const i = yearMap[cand];
+                    if (i && (i.birthYear || i.deathYear)) {
+                        info = i; matched = cand; break;
                     }
                 }
-                if (dInfo.birthYear || dInfo.deathYear) break;
-            }
+                const j = judgePD(info || { birthYear: null, deathYear: null }, matched || n);
+                return {
+                    name: n,
+                    deathYear: info && info.deathYear || null,
+                    safe: j.safe,
+                    note: j.note
+                };
+            });
 
             const licenseSafe = isIAPublicDomain(item);
-            const j = judgePD(dInfo, matchedName || creatorStr);
-            const pdByLicense = licenseSafe && !dInfo.deathYear;
+            const anyKnownCopyrighted = judgments.some(a => a.deathYear && !a.safe);
+            const allKnownPD = judgments.length > 0 && judgments.every(a => a.safe);
+            const pdByLicense = licenseSafe && !anyKnownCopyrighted;
 
             let safe, safetyNote;
-            if (j.safe) {
+            if (anyKnownCopyrighted) {
+                safe = false;
+                safetyNote = judgments
+                    .filter(a => a.deathYear && !a.safe)
+                    .map(a => a.note)
+                    .join(' / ');
+            } else if (allKnownPD) {
                 safe = true;
-                safetyNote = j.note;
+                safetyNote = judgments.map(a => a.note).join(' / ');
             } else if (pdByLicense) {
                 safe = true;
                 safetyNote = 'PD（ライセンス明示）';
             } else {
                 safe = false;
-                safetyNote = j.note;
+                safetyNote = judgments.length
+                    ? judgments.map(a => a.note).join(' / ')
+                    : '判定不可';
             }
 
             return {
@@ -5410,13 +5471,47 @@ async function downloadAndSaveInternetArchive(identifier, titleHint, silent, ski
         const { url, meta } = await resolveIATextUrl(identifier);
         const md = meta.metadata || {};
         const licenseSafe = isIAPublicDomain(md);
-        const creatorStr = Array.isArray(md.creator) ? md.creator.join(', ') : (md.creator || '');
-        const deathInfo = await getAuthorDeathYear(creatorStr);
-        const j = judgePD(deathInfo, creatorStr);
-        const pdByLicense = licenseSafe && !deathInfo.deathYear;
 
-        if (!skipPDCheck && !j.safe && !pdByLicense) {
-            const reason = `ライセンス:${licenseSafe ? 'OK' : 'NG'} / ${j.note}`;
+        const creators = Array.isArray(md.creator)
+            ? md.creator.map(String)
+            : (md.creator ? [String(md.creator)] : []);
+        const creatorStr = creators.length ? creators.join(', ') : '不明';
+
+        const candidateSet = new Set();
+        for (const c of creators) {
+            for (const cand of buildNameCandidates(c)) {
+                if (cand.length >= 2) candidateSet.add(cand);
+            }
+        }
+        const yearMap = candidateSet.size ? await batchResolveYears([...candidateSet]) : {};
+
+        const judgments = creators.map(raw => {
+            let info = null, matched = '';
+            for (const cand of buildNameCandidates(raw)) {
+                const i = yearMap[cand];
+                if (i && (i.birthYear || i.deathYear)) {
+                    info = i; matched = cand; break;
+                }
+            }
+            const j = judgePD(info || { birthYear: null, deathYear: null }, matched || raw);
+            return {
+                name: raw,
+                deathYear: info && info.deathYear || null,
+                birthYear: info && info.birthYear || null,
+                safe: j.safe,
+                note: j.note
+            };
+        });
+
+        const anyKnownCopyrighted = judgments.some(a => a.deathYear && !a.safe);
+        const allKnownPD = judgments.length > 0 && judgments.every(a => a.safe);
+        const pdByLicense = licenseSafe && !anyKnownCopyrighted;
+
+        if (!skipPDCheck && !allKnownPD && !pdByLicense) {
+            const detail = judgments.length
+                ? judgments.map(a => `${a.name}: ${a.note}`).join(' / ')
+                : '著者不明';
+            const reason = `ライセンス:${licenseSafe ? 'OK' : 'NG'} / ${detail}`;
             throw new Error(`パブリックドメイン確認不可（${reason}）`);
         }
 
@@ -5435,7 +5530,7 @@ async function downloadAndSaveInternetArchive(identifier, titleHint, silent, ski
 
         const srcLang = normalizeIALang(md.language);
         const title = md.title || titleHint || identifier;
-        const author = creatorStr || '不明';
+        const author = creatorStr;
 
         const bd = {
             id: key,
@@ -5455,8 +5550,11 @@ async function downloadAndSaveInternetArchive(identifier, titleHint, silent, ski
             sourceInfo: {
                 identifier,
                 licenseurl: md.licenseurl || null,
-                deathYear: deathInfo.deathYear || null,
-                birthYear: deathInfo.birthYear || null
+                authors: judgments.map(a => ({
+                    name: a.name,
+                    deathYear: a.deathYear,
+                    birthYear: a.birthYear
+                }))
             },
             savedAt: new Date().toISOString(),
             sortOrder: Date.now(),
@@ -6113,6 +6211,7 @@ window.retryTranslation = retryTranslation;
 function handleDragStart(ev, bookId) {
     drag_zaku_id = bookId;
     ev.dataTransfer.effectAllowed = 'move';
+    try { ev.dataTransfer.setData('text/plain', bookId); } catch (e) {}
 }
 
 function handleDragOver(ev, rowEl) {
@@ -6742,7 +6841,6 @@ window.onload = async () => {
     updateSettingsUI();
     updateSortDirectionButton();
 
-    // NDL停止時のUI調整
     if (!NDL_ENABLED) {
         const btn = document.getElementById('source-ndl-btn');
         if (btn) { btn.style.display = 'none'; btn.disabled = true; }
@@ -6783,7 +6881,6 @@ window.onload = async () => {
         } catch (e) {}
     }, 5000);
 
-    // お知らせ初期化
     renderAnnounceBar();
     updateAnnounceBadge();
 
@@ -6816,22 +6913,16 @@ window.addEventListener('unhandledrejection', (ev) => {
    window 公開（集約）
    ============================================================ */
 Object.assign(window, {
-    // 設定
     openSettings, closeSettings, setViewMode, setBookFlipStyle, setTheme, setFontFamily,
-    // 検索
     toggleDetailSearch, resetDetailSearch, execSearch, execDetailSearch, applySort, toggleSortDirection,
-    // ダウンロード
     downloadAndSaveGutenberg, downloadAndSaveAozora, downloadAndSaveInternetArchive,
     downloadAndSaveOpenLibrary, downloadAndSaveWikisource, downloadAndSaveStandardEbooks,
     downloadAndSaveRuneberg, downloadAndSavePoetryDB, downloadAndSaveFadedPage,
     downloadAndSaveNDL, openExternalUrl,
-    // 本棚
     handleReprocessOne, handleReprocessAll, retryTranslation, toggleRowMenu,
     toggleFavorite, confirmDeleteBook, closeConfirmModal, executeConfirmedDelete,
-    // リーダー
     closeReader, switchTab, changeFontSize, turnPage,
     toggleTranslationView, changeTargetLang,
-    // お知らせ
     openAnnounceModal, closeAnnounceModal, dismissAllAnnouncements
 });
 </script>
