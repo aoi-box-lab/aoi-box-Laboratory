@@ -13,6 +13,7 @@
     --card-bg: #fff;
     --border-color: #e0e0e0;
     --font-family: 'Georgia','Yu Mincho','Hiragino Mincho ProN',serif;
+    --reader-font-family: 'Georgia','Yu Mincho','Hiragino Mincho ProN',serif;
     --app-h: 100dvh;
     --ui-pad-x: clamp(12px, 2vw, 20px);
     --ui-pad-y: clamp(8px, 1.2vh, 12px);
@@ -1441,6 +1442,7 @@ h1 {
     flex-direction: column;
     box-shadow: 0 8px 24px rgba(0,0,0,.25);
     overflow: hidden;
+    font-family: var(--reader-font-family);
 }
 .diagnostics-header {
     display: flex;
@@ -1718,7 +1720,6 @@ h1 {
                     <option value="fadedpage">Faded Page</option>
                     <option value="doaj">DOAJ</option>
                     <option value="zenodo">Zenodo</option>
-                    <option value="core">CORE</option>
                     <option value="arxiv">arXiv</option>
                 </select>
             </div>
@@ -1909,7 +1910,7 @@ h1 {
                 ・Standard Ebooks: パブリックドメイン（英語）<br>
                 ・Project Runeberg: パブリックドメイン（北欧）<br>
                 ・PoetryDB / Faded Page: 著者没年チェック済み<br>
-                ・DOAJ / Zenodo / CORE / arXiv: オープンアクセス（URLを開く）<br>
+                ・DOAJ / Zenodo / arXiv: オープンアクセス（URLを開く）<br>
                 ・NDL: インターネット公開のみ<span id="ndl-status-suffix"></span>
             </div>
         </div>
@@ -1943,6 +1944,17 @@ h1 {
             <button class="detail-modal-close" onclick="closeBookDetail()" aria-label="閉じる">×</button>
         </div>
         <div class="detail-modal-body" id="detail-modal-body"></div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="external-open-modal">
+    <div class="modal-box">
+        <p class="ext-msg">外部サイトを開きますか？</p>
+        <div class="ext-detail" style="font-size:.82rem;opacity:.75;margin-bottom:20px;word-break:break-all;line-height:1.5;text-align:left;"></div>
+        <div class="modal-buttons">
+            <button onclick="closeExternalOpen()">いいえ</button>
+            <button class="go" onclick="executeExternalOpen()" style="background:var(--accent-color);color:#fff;border-color:var(--accent-color);">はい</button>
+        </div>
     </div>
 </div>
 
@@ -2439,8 +2451,6 @@ const FADEDPAGE_BASE = 'https://www.fadedpage.com';
 const DOAJ_API = 'https://doaj.org/api/search/articles';
 const ZENODO_API = 'https://zenodo.org/api/records';
 const ARXIV_API = 'https://export.arxiv.org/api/query';
-const CORE_API = 'https://api.core.ac.uk/v3/search/works';
-const CORE_API_KEY = '';
 
 const NDL_SRU_ENDPOINT = 'https://ndlsearch.ndl.go.jp/api/sru';
 const NDL_BOOK_API = 'https://lab.ndl.go.jp/dl/api/book';
@@ -2466,6 +2476,7 @@ let current_font_size = 18;
 let drag_zaku_id = null;
 let menu_char_aznable_id = null;
 let delete_kill_confirm_id = null;
+let external_open_pending = null;
 let aozora_catalog = null;
 let aozora_catalog_ready = false;
 let aozora_catalog_loading = false;
@@ -2553,9 +2564,10 @@ function applyTheme(t) {
 }
 
 function applyFontFamily() {
+    const stack = FONT_STACKS[appSettings.fontFamily] || FONT_STACKS.mincho;
+    document.documentElement.style.setProperty('--reader-font-family', stack);
     const rb = document.getElementById('reader-body');
-    if (!rb) return;
-    rb.style.fontFamily = FONT_STACKS[appSettings.fontFamily] || FONT_STACKS.mincho;
+    if (rb) rb.style.fontFamily = stack;
 }
 
 function updateSettingsUI() {
@@ -3450,7 +3462,7 @@ async function unifiedSearch({ query, filters, defaultSort }) {
     const allSources = [
         'gutenberg', 'aozora', 'internetarchive', 'openlibrary', 'ndl',
         'wikisource', 'standardebooks', 'runeberg', 'poetrydb', 'fadedpage',
-        'doaj', 'zenodo', 'core', 'arxiv'
+        'doaj', 'zenodo', 'arxiv'
     ];
     const sources = allSources.filter(s => {
         if (filters.source && filters.source !== s) return false;
@@ -3650,7 +3662,6 @@ async function searchSourceUnified(source, ctx) {
         case 'fadedpage':       return await searchFadedPageUnified(ctx);
         case 'doaj':            return await searchDoajUnified(ctx);
         case 'zenodo':          return await searchZenodoUnified(ctx);
-        case 'core':            return await searchCoreUnified(ctx);
         case 'arxiv':           return await searchArxivUnified(ctx);
     }
     return [];
@@ -3670,7 +3681,6 @@ function sourceNameOf(source) {
         fadedpage: 'Faded Page',
         doaj: 'DOAJ',
         zenodo: 'Zenodo',
-        core: 'CORE',
         arxiv: 'arXiv'
     }[source] || source;
 }
@@ -3828,7 +3838,7 @@ function renderUnifiedRow(r, tb) {
     const tdO = document.createElement('td');
     if (r.safe) {
         const btn = document.createElement('button');
-        btn.textContent = (r.safetyNote && /サイトで開く/.test(r.safetyNote)) ? '開く' : '保存・読む';
+        btn.textContent = '読む';
         btn.addEventListener('click', () => downloadFromUnified(r));
         tdO.appendChild(btn);
     } else {
@@ -3858,10 +3868,9 @@ function downloadFromUnified(r) {
             case 'runeberg':        return downloadAndSaveRuneberg(r.raw.href, r.title, false);
             case 'poetrydb':        return downloadAndSavePoetryDB(r.raw, false);
             case 'fadedpage':       return downloadAndSaveFadedPage(r.raw.bookid, r.title, false);
-            case 'doaj':            return openExternalUrl(r.raw.url);
-            case 'zenodo':          return openExternalUrl(r.raw.url);
-            case 'core':            return openExternalUrl(r.raw.url);
-            case 'arxiv':           return openExternalUrl(r.raw.url);
+            case 'doaj':            return confirmExternalOpen(r.title, r.raw.url);
+            case 'zenodo':          return confirmExternalOpen(r.title, r.raw.url);
+            case 'arxiv':           return confirmExternalOpen(r.title, r.raw.url);
         }
     } catch (e) {
         showToast('ダウンロード開始失敗: ' + e.message, 'error');
@@ -3876,6 +3885,50 @@ function openExternalUrl(url) {
     window.open(url, '_blank', 'noopener,noreferrer');
 }
 window.openExternalUrl = openExternalUrl;
+
+/* ============================================================
+   外部サイト確認モーダル
+   ============================================================ */
+function confirmExternalOpen(title, url) {
+    if (!url) {
+        showToast('URL不明', 'warn');
+        return;
+    }
+    external_open_pending = url;
+    const modal = document.getElementById('external-open-modal');
+    if (!modal) return;
+    modal.querySelector('.ext-msg').textContent = '外部サイトを開きますか？';
+    const detailEl = modal.querySelector('.ext-detail');
+    detailEl.innerHTML = '';
+    if (title) {
+        const titleLine = document.createElement('div');
+        titleLine.style.fontWeight = 'bold';
+        titleLine.style.marginBottom = '6px';
+        titleLine.textContent = title;
+        detailEl.appendChild(titleLine);
+    }
+    const urlLine = document.createElement('div');
+    urlLine.style.fontFamily = 'monospace';
+    urlLine.style.fontSize = '.78rem';
+    urlLine.textContent = url;
+    detailEl.appendChild(urlLine);
+    modal.classList.add('active');
+}
+window.confirmExternalOpen = confirmExternalOpen;
+
+function closeExternalOpen() {
+    external_open_pending = null;
+    const modal = document.getElementById('external-open-modal');
+    if (modal) modal.classList.remove('active');
+}
+window.closeExternalOpen = closeExternalOpen;
+
+function executeExternalOpen() {
+    const url = external_open_pending;
+    closeExternalOpen();
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+}
+window.executeExternalOpen = executeExternalOpen;
 
 /* ============================================================
    年度・カテゴリ
@@ -5320,64 +5373,6 @@ async function searchZenodoUnified(ctx) {
         return out;
     } catch (e) {
         console.warn('[unified-zenodo]', e);
-        return [];
-    }
-}
-
-/* ============================================================
-   CORE
-   ============================================================ */
-async function searchCoreUnified(ctx) {
-    if (!CORE_API_KEY) return [];
-    const titleQ = (ctx.filters.title || '').trim();
-    const authorQ = (ctx.filters.author || '').trim();
-    const simpleQ = (ctx.query || '').trim();
-    let q = simpleQ || [titleQ, authorQ].filter(Boolean).join(' ').trim();
-    if (!q) return [];
-    q = await toEnglishQuery(q);
-    try {
-        const url = `${CORE_API}?q=${encodeURIComponent(q)}&limit=50`;
-        const res = await politeFetch(url, {
-            headers: { 'Authorization': 'Bearer ' + CORE_API_KEY }
-        }, FETCH_TIMEOUT_API);
-        if (!res.ok) return [];
-        const data = await res.json();
-        const results = data.results || [];
-
-        const authorsAll = [];
-        for (const r of results) {
-            (r.authors || []).forEach(a => { if (a && a.name) authorsAll.push(a.name); });
-        }
-        const yearMap = await batchResolveYears([...new Set(authorsAll)]);
-
-        const out = [];
-        for (const r of results) {
-            const authors = (r.authors || []).map(a => a.name).filter(Boolean);
-            const license = r.license || '';
-
-            let safe = true;
-            for (const n of authors) {
-                const info = yearMap[n] || {};
-                const j = judgePD(info, n);
-                if (!j.safe) { safe = false; break; }
-            }
-            if (!safe) continue;
-
-            out.push({
-                source: 'core',
-                id: 'core_' + (r.id || Math.random().toString(36).slice(2)),
-                title: r.title || '(無題)',
-                author: authors.join(', '),
-                year: r.yearPublished ? parseInt(r.yearPublished, 10) : null,
-                category: 'essay',
-                safe: true,
-                safetyNote: license ? `OA（${license}）` : 'OA',
-                raw: { doi: r.doi, url: r.downloadUrl || r.fullTextIdentifier || '' }
-            });
-        }
-        return out;
-    } catch (e) {
-        console.warn('[unified-core]', e);
         return [];
     }
 }
@@ -7280,6 +7275,7 @@ document.addEventListener('click', (ev) => {
     if (ev.target && ev.target.closest && ev.target.closest('.modal-overlay')) return;
     if (ev.target && ev.target.closest && ev.target.closest('#announce-modal')) return;
     if (ev.target && ev.target.closest && ev.target.closest('#detail-modal')) return;
+    if (ev.target && ev.target.closest && ev.target.closest('#external-open-modal')) return;
     if (ev.target && ev.target.closest && ev.target.closest('#diagnostics-modal')) return;
     closeAllRowMenus();
 });
@@ -8428,6 +8424,7 @@ Object.assign(window, {
     downloadAndSaveOpenLibrary, downloadAndSaveWikisource, downloadAndSaveStandardEbooks,
     downloadAndSaveRuneberg, downloadAndSavePoetryDB, downloadAndSaveFadedPage,
     downloadAndSaveNDL, openExternalUrl,
+    confirmExternalOpen, closeExternalOpen, executeExternalOpen,
     handleReprocessOne, handleReprocessAll, retryTranslation, toggleRowMenu,
     toggleFavorite, confirmDeleteBook, closeConfirmModal, executeConfirmedDelete,
     closeReader, switchTab, changeFontSize, turnPage,
