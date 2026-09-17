@@ -2069,6 +2069,35 @@ function isJapaneseName(name) {
    ============================================================ */
 const ANNOUNCEMENTS = [
     {
+        id: 'ann_2026_09_17_05',
+        date: '2026-09-17',
+        title: '詳細検索の不具合を修正しました',
+        showInBar: true,
+        body: [
+            '【今回の変更点】',
+            '',
+            '■ 詳細検索の不具合',
+            '「詳細検索」で出典だけを選んで検索したとき、青空文庫以外の作品が表示されない不具合を修正しました。',
+            '',
+            '例えば「出典：Gutenberg」を選んで作品名・著者名を空欄のまま検索すると、',
+            'これまでは0件でしたが、これからは最近追加された作品が1000件まで表示されます。',
+            '',
+            '■ 対応した出典',
+            '・Gutenberg（最近追加順）',
+            '・Internet Archive（人気順）',
+            '・Open Library（小説カテゴリ）',
+            '・青空文庫（既存の全件モードに上限1000件を追加）',
+            '',
+            '■ 未対応の出典',
+            'Wikisource・Standard Ebooks・Runeberg・PoetryDB・Faded Page・DOAJ・Zenodo・arXiv は、',
+            '出典だけでは絞り込めません。作品名か著者名を入れてください。',
+            '',
+            '■ 入力欄のヒント',
+            '対応している出典を選ぶと、作品名・著者名の欄に「空欄で全件表示」と出ます。'
+        ].join('\n'),
+        important: false
+    },
+    {
         id: 'ann_2026_09_17_04',
         date: '2026-09-17',
         title: '接続・動作診断を追加しました',
@@ -2273,9 +2302,7 @@ const LIBRETRANSLATE_INSTANCES = [
 ];
 
 const CORS_PROXIES = {
-    codetabs:   (u) => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
-    allorigins: (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-    aoi:        (u) => 'https://aoi-box-lab.idosenpai.workers.dev/?url=' + encodeURIComponent(u)
+    aoi: (u) => 'https://aoi-box-lab.idosenpai.workers.dev/?url=' + encodeURIComponent(u)
 };
 
 const AOZORA_CATALOG_SOURCES = [
@@ -2461,6 +2488,29 @@ let currentSortField = 'relevance';
 let currentSortAsc = false;
 let currentSearchGen = 0;
 let currentDisplayCount = SEARCH_PAGE_SIZE;
+let lastSearchDebug = null;
+
+let errorLog = [];
+const ERROR_LOG_MAX = 30;
+
+function pushErrorLog(kind, msg, detail) {
+    const entry = {
+        at: new Date().toISOString(),
+        kind: kind,
+        msg: String(msg || '').slice(0, 500),
+        detail: String(detail || '').slice(0, 2000)
+    };
+    errorLog.unshift(entry);
+    if (errorLog.length > ERROR_LOG_MAX) errorLog.length = ERROR_LOG_MAX;
+    try { localStorage.setItem('yamabiko_error_log_v1', JSON.stringify(errorLog)); } catch (e) {}
+}
+
+function loadErrorLog() {
+    try {
+        const s = localStorage.getItem('yamabiko_error_log_v1');
+        errorLog = s ? JSON.parse(s) : [];
+    } catch (e) { errorLog = []; }
+}
 
 let appSettings = {
     viewMode: 'scroll',
@@ -2644,7 +2694,7 @@ async function politeFetch(url, options, timeoutMs) {
 }
 
 async function smartFetch(url, options, timeoutMs) {
-    const order = ['aoi', 'codetabs', 'allorigins'];
+    const order = ['aoi'];
     const errors = [];
     for (const key of order) {
         try {
@@ -2708,6 +2758,7 @@ function showErrorBanner(msg, detail) {
     banner.querySelector('.eb-msg').textContent = msg;
     banner.querySelector('.eb-detail').textContent = detail || '';
     banner.classList.add('active');
+    pushErrorLog('banner', msg, detail);
     setTimeout(() => banner.classList.remove('active'), 15000);
 }
 
@@ -3423,6 +3474,14 @@ async function unifiedSearch({ query, filters, defaultSort }) {
 
     const relevanceQuery = (query || filters.title || filters.author || '').trim();
     const seen = new Set();
+    lastSearchDebug = {
+        query: query || '',
+        filters: filters || {},
+        startedAt: Date.now(),
+        perSource: {},
+        totalRaw: 0,
+        finalCount: 0
+    };
     let completed = 0;
     let hits = 0;
     let renderScheduled = false;
@@ -3437,8 +3496,9 @@ async function unifiedSearch({ query, filters, defaultSort }) {
         });
     };
 
-    const absorb = (src, results) => {
+    const absorb = (src, results, errMsg) => {
         if (myGen !== currentSearchGen) return;
+        const rawCount = Array.isArray(results) ? results.length : 0;
         if (Array.isArray(results)) {
             for (const r of results) {
                 if (seen.has(r.id)) continue;
@@ -3451,6 +3511,14 @@ async function unifiedSearch({ query, filters, defaultSort }) {
                 });
                 hits++;
             }
+        }
+        if (lastSearchDebug) {
+            lastSearchDebug.perSource[src] = {
+                raw: rawCount,
+                totalHits: hits,
+                error: errMsg || null
+            };
+            lastSearchDebug.totalRaw += rawCount;
         }
         completed++;
         setStatus(
@@ -3471,9 +3539,11 @@ async function unifiedSearch({ query, filters, defaultSort }) {
             absorb(src, r);
         } catch (e) {
             console.warn(`[unified] ${src} failed:`, e);
-            absorb(src, []);
+            absorb(src, [], (e.message || 'failed').slice(0, 80));
         }
     }));
+
+    if (lastSearchDebug) lastSearchDebug.finalCount = currentSearchResults.length;
 
     if (myGen !== currentSearchGen) return;
     hideHeaderSpinner();
@@ -4466,7 +4536,31 @@ async function searchGutenbergUnified(ctx) {
     const authorQ = (ctx.filters.author || '').trim();
     const simpleQ = (ctx.query || '').trim();
     const query = simpleQ || [titleQ, authorQ].filter(Boolean).join(' ').trim();
-    if (!query) return [];
+    if (!query) {
+        if (!gutenberg_catalog_ready) return [];
+        return gutenberg_catalog
+            .slice()
+            .sort((a, b) => (b.issued || '').localeCompare(a.issued || ''))
+            .slice(0, 1000)
+            .map(book => ({
+                source: 'gutenberg',
+                id: 'gutenberg_' + book.bookId,
+                title: book.title,
+                author: book.authors.length ? book.authors.join(', ') : '不明',
+                year: parseYear(book.issued),
+                category: guessGutenbergCategory(book.subjects, null),
+                safe: true,
+                safetyNote: '保護期間内',
+                raw: {
+                    id: book.bookId,
+                    authors: book.authors,
+                    languages: book.languages,
+                    subjects: book.subjects,
+                    issued: book.issued,
+                    lang: (book.languages && book.languages[0]) || 'en'
+                }
+            }));
+    }
 
     if (!gutenberg_catalog_ready) {
         if (!gutenberg_catalog_loading) fetchGutenbergCatalog();
@@ -4574,7 +4668,7 @@ async function searchAozoraUnified(ctx) {
     }
 
     results.sort((a, b) => b.score - a.score);
-    return results.map(({ it }) => ({
+    return results.slice(0, 1000).map(({ it }) => ({
         source: 'aozora',
         id: 'aozora_' + it.workId,
         title: it.title,
@@ -4674,9 +4768,7 @@ async function searchIAUnified(ctx) {
     const authorQ = (ctx.filters.author || '').trim();
     const simpleQ = (ctx.query || '').trim();
     const q = simpleQ || [titleQ, authorQ].filter(Boolean).join(' ').trim();
-    if (!q) return [];
-
-    const searchQ = await toEnglishQuery(q);
+    const searchQ = q ? await toEnglishQuery(q) : '';
 
     try {
         const docs = await searchInternetArchiveAll(searchQ || '', ctx.filters.year);
@@ -4773,7 +4865,7 @@ async function searchOpenLibraryUnified(ctx) {
     const authorQ = (ctx.filters.author || '').trim();
     const simpleQ = (ctx.query || '').trim();
     let q = simpleQ || [titleQ, authorQ].filter(Boolean).join(' ').trim();
-    if (!q) return [];
+    if (!q) q = 'subject:fiction';
 
     q = await toEnglishQuery(q);
 
@@ -6174,7 +6266,7 @@ async function resolveAozoraZipName(workId, personId, initialZipName) {
     const paddedPersonId = String(personId).padStart(6, '0');
     const apiCandidates = [
         `https://api.github.com/repos/aozorahack/aozorabunko_text/contents/cards/${paddedPersonId}/files?ref=master`,
-        `https://api.github.com/repos/aozorabunko/aozorabunko/contents/cards/${paddedPersonId}/files?ref=master`
+        `https://api.github.com/repos/aozorahack/aozorabunko/contents/cards/${paddedPersonId}/files?ref=master`
     ];
 
     for (const apiUrl of apiCandidates) {
@@ -7735,6 +7827,111 @@ window.changeFontSize = changeFontSize;
    ============================================================ */
 const DIAGNOSTICS = [
     {
+        id: 'wiki-lookup',
+        label: 'Wikipedia言語間リンク（ja→en）',
+        run: async () => {
+            const t0 = performance.now();
+            try {
+                const en = await lookupEnglishTitle('夏目漱石');
+                const ms = Math.round(performance.now() - t0);
+                if (!en) {
+                    return {
+                        status: 'fail',
+                        msg: '英語版タイトルが取れない',
+                        detail: '所要時間: ' + ms + 'ms'
+                    };
+                }
+                return { status: 'ok', msg: '→ "' + en + '"', detail: '所要時間: ' + ms + 'ms' };
+            } catch (e) {
+                return { status: 'fail', msg: e.message || 'failed' };
+            }
+        }
+    },
+    {
+        id: 'per-source-search',
+        label: '各ソース個別検索（夏目漱石）',
+        run: async () => {
+            const query = '夏目漱石';
+            const sources = [
+                'gutenberg', 'aozora', 'internetarchive', 'openlibrary',
+                'wikisource', 'standardebooks', 'runeberg', 'poetrydb',
+                'fadedpage', 'doaj', 'zenodo', 'arxiv'
+            ];
+            const perSource = {};
+            let okCount = 0;
+            let totalHits = 0;
+
+            await Promise.all(sources.map(async (src) => {
+                const t0 = performance.now();
+                try {
+                    const r = await searchSourceUnified(src, { query, filters: {} });
+                    perSource[src] = {
+                        count: r.length,
+                        ms: Math.round(performance.now() - t0),
+                        error: null
+                    };
+                    totalHits += r.length;
+                    if (r.length > 0) okCount++;
+                } catch (e) {
+                    perSource[src] = {
+                        count: 0,
+                        ms: Math.round(performance.now() - t0),
+                        error: (e.message || 'failed').slice(0, 60)
+                    };
+                }
+            }));
+
+            const detail = sources.map(s => {
+                const p = perSource[s];
+                const name = (sourceNameOf(s) + '                    ').slice(0, 20);
+                if (p.error) return name + ' ×  ' + p.error + ' (' + p.ms + 'ms)';
+                return name + ' ✓  ' + p.count + '件 (' + p.ms + 'ms)';
+            }).join('\n');
+
+            let status = 'ok';
+            let msg = totalHits + '件（' + okCount + '/' + sources.length + 'ソースがヒット）';
+            if (totalHits === 0) {
+                status = 'fail';
+                msg = '全ソース0件';
+            } else if (okCount < 3) {
+                status = 'warn';
+            }
+
+            return { status, msg, detail };
+        }
+    },
+    {
+        id: 'last-search-debug',
+        label: '最後の検索の記録',
+        run: async () => {
+            if (!lastSearchDebug) {
+                return { status: 'skip', msg: 'まだ検索していません' };
+            }
+            const d = lastSearchDebug;
+            const lines = [];
+            lines.push('クエリ: ' + (d.query || '(空)'));
+            lines.push('フィルタ: ' + JSON.stringify(d.filters || {}));
+            lines.push('経過: ' + Math.round((Date.now() - d.startedAt) / 1000) + '秒');
+            lines.push('');
+            lines.push('── ソース別 ──');
+            for (const [src, info] of Object.entries(d.perSource)) {
+                const name = (sourceNameOf(src) + '                    ').slice(0, 20);
+                if (info.error) {
+                    lines.push(name + ' ×  ' + info.error);
+                } else {
+                    lines.push(name + ' → ' + info.raw + '件 → 累積' + info.totalHits + '件');
+                }
+            }
+            lines.push('');
+            lines.push('生の合計: ' + d.totalRaw + '件');
+            lines.push('重複除外後: ' + d.finalCount + '件');
+
+            const status = d.finalCount > 0 ? 'ok' : 'warn';
+            const msg = '生' + d.totalRaw + '件 → 最終' + d.finalCount + '件';
+            return { status, msg, detail: lines.join('\n') };
+        }
+    },
+    {
         id: 'browser',
         label: 'ブラウザ環境',
         run: async () => {
@@ -7785,10 +7982,10 @@ const DIAGNOSTICS = [
     },
     {
         id: 'proxies',
-        label: 'プロキシ疎通（3種）',
+        label: 'プロキシ疎通（aoi）',
         run: async () => {
             const testUrl = 'https://www.gutenberg.org/cache/epub/11/pg11.txt';
-            const names = ['aoi', 'codetabs', 'allorigins'];
+            const names = ['aoi'];
             const results = await Promise.all(names.map(n => testProxy(n, testUrl)));
             const detail = names.map((n, i) => {
                 const r = results[i];
@@ -7951,6 +8148,27 @@ const DIAGNOSTICS = [
             if (!NDL_ENABLED) return { status: 'skip', msg: '停止中（NDL_ENABLED = false）' };
             return { status: 'ok', msg: '有効' };
         }
+    },
+    {
+        id: 'error-log',
+        label: '最近のエラー記録',
+        run: async () => {
+            loadErrorLog();
+            if (!errorLog.length) {
+                return { status: 'ok', msg: 'エラーなし' };
+            }
+            const lines = errorLog.slice(0, 10).map(e => {
+                const t = new Date(e.at).toLocaleTimeString('ja-JP');
+                return '[' + t + '] ' + e.kind + '\n' +
+                       '  ' + e.msg +
+                       (e.detail ? '\n  ' + e.detail.slice(0, 300) : '');
+            }).join('\n\n');
+            return {
+                status: 'warn',
+                msg: errorLog.length + '件（直近10件を表示）',
+                detail: lines
+            };
+        }
     }
 ];
 
@@ -8108,6 +8326,28 @@ window.onload = async () => {
 
     applyNDLStatusToUI();
 
+    (function bindDetailSourceHint() {
+        const sel = document.getElementById('detail-source');
+        const titleInput = document.getElementById('detail-title');
+        const authorInput = document.getElementById('detail-author');
+        if (!sel || !titleInput || !authorInput) return;
+        const updatePlaceholder = () => {
+            const src = sel.value;
+            const fullSupport = ['gutenberg', 'internetarchive', 'openlibrary', 'aozora'];
+            if (fullSupport.includes(src)) {
+                titleInput.placeholder = '（空欄で全件表示）';
+                authorInput.placeholder = '（空欄で全件表示）';
+            } else if (src) {
+                titleInput.placeholder = '（この出典は要入力）';
+                authorInput.placeholder = '（この出典は要入力）';
+            } else {
+                titleInput.placeholder = '（空欄可）';
+                authorInput.placeholder = '（空欄可）';
+            }
+        };
+        sel.addEventListener('change', updatePlaceholder);
+    })();
+
     try {
         await initDB();
     } catch (err) {
@@ -8163,6 +8403,7 @@ window.onload = async () => {
 window.addEventListener('error', (ev) => {
     const msg = ev.message || 'unknown';
     if (msg.includes('database connection is closing')) return;
+    pushErrorLog('error', msg, ev.filename + ':' + ev.lineno);
     showErrorBanner('どえらいエラーが発生しました', msg);
     try { showToast('どえらいエラー: ' + msg, 'error', 12000); } catch (e) {}
 });
@@ -8171,6 +8412,7 @@ window.addEventListener('unhandledrejection', (ev) => {
     try {
         const msg = (ev.reason && ev.reason.message) ? ev.reason.message : String(ev.reason);
         if (msg.includes('database connection is closing')) return;
+        pushErrorLog('promise', msg, '');
         showErrorBanner('未処理のPromiseエラーが発生しました', msg);
         showToast('未処理のPromiseエラー: ' + msg, 'error', 12000);
     } catch (e) {}
