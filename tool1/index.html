@@ -12,7 +12,6 @@
     --accent-color: #4a6fa5;
     --card-bg: #fff;
     --border-color: #e0e0e0;
-    --font-family: 'Georgia','Yu Mincho','Hiragino Mincho ProN',serif;
     --reader-font-family: 'Georgia','Yu Mincho','Hiragino Mincho ProN',serif;
     --app-h: 100dvh;
     --ui-pad-x: clamp(12px, 2vw, 20px);
@@ -23,6 +22,13 @@
     --reader-max-w: clamp(600px, 92vw, 900px);
     --tap-min: 40px;
 }
+
+#results-table { display: none; }
+#results-table.visible { display: table; }
+#bookshelf-table { display: none; }
+#bookshelf-table.visible { display: table; }
+#sort-bar { display: none; }
+#sort-bar.active { display: flex; }
 
 body.dark-mode {
     --bg-color: #1a1a1a;
@@ -51,7 +57,7 @@ html, body {
 body {
     background-color: var(--bg-color);
     color: var(--text-color);
-    font-family: var(--font-family);
+    font-family: var(--reader-font-family);
     transition: background-color .3s, color .3s;
     position: fixed;
     top: 0; left: 0;
@@ -1209,9 +1215,6 @@ h1 {
 .detail-info-value a:hover { text-decoration: underline; }
 .detail-info-value .muted { opacity: .55; font-style: italic; }
 
-/* ============================================================
-   このサイトについてモーダル
-   ============================================================ */
 #about-modal {
     display: none;
     position: fixed;
@@ -1320,9 +1323,6 @@ h1 {
 }
 .about-link:hover { text-decoration: underline; }
 
-/* ============================================================
-   診断モーダル
-   ============================================================ */
 #diagnostics-modal {
     display: none;
     position: fixed;
@@ -1666,7 +1666,7 @@ h1 {
 
         <div id="search-status" class="status-msg"></div>
 
-        <div id="sort-bar" class="sort-bar" style="display:none;">
+        <div id="sort-bar" class="sort-bar">
             <label>並び替え</label>
             <select id="sort-field" onchange="applySort()">
                 <option value="relevance">一致率</option>
@@ -1680,7 +1680,7 @@ h1 {
             <span id="sort-count" class="sort-count"></span>
         </div>
 
-        <table class="results-table" id="results-table" style="display:none;">
+        <table class="results-table" id="results-table">
             <thead>
                 <tr>
                     <th>出典</th>
@@ -1704,7 +1704,7 @@ h1 {
             <button id="reprocess-all-btn" class="reprocess-all-btn" style="display:none;" onclick="handleReprocessAll()">要更新 0件</button>
         </div>
         <div id="bookshelf-status" class="status-msg"></div>
-        <table class="results-table" id="bookshelf-table" style="display:none;">
+        <table class="results-table" id="bookshelf-table">
             <thead>
                 <tr>
                     <th>出典</th>
@@ -1990,29 +1990,20 @@ function isJapaneseName(name) {
 /* ============================================================
    NDLフィルタ用定数
    ============================================================
-   【第1層】著作権: 保護期間満了のみ通す → detectNDLAccessLevel で判定
-   【第2層】提供プロバイダ: 営利モード時に許可リスト方式で絞る
-   【第3層】NDL自身: NDL発行本・NDLサイト固有コンテンツを除外
-
    出典: https://ndlsearch.ndl.go.jp/help/api/provider
    ============================================================ */
-
-/* 営利目的でも申請不要なデータプロバイダID
-   （「営利目的」欄が ○ または CC BY / CC0 のもの） */
 const NDL_COMMERCIAL_OK_DPIDS = new Set([
     'zassaku', 'zassaku-online', 'aozora', 'okayama', 'jstage',
     'warp', 'narajo', 'ibaraki',
     'ndl-dl-open'
 ]);
 
-/* NDL自身が発行した資料の出版者（除外対象） */
 const NDL_SELF_BLOCK_PUBLISHERS = new Set([
     '国立国会図書館',
     '国立国会図書館サーチ',
     '国立国会図書館デジタルコレクション'
 ]);
 
-/* NDLサイト固有コンテンツのプロバイダ名（除外対象） */
 const NDL_SELF_BLOCK_PROVIDERS = new Set([
     'カレントアウェアネス',
     '国立国会図書館リサーチ・ナビ',
@@ -2022,28 +2013,6 @@ const NDL_SELF_BLOCK_PROVIDERS = new Set([
 
 /* ============================================================
    お知らせ運用ルール（絶対削除禁止！）
-   ============================================================
-   【このコメントブロックは絶対に削除するな！】
-
-   ■ お知らせバー（画面上部に自動で出る細いやつ）
-     ・「今回の更新で何が変わったか」の一言まとめを表示する。
-     ・ウェルカムメッセージや案内文など、更新と関係ないものはバーに出さない。
-       バーに出したくないお知らせには showInBar: false を付ける。
-     ・タップ／クリック／Enter／Space で設定→お知らせモーダルが開く。
-     ・モーダル（設定から見る方）には showInBar に関係なく全部並ぶ。
-
-   ■ 設定 → お知らせモーダル（設定から確認できる方）
-     ・使い手（ユーザー）にとっての変更点を書く。
-     ・「コードをどう書いたか」「内部実装の話」は書かない。
-     ・「何ができるようになったか」「何が変わったか」を、
-       具体的に、平易な日本語で書く。
-     ・複数の変更があるときは ■ で項目を分けて列挙する。
-
-   ■ 更新のたびに必ずお知らせを追加する
-     ・アプリを更新してユーザーに見える変化があれば、
-       必ず ANNOUNCEMENTS の先頭に新しい要素を push する。
-     ・id は日付＋連番（例: ann_2026_09_17_01）にする。
-     ・id を変えると「未読」扱いになって再表示される。
    ============================================================ */
 const ANNOUNCEMENTS = [
     {
@@ -2072,6 +2041,10 @@ const ANNOUNCEMENTS = [
             'NDLの書誌データを、一括ダウンロードとSRU APIの2経路で利用できるようにしました。',
             '書誌メタデータのみを取り扱い、本文・画像は「保護期間満了」のもののみを対象とします。',
             '「許諾」「裁定」による公開や、NDL自身が発行した資料は取り扱いません。',
+            '',
+            '■ 通信の安定化',
+            'CORSプロキシを複数化し、1つが落ちても別の経路で自動的に再試行します。',
+            '併せて、翻訳の並列度を調整し、翻訳APIへの負荷を抑えました。',
             '',
             '■ 表示の整理',
             '設定内のボタンから、装飾的な記号を削除しました。'
@@ -2105,10 +2078,7 @@ const ANNOUNCEMENTS = [
             '・直訳優先: 機械翻訳（Lingva/LibreTranslate）で逐次翻訳します（従来の動作）。',
             '・翻訳データ優先: 保存しようとしている作品に既存の日本語訳がある場合、',
             '  機械翻訳の代わりにその日本語訳（青空文庫・Wikisource日本語版）を保存します。',
-            '  見つからない場合は直訳優先と同じ動作になります。',
-            '',
-            '例: Gutenbergで「Sherlock Holmes」を探して保存すると、',
-            '青空文庫に新訳（延原謙訳など）があればそちらが保存されます。'
+            '  見つからない場合は直訳優先と同じ動作になります。'
         ].join('\n'),
         important: false
     },
@@ -2180,18 +2150,7 @@ const ANNOUNCEMENTS = [
             '',
             '・押すと項目を自動でチェックします',
             '・項目をタップすると、その項目だけやり直せます',
-            '・右上の「全部」で全項目を最初から診断し直せます',
-            '',
-            'チェック内容:',
-            '・ブラウザのオンライン状態',
-            '・基本通信 / GitHub直叩き',
-            '・プロキシ疎通',
-            '・Gutenberg / 青空のカタログ読み込み状況',
-            '・日本語→英語の翻訳チェーン',
-            '・Gutenberg検索の動作（英語・日本語）',
-            '・Internet Archive API / CORS直叩きソース',
-            '・本棚（IndexedDB）の件数',
-            '・NDLのフラグ状態'
+            '・右上の「全部」で全項目を最初から診断し直せます'
         ].join('\n'),
         important: false
     },
@@ -2252,7 +2211,6 @@ const ANNOUNCEMENTS = [
             '■ 本棚の「詳細」',
             '本棚の右端「...」メニューに「詳細」を追加しました。',
             '作品の出典・タイトル・著者・状態・ID・対応URLが確認できます。',
-            'あらすじ欄は準備中で、今後表示されるようになります。',
             '',
             '■ 列の表記',
             '「場所」という列名を「出典」に変更しました。',
@@ -2287,7 +2245,6 @@ const ANNOUNCEMENTS = [
             '■ 検索結果のページング',
             '検索結果が500件ずつ表示されるようになりました。件数が多い検索でも固まりにくく、',
             '一覧の一番下の「続きを読み込む」ボタンを押すと、次の500件が追加表示されます。',
-            '（例: 青空文庫を出典指定だけで検索したときなど）',
             '',
             '■ 本棚の列',
             '本棚の先頭列を「ID」から「出典」に変更しました。',
@@ -2304,7 +2261,6 @@ const ANNOUNCEMENTS = [
             '■ Internet Archive の判定を厳しくしました',
             '著者が複数いる作品（翻訳ものなど）で、訳者も含めた全員が',
             'パブリックドメインと確認できないかぎり、保存できないようにしました。',
-            '存命の訳者がいる作品を誤って取り込むのを防ぐためです。',
             '',
             '■ 本棚の並べ替え（Firefox対応）',
             'Firefoxでも本棚の行をドラッグ＆ドロップで並べ替えられるようになりました。'
@@ -2370,9 +2326,11 @@ const LIBRETRANSLATE_INSTANCES = [
     'https://translate.cutie.dating'
 ];
 
-const CORS_PROXIES = {
-    aoi: (u) => 'https://aoi-box-lab.idosenpai.workers.dev/?url=' + encodeURIComponent(u)
-};
+const CORS_PROXIES = [
+    { name: 'aoi',        build: (u) => 'https://aoi-box-lab.idosenpai.workers.dev/?url=' + encodeURIComponent(u) },
+    { name: 'allorigins', build: (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u) },
+    { name: 'corsproxy',  build: (u) => 'https://corsproxy.io/?' + encodeURIComponent(u) }
+];
 
 const AOZORA_CATALOG_SOURCES = [
     {
@@ -2400,11 +2358,11 @@ const LANGUAGE_NAMES = {
     it: 'イタリア語', pt: 'ポルトガル語', ru: 'ロシア語'
 };
 
-const INITIAL_PARALLELISM = 32;
+const INITIAL_PARALLELISM = 8;
 const WORKER_DELAY_MS = 10;
 const MAX_RETRY_PER_PARAGRAPH = 20;
-const FAILS_TO_DROP_CONCURRENCY = 20;
-const MIN_PARALLELISM = 8;
+const FAILS_TO_DROP_CONCURRENCY = 8;
+const MIN_PARALLELISM = 4;
 const CHUNK_MAX_LEN = 1500;
 const BOOKMARK_SAVE_DEBOUNCE_MS = 500;
 const FETCH_TIMEOUT_TRANSLATE = 2500;
@@ -2577,6 +2535,8 @@ function loadErrorLog() {
     } catch (e) { errorLog = []; }
 }
 
+loadErrorLog();
+
 let appSettings = {
     viewMode: 'scroll',
     bookFlipStyle: 'both',
@@ -2704,9 +2664,6 @@ function setTranslationMode(v) {
 }
 window.setTranslationMode = setTranslationMode;
 
-/* ============================================================
-   NDL ステータスを UI に反映
-   ============================================================ */
 function applyNDLStatusToUI() {
     const label = NDL_ENABLED ? 'NDL' : 'NDL（現在停止中）';
     const opt = document.getElementById('detail-source-ndl');
@@ -2771,23 +2728,23 @@ async function politeFetch(url, options, timeoutMs) {
 }
 
 async function smartFetch(url, options, timeoutMs) {
-    const order = ['aoi'];
     const errors = [];
-    for (const key of order) {
+    const order = shuffled(CORS_PROXIES);
+    for (const px of order) {
         try {
-            const res = await politeFetch(CORS_PROXIES[key](url), options, timeoutMs);
+            const res = await politeFetch(px.build(url), options, timeoutMs);
             if (res.ok) return res;
-            errors.push(`${key}: HTTP ${res.status}`);
+            errors.push(px.name + ': HTTP ' + res.status);
         } catch (e) {
-            errors.push(`${key}: ${e.message || 'failed'}`);
+            errors.push(px.name + ': ' + ((e && e.message) || 'failed'));
         }
     }
     try {
         const res = await politeFetch(url, options, timeoutMs);
         if (res.ok) return res;
-        errors.push(`direct: HTTP ${res.status}`);
+        errors.push('direct: HTTP ' + res.status);
     } catch (e) {
-        errors.push(`direct: ${e.message || 'failed'}`);
+        errors.push('direct: ' + ((e && e.message) || 'failed'));
     }
     console.warn('[smartFetch] all failed for', url, errors);
     throw new Error('All proxies failed: ' + errors.join(' / '));
@@ -2871,7 +2828,7 @@ function escapeHtml(str) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+        .replace(/'/g, '&#39;');
 }
 
 /* ============================================================
@@ -2929,18 +2886,34 @@ function updateAnnounceBadge() {
 function renderAnnounceList() {
     const body = document.getElementById('announce-modal-body');
     if (!body) return;
-    body.innerHTML = '';
+    body.replaceChildren();
     const dismissed = loadDismissedAnnouncements();
     ANNOUNCEMENTS.forEach(a => {
         const isUnread = !dismissed.includes(a.id);
         const item = document.createElement('div');
         item.className = 'announce-item';
-        const newBadge = isUnread ? '<span class="ai-new">NEW</span>' : '';
-        item.innerHTML = `
-            <div class="ai-date">${escapeHtml(a.date)}${newBadge}</div>
-            <div class="ai-title ${a.important ? 'important' : ''}">${escapeHtml(a.title)}</div>
-            <div class="ai-body">${escapeHtml(a.body)}</div>
-        `;
+
+        const dateEl = document.createElement('div');
+        dateEl.className = 'ai-date';
+        dateEl.textContent = a.date;
+        if (isUnread) {
+            const nb = document.createElement('span');
+            nb.className = 'ai-new';
+            nb.textContent = 'NEW';
+            dateEl.appendChild(nb);
+        }
+
+        const titleEl = document.createElement('div');
+        titleEl.className = 'ai-title' + (a.important ? ' important' : '');
+        titleEl.textContent = a.title;
+
+        const bodyEl = document.createElement('div');
+        bodyEl.className = 'ai-body';
+        bodyEl.textContent = a.body;
+
+        item.appendChild(dateEl);
+        item.appendChild(titleEl);
+        item.appendChild(bodyEl);
         body.appendChild(item);
     });
 }
@@ -3088,23 +3061,17 @@ async function ensureDB() {
 
 async function safeDBOp(storeNames, mode, fn) {
     await ensureDB();
-    return new Promise((resolve, reject) => {
-        let tx;
-        try {
-            tx = maji_de_db.transaction(storeNames, mode);
-        } catch (e) {
-            initDB().then(() => {
-                try {
-                    const tx2 = maji_de_db.transaction(storeNames, mode);
-                    fn(tx2, resolve, reject);
-                } catch (e2) {
-                    reject(e2);
-                }
-            }).catch(reject);
-            return;
+    try {
+        const tx = maji_de_db.transaction(storeNames, mode);
+        return await new Promise((resolve, reject) => fn(tx, resolve, reject));
+    } catch (e) {
+        if (db_closing || !maji_de_db) {
+            await initDB();
+            const tx = maji_de_db.transaction(storeNames, mode);
+            return await new Promise((resolve, reject) => fn(tx, resolve, reject));
         }
-        fn(tx, resolve, reject);
-    });
+        throw e;
+    }
 }
 
 function getBookFromDB(id) {
@@ -3146,8 +3113,6 @@ function saveCacheToDB(key, value) {
         tx.onerror = () => reject(tx.error);
     });
 }
-
-/* checkChosakukenSafe は judgePD に統合されました（削除済み） */
 
 function isBookOutdated(book) {
     if (!book.rawParas || !Array.isArray(book.rawParas) || !book.rawParas.length) return false;
@@ -3645,9 +3610,9 @@ async function unifiedSearch({ query, filters, defaultSort }) {
     const tb = document.getElementById('results-tbody');
     const sortBar = document.getElementById('sort-bar');
 
-    tb.innerHTML = '';
-    t.style.display = 'none';
-    sortBar.style.display = 'none';
+    tb.replaceChildren();
+    t.classList.remove('visible');
+    sortBar.classList.remove('active');
     currentSearchResults = [];
     currentDisplayCount = SEARCH_PAGE_SIZE;
 
@@ -3731,8 +3696,8 @@ async function unifiedSearch({ query, filters, defaultSort }) {
             'info'
         );
         if (hits > 0) {
-            if (t.style.display === 'none') t.style.display = 'table';
-            if (sortBar.style.display === 'none') sortBar.style.display = 'flex';
+            if (!t.classList.contains('visible')) t.classList.add('visible');
+            if (!sortBar.classList.contains('active')) sortBar.classList.add('active');
         }
         scheduleRender();
     };
@@ -3754,8 +3719,8 @@ async function unifiedSearch({ query, filters, defaultSort }) {
 
     if (!currentSearchResults.length) {
         setStatus('search-status', '見つかりませんでした（設定 →「接続・動作診断」で原因を確認できます）', 'error');
-        t.style.display = 'none';
-        sortBar.style.display = 'none';
+        t.classList.remove('visible');
+        sortBar.classList.remove('active');
         return;
     }
     setStatus('search-status', `検索完了（${currentSearchResults.length}件）`, 'success');
@@ -3788,7 +3753,7 @@ function updateSortDirectionButton() {
 function renderSearchResults() {
     const tb = document.getElementById('results-tbody');
     const countEl = document.getElementById('sort-count');
-    tb.innerHTML = '';
+    tb.replaceChildren();
 
     const dir = currentSortAsc ? 1 : -1;
     const sorted = currentSearchResults.slice();
@@ -3970,6 +3935,20 @@ function closeBookDetail() {
 }
 window.closeBookDetail = closeBookDetail;
 
+function _detailRow(label, value, cls) {
+    const wrap = document.createElement('div');
+    const l = document.createElement('div');
+    l.className = 'detail-info-label';
+    l.textContent = label;
+    const v = document.createElement('div');
+    v.className = 'detail-info-value' + (cls ? ' ' + cls : '');
+    if (value instanceof Node) v.appendChild(value);
+    else v.textContent = value == null ? '' : String(value);
+    wrap.appendChild(l);
+    wrap.appendChild(v);
+    return wrap;
+}
+
 function openSearchResultDetail(r) {
     const body = document.getElementById('detail-modal-body');
     if (!body) return;
@@ -3979,36 +3958,42 @@ function openSearchResultDetail(r) {
     const source = sourceNameOf(r.source);
     const url = getSearchResultUrl(r);
 
-    const urlHtml = url
-        ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>
-           <div style="font-size:.72rem;opacity:.7;margin-top:6px;color:#d9534f;line-height:1.5;">
-               ※ リンク先のサイトは不安定な場合があり、接続できないことがあります。
-           </div>`
-        : `<span class="muted">（URL がありません）</span>`;
+    body.replaceChildren();
 
-    const safetyHtml = r.safe
-        ? `<span style="color:#4caf50;">保護期間内</span>`
-        : `<span style="color:#d9534f;">${escapeHtml(r.safetyNote || '保護中')}</span>`;
+    body.appendChild(_detailRow('タイトル', title, 'is-title'));
+    body.appendChild(_detailRow('著者', author));
+    body.appendChild(_detailRow('出典', source));
 
-    body.innerHTML = `
-        <div class="detail-info-label">タイトル</div>
-        <div class="detail-info-value is-title">${escapeHtml(title)}</div>
+    const safetyEl = document.createElement('span');
+    if (r.safe) {
+        safetyEl.style.color = '#4caf50';
+        safetyEl.textContent = '保護期間内';
+    } else {
+        safetyEl.style.color = '#d9534f';
+        safetyEl.textContent = r.safetyNote || '保護中';
+    }
+    body.appendChild(_detailRow('状態', safetyEl));
+    body.appendChild(_detailRow('ID', r.id || '', 'is-mono'));
 
-        <div class="detail-info-label">著者</div>
-        <div class="detail-info-value">${escapeHtml(author)}</div>
-
-        <div class="detail-info-label">出典</div>
-        <div class="detail-info-value">${escapeHtml(source)}</div>
-
-        <div class="detail-info-label">状態</div>
-        <div class="detail-info-value">${safetyHtml}</div>
-
-        <div class="detail-info-label">ID</div>
-        <div class="detail-info-value is-mono">${escapeHtml(r.id || '')}</div>
-
-        <div class="detail-info-label">対応URL</div>
-        <div class="detail-info-value">${urlHtml}</div>
-    `;
+    const urlWrap = document.createElement('div');
+    if (url) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = url;
+        urlWrap.appendChild(a);
+        const note = document.createElement('div');
+        note.style.cssText = 'font-size:.72rem;opacity:.7;margin-top:6px;color:#d9534f;line-height:1.5;';
+        note.textContent = '※ リンク先のサイトは不安定な場合があり、接続できないことがあります。';
+        urlWrap.appendChild(note);
+    } else {
+        const muted = document.createElement('span');
+        muted.className = 'muted';
+        muted.textContent = '（URL がありません）';
+        urlWrap.appendChild(muted);
+    }
+    body.appendChild(_detailRow('対応URL', urlWrap));
 
     document.getElementById('detail-modal').classList.add('active');
 }
@@ -4086,74 +4071,89 @@ function renderBookDetail(book) {
     const source = sourceNameOf(book.source);
     const st = formatTranslationStatus(book);
     const url = getSourceUrl(book);
-    const summary = book.summary || '';
 
-    const urlHtml = url
-        ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>
-           <div style="font-size:.72rem;opacity:.7;margin-top:6px;color:#d9534f;line-height:1.5;">
-               ※ リンク先のサイトは不安定な場合があり、接続できないことがあります。
-           </div>`
-        : `<span class="muted">（この作品には URL が登録されていません）</span>`;
+    body.replaceChildren();
 
-    const summaryHtml = summary
-        ? escapeHtml(summary)
-        : `<span class="muted">（あらすじは準備中です）</span>`;
+    body.appendChild(_detailRow('タイトル', title, 'is-title'));
+    body.appendChild(_detailRow('著者', author));
+    body.appendChild(_detailRow('出典', source));
+    body.appendChild(_detailRow('状態', st));
+    body.appendChild(_detailRow('ID', book.id || '', 'is-mono'));
 
-    let translationHtml;
+    const urlWrap = document.createElement('div');
+    if (url) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = url;
+        urlWrap.appendChild(a);
+        const note = document.createElement('div');
+        note.style.cssText = 'font-size:.72rem;opacity:.7;margin-top:6px;color:#d9534f;line-height:1.5;';
+        note.textContent = '※ リンク先のサイトは不安定な場合があり、接続できないことがあります。';
+        urlWrap.appendChild(note);
+    } else {
+        const muted = document.createElement('span');
+        muted.className = 'muted';
+        muted.textContent = '（この作品には URL が登録されていません）';
+        urlWrap.appendChild(muted);
+    }
+    body.appendChild(_detailRow('対応URL', urlWrap));
+
+    /* 翻訳データ欄 */
     const paragraphs = book.paragraphs || [];
     const texts = book.translatedTexts || [];
     const total = book.translationTotal || paragraphs.length;
     const done = book.translationDone || 0;
 
+    let transEl;
     if (!paragraphs.length) {
-        translationHtml = `<span class="muted">（翻訳データがありません）</span>`;
+        transEl = document.createElement('span');
+        transEl.className = 'muted';
+        transEl.textContent = '（翻訳データがありません）';
     } else if (book.sourceLang === 'ja') {
-        translationHtml = `<span class="muted">（原文が日本語のため翻訳不要）</span>`;
+        transEl = document.createElement('span');
+        transEl.className = 'muted';
+        transEl.textContent = '（原文が日本語のため翻訳不要）';
     } else if (book.translationStatus === 'translating') {
-        translationHtml = `<span style="color:var(--accent-color);">翻訳中 ${done}/${total}</span>`;
+        transEl = document.createElement('span');
+        transEl.style.color = 'var(--accent-color)';
+        transEl.textContent = '翻訳中 ' + done + '/' + total;
     } else if (book.translationStatus === 'done') {
+        transEl = document.createElement('div');
+        const head = document.createElement('div');
+        head.style.cssText = 'margin-bottom:6px;color:#4caf50;';
+        head.textContent = '翻訳完了（' + total + '段落）';
+        transEl.appendChild(head);
+
         const preview = [];
         for (let i = 0; i < Math.min(3, paragraphs.length); i++) {
             if (texts[i] != null) preview.push(texts[i]);
         }
-        translationHtml = `
-            <div style="margin-bottom:6px;color:#4caf50;">翻訳完了（${total}段落）</div>
-            ${preview.length ? `<pre style="font-family:inherit;font-size:.85rem;background:rgba(0,0,0,.04);padding:8px 10px;border-radius:4px;max-height:200px;overflow-y:auto;white-space:pre-wrap;line-height:1.6;">${escapeHtml(preview.join('\n\n'))}</pre>` : ''}
-            <div style="font-size:.75rem;opacity:.6;margin-top:4px;">（全文はリーダーの「翻訳で読む」から）</div>
-        `;
+        if (preview.length) {
+            const pre = document.createElement('pre');
+            pre.style.cssText = 'font-family:inherit;font-size:.85rem;background:rgba(0,0,0,.04);padding:8px 10px;border-radius:4px;max-height:200px;overflow-y:auto;white-space:pre-wrap;line-height:1.6;';
+            pre.textContent = preview.join('\n\n');
+            transEl.appendChild(pre);
+        }
+        const hint = document.createElement('div');
+        hint.style.cssText = 'font-size:.75rem;opacity:.6;margin-top:4px;';
+        hint.textContent = '（全文はリーダーの「翻訳で読む」から）';
+        transEl.appendChild(hint);
     } else if (book.translationStatus === 'error') {
-        translationHtml = `<span style="color:#d9534f;">翻訳失敗 ${done}/${total}</span>`;
+        transEl = document.createElement('span');
+        transEl.style.color = '#d9534f';
+        transEl.textContent = '翻訳失敗 ' + done + '/' + total;
     } else if (book.contentTranslated) {
-        translationHtml = `<span style="color:#4caf50;">翻訳完了</span>`;
+        transEl = document.createElement('span');
+        transEl.style.color = '#4caf50';
+        transEl.textContent = '翻訳完了';
     } else {
-        translationHtml = `<span class="muted">（翻訳データがありません）</span>`;
+        transEl = document.createElement('span');
+        transEl.className = 'muted';
+        transEl.textContent = '（翻訳データがありません）';
     }
-
-    body.innerHTML = `
-        <div class="detail-info-label">タイトル</div>
-        <div class="detail-info-value is-title">${escapeHtml(title)}</div>
-
-        <div class="detail-info-label">著者</div>
-        <div class="detail-info-value">${escapeHtml(author)}</div>
-
-        <div class="detail-info-label">出典</div>
-        <div class="detail-info-value">${escapeHtml(source)}</div>
-
-        <div class="detail-info-label">状態</div>
-        <div class="detail-info-value">${escapeHtml(st)}</div>
-
-        <div class="detail-info-label">ID</div>
-        <div class="detail-info-value is-mono">${escapeHtml(book.id || '')}</div>
-
-        <div class="detail-info-label">対応URL</div>
-        <div class="detail-info-value">${urlHtml}</div>
-
-        <div class="detail-info-label">あらすじ</div>
-        <div class="detail-info-value">${summaryHtml}</div>
-
-        <div class="detail-info-label">翻訳データ</div>
-        <div class="detail-info-value">${translationHtml}</div>
-    `;
+    body.appendChild(_detailRow('翻訳データ', transEl));
 }
 
 /* ============================================================
@@ -4292,7 +4292,7 @@ function confirmExternalOpen(title, url, message) {
     modal.querySelector('.ext-msg').textContent = message || defaultMsg;
 
     const detailEl = modal.querySelector('.ext-detail');
-    detailEl.innerHTML = '';
+    detailEl.replaceChildren();
 
     if (title) {
         const titleLine = document.createElement('div');
@@ -4677,7 +4677,7 @@ async function fetchAozoraCatalog() {
     for (const src of AOZORA_CATALOG_SOURCES) {
         if (catalog) break;
         try {
-            const fetchUrl = src.proxy ? CORS_PROXIES[src.proxy](src.url) : src.url;
+            const fetchUrl = src.url;
             const res = await politeFetch(fetchUrl, { cache: 'no-store' }, FETCH_TIMEOUT_BOOK);
             if (!res.ok) {
                 lastErr = `${src.name}: HTTP ${res.status}`;
@@ -5364,8 +5364,6 @@ async function searchIAUnified(ctx) {
             const anyKnownCopyrighted = judgments.some(a => a.deathYear && !a.safe);
             const allKnownPD = judgments.length > 0 && judgments.every(a => a.safe);
 
-            /* A修正: pdByLicense によるバイパスを削除。
-               著者全員の没年が確認できない限り、ライセンスPD表示だけでは保存させない。 */
             let safe, safetyNote;
             if (anyKnownCopyrighted) {
                 safe = false;
@@ -5672,7 +5670,6 @@ async function searchFadedPageUnified(ctx) {
     }
 }
 
-/* D修正: authorName を追加。ダウンロード時にも著作権を再確認する。 */
 async function downloadAndSaveFadedPage(bookid, title, authorName, silent) {
     silent = !!silent;
     const key = 'fadedpage_' + bookid;
@@ -6675,7 +6672,6 @@ window.downloadAndSaveRuneberg = downloadAndSaveRuneberg;
    ============================================================ */
 function detectNDLAccessLevel(record) {
     const desc = (record.description || '').toLowerCase();
-    /* 第1層: 保護期間満了のみ通す。「許諾」「裁定」は public にしない。 */
     if (desc.includes('保護期間満了') ||
         desc.includes('インターネット公開（保護期間満了）') ||
         desc.includes('public domain')) {
@@ -6725,7 +6721,6 @@ async function searchNDLAll(query) {
                     const el = rec.querySelector(tag);
                     return el ? el.textContent.trim() : '';
                 };
-                /* 名前空間を跨いで取得するヘルパ */
                 const getLocal = (localName) => {
                     const el = rec.querySelector(`*[local-name()="${localName}"]`);
                     return el ? el.textContent.trim() : '';
@@ -6769,9 +6764,7 @@ async function searchNDLUnified(ctx) {
     try {
         const records = await searchNDLAll(q);
         return records
-            /* 第1層: 保護期間満了のみ */
             .filter(r => r.accessLevel === NDL_ACCESS_PUBLIC)
-            /* 第3層: NDL自身のコンテンツを除外 */
             .filter(r => {
                 const pub = (r.publisher || '').trim();
                 if (!pub) return true;
@@ -6782,7 +6775,6 @@ async function searchNDLUnified(ctx) {
                 if (!prov) return true;
                 return !NDL_SELF_BLOCK_PROVIDERS.has(prov);
             })
-            /* 第2層: 営利モード時は許可プロバイダのみ */
             .filter(r => {
                 if (!NDL_COMMERCIAL_MODE) return true;
                 const dpid = (r.dpid || '').trim();
@@ -7057,7 +7049,6 @@ async function resolveAozoraZipName(workId, personId, initialZipName) {
     return { zipName: null, via: null };
 }
 
-/* F修正: 通信エラー等で確認できなかった場合は安全側（suspended: true）に倒す */
 async function checkAozoraSuspended(workId, personId) {
     try {
         const paddedPersonId = String(personId).padStart(6, '0');
@@ -7282,7 +7273,6 @@ async function downloadAndSaveInternetArchive(identifier, titleHint, silent, ski
         const anyKnownCopyrighted = judgments.some(a => a.deathYear && !a.safe);
         const allKnownPD = judgments.length > 0 && judgments.every(a => a.safe);
 
-        /* A修正: pdByLicense バイパス削除 */
         if (!skipPDCheck && !allKnownPD) {
             const detail = judgments.length
                 ? judgments.map(a => `${a.name}: ${a.note}`).join(' / ')
@@ -7451,14 +7441,12 @@ function buildWikisourceAttribution(book) {
 
 function buildOriginalHtml(book) {
     if (book.paragraphs && book.paragraphs.length) {
-        let html = book.paragraphs.map((p, i) => {
+        return book.paragraphs.map((p, i) => {
             const classes = (p.classes || []).slice();
             const cls = classes.length ? ` class="${classes.join(' ')}"` : '';
             const inner = (p.html != null) ? p.html : escapeHtml(p.text);
             return `<${p.tag}${cls} data-pidx="${i}">${inner}</${p.tag}>`;
         }).join('');
-        if (book.source === 'wikisource') html += buildWikisourceAttribution(book);
-        return html;
     }
     return book.content || '';
 }
@@ -7466,7 +7454,7 @@ function buildOriginalHtml(book) {
 function buildTranslatedHtml(book) {
     if (book.paragraphs && book.paragraphs.length) {
         const texts = book.translatedTexts || [];
-        let html = book.paragraphs.map((p, i) => {
+        return book.paragraphs.map((p, i) => {
             const t = texts[i];
             const isUn = (t == null);
             const classes = (p.classes || []).slice();
@@ -7475,8 +7463,6 @@ function buildTranslatedHtml(book) {
             const inner = escapeHtml(isUn ? p.text : t);
             return `<${p.tag}${cls} data-pidx="${i}">${inner}</${p.tag}>`;
         }).join('');
-        if (book.source === 'wikisource') html += buildWikisourceAttribution(book);
-        return html;
     }
     return book.contentTranslated || book.content || '';
 }
@@ -7565,11 +7551,9 @@ async function startBackgroundTranslation(bookId) {
                     book.lastError = `段落${idx}: ${lastErr}`;
                     if (fails >= FAILS_TO_DROP_CONCURRENCY) {
                         if (para > MIN_PARALLELISM) {
-                            para = para === 32 ? 16 : MIN_PARALLELISM;
-                            fails = 0;
-                        } else {
-                            fails = 0;
+                            para = para === 8 ? 4 : MIN_PARALLELISM;
                         }
+                        fails = 0;
                     }
                 }
 
@@ -7844,7 +7828,7 @@ function loadBookshelf() {
     const s = document.getElementById('bookshelf-status');
     const t = document.getElementById('bookshelf-table');
     const tb = document.getElementById('bookshelf-tbody');
-    tb.innerHTML = '';
+    tb.replaceChildren();
     s.textContent = '読み込み中...';
     s.classList.remove('error', 'success', 'info');
 
@@ -7857,7 +7841,7 @@ function loadBookshelf() {
             const bks = rq.result;
             if (!bks.length) {
                 setStatus('bookshelf-status', '本棚は空っぽです', 'info');
-                t.style.display = 'none';
+                t.classList.remove('visible');
                 updateReprocessButton(0);
                 resolve();
                 return;
@@ -7875,7 +7859,7 @@ function loadBookshelf() {
 
             if (!filtered.length) {
                 setStatus('bookshelf-status', '条件に一致する本がありません', 'info');
-                t.style.display = 'none';
+                t.classList.remove('visible');
                 updateReprocessButton(0);
                 resolve();
                 return;
@@ -7885,7 +7869,7 @@ function loadBookshelf() {
             const outdatedCount = filtered.filter(b => isBookOutdated(b)).length;
             updateReprocessButton(outdatedCount);
             s.textContent = '';
-            t.style.display = 'table';
+            t.classList.add('visible');
 
             filtered.forEach(b => {
                 const outdated = isBookOutdated(b);
@@ -7898,49 +7882,92 @@ function loadBookshelf() {
                 tr.style.cursor = 'pointer';
                 tr.onclick = () => readSavedBook(b.id);
 
-                const fav = b.favorite ? '[お気に入り] ' : '';
                 const st = formatTranslationStatus(b);
                 const stCls = b.translationStatus === 'error' ? 'error'
                             : b.translationStatus === 'done' ? 'done'
                             : '';
-                const errTitle = b.lastError ? ` title="${escapeHtml(b.lastError)}"` : '';
                 const total = b.translationTotal || (b.paragraphs ? b.paragraphs.length : 0);
                 const done = b.translationDone || 0;
                 const incomplete = b.paragraphs && b.paragraphs.length && done < total;
-                const retryBtn = incomplete
-                    ? `<button onclick="event.stopPropagation(); retryTranslation('${escapeHtml(b.id)}')">翻訳を再開</button>`
-                    : '';
-                const updateBadge = outdated
-                    ? `<span class="update-badge" title="新しい処理形式で読み直せます">要更新</span>`
-                    : '';
-                const reprocessBtn = outdated
-                    ? `<button onclick="event.stopPropagation(); handleReprocessOne('${escapeHtml(b.id)}')">新形式で再処理</button>`
-                    : '';
 
-                tr.innerHTML = `
-                    <td class="id-cell">
-                        <div class="id-cell-inner">
-                            <span class="drag-handle" title="ドラッグで並べ替え" onclick="event.stopPropagation()">
-                                <span class="bar"></span><span class="bar"></span>
-                            </span>
-                            <span class="source-badge">${escapeHtml(sourceNameOf(b.source))}</span>
-                        </div>
-                    </td>
-                    <td>${fav}${escapeHtml(b.title)}</td>
-                    <td>${escapeHtml(b.author)}</td>
-                    <td>${updateBadge}<span class="trans-badge ${stCls}" data-status-for="${escapeHtml(b.id)}"${errTitle}>${st}</span></td>
-                    <td onclick="event.stopPropagation()">
-                        <div class="menu-wrap">
-                            <button class="dots-btn" onclick="toggleRowMenu(event, '${escapeHtml(b.id)}')">...</button>
-                            <div class="row-menu" id="menu-${escapeHtml(b.id)}">
-                                <button onclick="openBookDetail('${escapeHtml(b.id)}')">詳細</button>
-                                ${reprocessBtn}${retryBtn}
-                                <button onclick="toggleFavorite('${escapeHtml(b.id)}')">${b.favorite ? 'お気に入り解除' : 'お気に入りに追加'}</button>
-                                <button onclick="confirmDeleteBook('${escapeHtml(b.id)}')" style="color:#d9534f;">削除</button>
-                            </div>
-                        </div>
-                    </td>
-                `;
+                const tdSource = document.createElement('td');
+                tdSource.className = 'id-cell';
+                const idInner = document.createElement('div');
+                idInner.className = 'id-cell-inner';
+                const dragHandle = document.createElement('span');
+                dragHandle.className = 'drag-handle';
+                dragHandle.title = 'ドラッグで並べ替え';
+                dragHandle.addEventListener('click', e => e.stopPropagation());
+                const bar1 = document.createElement('span'); bar1.className = 'bar';
+                const bar2 = document.createElement('span'); bar2.className = 'bar';
+                dragHandle.appendChild(bar1);
+                dragHandle.appendChild(bar2);
+                const srcBadge = document.createElement('span');
+                srcBadge.className = 'source-badge';
+                srcBadge.textContent = sourceNameOf(b.source);
+                idInner.appendChild(dragHandle);
+                idInner.appendChild(srcBadge);
+                tdSource.appendChild(idInner);
+
+                const tdTitle = document.createElement('td');
+                if (b.favorite) tdTitle.appendChild(document.createTextNode('[お気に入り] '));
+                tdTitle.appendChild(document.createTextNode(b.title || ''));
+
+                const tdAuthor = document.createElement('td');
+                tdAuthor.textContent = b.author || '';
+
+                const tdStatus = document.createElement('td');
+                if (outdated) {
+                    const ub = document.createElement('span');
+                    ub.className = 'update-badge';
+                    ub.title = '新しい処理形式で読み直せます';
+                    ub.textContent = '要更新';
+                    tdStatus.appendChild(ub);
+                }
+                const stBadge = document.createElement('span');
+                stBadge.className = 'trans-badge ' + stCls;
+                stBadge.setAttribute('data-status-for', b.id);
+                stBadge.textContent = st;
+                if (b.lastError) stBadge.title = b.lastError;
+                tdStatus.appendChild(stBadge);
+
+                const tdOps = document.createElement('td');
+                tdOps.addEventListener('click', e => e.stopPropagation());
+                const menuWrap = document.createElement('div');
+                menuWrap.className = 'menu-wrap';
+
+                const dotsBtn = document.createElement('button');
+                dotsBtn.className = 'dots-btn';
+                dotsBtn.textContent = '...';
+                dotsBtn.addEventListener('click', ev => toggleRowMenu(ev, b.id));
+                menuWrap.appendChild(dotsBtn);
+
+                const menuEl = document.createElement('div');
+                menuEl.className = 'row-menu';
+                menuEl.id = 'menu-' + b.id;
+
+                const mkItem = (label, handler, color) => {
+                    const btn = document.createElement('button');
+                    btn.textContent = label;
+                    if (color) btn.style.color = color;
+                    btn.addEventListener('click', handler);
+                    return btn;
+                };
+
+                menuEl.appendChild(mkItem('詳細', () => openBookDetail(b.id)));
+                if (outdated) menuEl.appendChild(mkItem('新形式で再処理', () => handleReprocessOne(b.id)));
+                if (incomplete) menuEl.appendChild(mkItem('翻訳を再開', () => retryTranslation(b.id)));
+                menuEl.appendChild(mkItem(b.favorite ? 'お気に入り解除' : 'お気に入りに追加', () => toggleFavorite(b.id)));
+                menuEl.appendChild(mkItem('削除', () => confirmDeleteBook(b.id), '#d9534f'));
+
+                menuWrap.appendChild(menuEl);
+                tdOps.appendChild(menuWrap);
+
+                tr.appendChild(tdSource);
+                tr.appendChild(tdTitle);
+                tr.appendChild(tdAuthor);
+                tr.appendChild(tdStatus);
+                tr.appendChild(tdOps);
                 tb.appendChild(tr);
             });
             resolve();
@@ -8021,6 +8048,7 @@ function swapBookOrder(idA, idB) {
 function toggleRowMenu(ev, bookId) {
     ev.stopPropagation();
     const menu = document.getElementById(`menu-${bookId}`);
+    if (!menu) return;
     const opening = !menu.classList.contains('active');
     closeAllRowMenus();
     if (opening) {
@@ -8295,6 +8323,13 @@ function renderReaderContent() {
     const tpl = document.createElement('template');
     tpl.innerHTML = html;
     flow.replaceChildren(tpl.content);
+
+    if (ima_yonderu_hon.source === 'wikisource') {
+        const attrWrap = document.createElement('div');
+        attrWrap.innerHTML = buildWikisourceAttribution(ima_yonderu_hon);
+        if (attrWrap.firstElementChild) flow.appendChild(attrWrap.firstElementChild);
+    }
+
     if (is_book_mode) requestAnimationFrame(() => computePageLayout());
 }
 
@@ -8598,7 +8633,7 @@ window.changeFontSize = changeFontSize;
 const DIAGNOSTICS = [
     {
         id: 'wiki-lookup',
-        label: 'Wikipedia言語間リンク（ja→en）',
+        label: 'Wikipedia言語間リンク（人名 ja→en）',
         run: async () => {
             const t0 = performance.now();
             try {
@@ -8752,10 +8787,10 @@ const DIAGNOSTICS = [
     },
     {
         id: 'proxies',
-        label: 'プロキシ疎通（aoi）',
+        label: 'プロキシ疎通（全種）',
         run: async () => {
             const testUrl = 'https://www.gutenberg.org/cache/epub/11/pg11.txt';
-            const names = ['aoi'];
+            const names = CORS_PROXIES.map(p => p.name);
             const results = await Promise.all(names.map(n => testProxy(n, testUrl)));
             const detail = names.map((n, i) => {
                 const r = results[i];
@@ -8994,10 +9029,11 @@ const DIAGNOSTICS = [
 ];
 
 async function testProxy(name, url) {
-    const proxied = CORS_PROXIES[name](url);
+    const px = CORS_PROXIES.find(p => p.name === name);
+    if (!px) return { ok: false, msg: '不明なプロキシ: ' + name };
     const t0 = performance.now();
     try {
-        const r = await fetchWithTimeout(proxied, {}, 12000);
+        const r = await fetchWithTimeout(px.build(url), {}, 12000);
         const ms = Math.round(performance.now() - t0);
         if (!r.ok) return { ok: false, msg: 'HTTP ' + r.status + ' (' + ms + 'ms)' };
         const text = await r.text();
@@ -9005,7 +9041,7 @@ async function testProxy(name, url) {
         return { ok: true, msg: (text.length / 1024).toFixed(1) + 'KB / ' + ms + 'ms' };
     } catch (e) {
         const ms = Math.round(performance.now() - t0);
-        return { ok: false, msg: (e.message || 'failed') + ' (' + ms + 'ms)' };
+        return { ok: false, msg: ((e && e.message) || 'failed') + ' (' + ms + 'ms)' };
     }
 }
 
@@ -9026,7 +9062,7 @@ function iconForDiag(status) {
 function renderDiagnostics() {
     const body = document.getElementById('diagnostics-body');
     if (!body) return;
-    body.innerHTML = '';
+    body.replaceChildren();
     DIAGNOSTICS.forEach(d => {
         const s = diagnosticsState[d.id] || { status: 'pending' };
         const row = document.createElement('div');
