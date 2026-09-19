@@ -40,11 +40,7 @@ body.sepia-mode {
     --border-color: #e2d7c0;
 }
 
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
     height: 100%;
@@ -58,8 +54,7 @@ body {
     font-family: var(--font-family);
     transition: background-color .3s, color .3s;
     position: fixed;
-    top: 0;
-    left: 0;
+    top: 0; left: 0;
     width: 100%;
     height: var(--app-h);
     display: flex;
@@ -120,9 +115,7 @@ h1 {
     overscroll-behavior: contain;
 }
 
-.view-panel.active {
-    display: block;
-}
+.view-panel.active { display: block; }
 
 .simple-search-box {
     display: flex;
@@ -189,9 +182,7 @@ h1 {
     box-shadow: 0 2px 8px rgba(0,0,0,.05);
 }
 
-.detail-search-panel.active {
-    display: block;
-}
+.detail-search-panel.active { display: block; }
 
 .detail-row {
     display: flex;
@@ -259,10 +250,7 @@ h1 {
     font-size: .85rem;
 }
 
-.sort-bar label {
-    opacity: .7;
-    flex-shrink: 0;
-}
+.sort-bar label { opacity: .7; flex-shrink: 0; }
 
 .sort-bar select {
     flex: 1;
@@ -288,11 +276,7 @@ h1 {
     min-height: 32px;
 }
 
-.sort-count {
-    font-size: .8rem;
-    opacity: .7;
-    white-space: nowrap;
-}
+.sort-count { font-size: .8rem; opacity: .7; white-space: nowrap; }
 
 .results-table {
     width: 100%;
@@ -308,10 +292,7 @@ h1 {
     border-bottom: 1px solid var(--border-color);
 }
 
-.results-table th {
-    background-color: rgba(0,0,0,.03);
-    font-weight: bold;
-}
+.results-table th { background-color: rgba(0,0,0,.03); font-weight: bold; }
 
 .results-table tr:hover {
     background-color: rgba(0,0,0,.02);
@@ -319,9 +300,7 @@ h1 {
 }
 
 @media (min-width: 769px) {
-    .results-table {
-        table-layout: fixed;
-    }
+    .results-table { table-layout: fixed; }
     .results-table th,
     .results-table td {
         overflow-wrap: break-word;
@@ -369,9 +348,7 @@ h1 {
     white-space: nowrap;
 }
 
-.id-cell {
-    white-space: nowrap;
-}
+.id-cell { white-space: nowrap; }
 
 .id-cell-inner {
     display: flex;
@@ -388,9 +365,7 @@ h1 {
     flex-shrink: 0;
 }
 
-.drag-handle:active {
-    cursor: grabbing;
-}
+.drag-handle:active { cursor: grabbing; }
 
 .drag-handle .bar {
     height: 2px;
@@ -404,10 +379,7 @@ h1 {
     outline-offset: -2px;
 }
 
-.menu-wrap {
-    position: relative;
-    display: inline-block;
-}
+.menu-wrap { position: relative; display: inline-block; }
 
 .dots-btn {
     background: none;
@@ -433,9 +405,7 @@ h1 {
     overflow: hidden;
 }
 
-.row-menu.active {
-    display: block;
-}
+.row-menu.active { display: block; }
 
 .row-menu button {
     display: block;
@@ -450,9 +420,7 @@ h1 {
     min-height: var(--tap-min);
 }
 
-.row-menu button:hover {
-    background: rgba(0,0,0,.05);
-}
+.row-menu button:hover { background: rgba(0,0,0,.05); }
 
 #reader-view {
     flex: 1;
@@ -464,9 +432,7 @@ h1 {
     overflow: hidden;
 }
 
-#reader-view.active {
-    display: flex;
-}
+#reader-view.active { display: flex; }
 
 .reader-toolbar {
     flex-shrink: 0;
@@ -536,8 +502,7 @@ h1 {
 #reader-body.book-mode::after {
     content: '';
     position: absolute;
-    top: 0;
-    bottom: 0;
+    top: 0; bottom: 0;
     width: 90px;
     pointer-events: none;
     z-index: 20;
@@ -576,13 +541,8 @@ h1 {
     font-size: .9rem;
 }
 
-#page-nav.active {
-    display: flex;
-}
-
-#page-nav.rtl {
-    flex-direction: row-reverse;
-}
+#page-nav.active { display: flex; }
+#page-nav.rtl { flex-direction: row-reverse; }
 
 #page-nav button {
     padding: 6px 12px;
@@ -609,31 +569,13 @@ h1 {
     font-weight: bold;
 }
 
-.status-msg.error {
-    color: #d9534f;
-}
+.status-msg.error { color: #d9534f; }
+.status-msg.success { color: #4caf50; }
+.status-msg.info { color: var(--accent-color); }
 
-.status-msg.success {
-    color: #4caf50;
-}
-
-.status-msg.info {
-    color: var(--accent-color);
-}
-
-.trans-badge {
-    font-size: .8rem;
-    color: var(--accent-color);
-    white-space: nowrap;
-}
-
-.trans-badge.error {
-    color: #d9534f;
-}
-
-.trans-badge.done {
-    color: #4caf50;
-}
+.trans-badge { font-size: .8rem; color: var(--accent-color); white-space: nowrap; }
+.trans-badge.error { color: #d9534f; }
+.trans-badge.done { color: #4caf50; }
 
 .update-badge {
     display: inline-block;
@@ -688,15 +630,8 @@ h1 {
     min-height: var(--tap-min);
 }
 
-.reprocess-all-btn:hover {
-    background: #ec971f;
-    border-color: #ec971f;
-}
-
-.reprocess-all-btn:disabled {
-    opacity: .6;
-    cursor: default;
-}
+.reprocess-all-btn:hover { background: #ec971f; border-color: #ec971f; }
+.reprocess-all-btn:disabled { opacity: .6; cursor: default; }
 
 .modal-overlay {
     display: none;
@@ -709,9 +644,7 @@ h1 {
     padding: 16px;
 }
 
-.modal-overlay.active {
-    display: flex;
-}
+.modal-overlay.active { display: flex; }
 
 .modal-box {
     background: var(--card-bg);
@@ -724,10 +657,7 @@ h1 {
     box-shadow: 0 8px 24px rgba(0,0,0,.2);
 }
 
-.modal-box p {
-    margin-bottom: 20px;
-    line-height: 1.6;
-}
+.modal-box p { margin-bottom: 20px; line-height: 1.6; }
 
 .modal-buttons {
     display: flex;
@@ -779,27 +709,13 @@ h1 {
     word-break: break-word;
 }
 
-.toast.error {
-    border-left-color: #d9534f;
-}
-
-.toast.success {
-    border-left-color: #4caf50;
-}
-
-.toast.warn {
-    border-left-color: #f0ad4e;
-}
+.toast.error { border-left-color: #d9534f; }
+.toast.success { border-left-color: #4caf50; }
+.toast.warn { border-left-color: #f0ad4e; }
 
 @keyframes slideIn {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
+    from { transform: translateX(100%); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
 }
 
 #reading-title {
@@ -811,9 +727,7 @@ h1 {
     max-width: 40%;
 }
 
-.close-reader-btn {
-    margin-left: 15px;
-}
+.close-reader-btn { margin-left: 15px; }
 
 .header-title-wrap {
     display: flex;
@@ -832,20 +746,14 @@ h1 {
     flex-shrink: 0;
 }
 
-#header-spinner.active {
-    display: inline-block;
-}
+#header-spinner.active { display: inline-block; }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 #error-banner {
     display: none;
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
+    top: 0; left: 0; right: 0;
     z-index: 99999;
     background: #d9534f;
     color: #fff;
@@ -859,14 +767,11 @@ h1 {
     overflow-y: auto;
 }
 
-#error-banner.active {
-    display: block;
-}
+#error-banner.active { display: block; }
 
 #error-banner .eb-close {
     position: absolute;
-    top: 6px;
-    right: 8px;
+    top: 6px; right: 8px;
     background: none;
     border: none;
     color: #fff;
@@ -877,14 +782,9 @@ h1 {
     border-radius: 4px;
 }
 
-#error-banner .eb-close:hover {
-    background: rgba(255,255,255,.18);
-}
+#error-banner .eb-close:hover { background: rgba(255,255,255,.18); }
 
-#error-banner .eb-title {
-    font-weight: bold;
-    margin-right: 6px;
-}
+#error-banner .eb-title { font-weight: bold; margin-right: 6px; }
 
 #error-banner .eb-detail {
     opacity: .9;
@@ -894,39 +794,12 @@ h1 {
     white-space: pre-wrap;
 }
 
-.reader-content h1 {
-    font-size: 1.7rem;
-    margin: 1.8em 0 .8em;
-    text-align: center;
-    font-weight: bold;
-    line-height: 1.4;
-}
+.reader-content h1 { font-size: 1.7rem; margin: 1.8em 0 .8em; text-align: center; font-weight: bold; line-height: 1.4; }
+.reader-content h2 { font-size: 1.5rem; margin: 1.8em 0 .8em; text-align: center; font-weight: bold; line-height: 1.4; }
+.reader-content h3 { font-size: 1.25rem; margin: 1.5em 0 .7em; font-weight: bold; line-height: 1.4; }
+.reader-content h4 { font-size: 1.08rem; margin: 1.2em 0 .5em; font-weight: bold; line-height: 1.4; }
 
-.reader-content h2 {
-    font-size: 1.5rem;
-    margin: 1.8em 0 .8em;
-    text-align: center;
-    font-weight: bold;
-    line-height: 1.4;
-}
-
-.reader-content h3 {
-    font-size: 1.25rem;
-    margin: 1.5em 0 .7em;
-    font-weight: bold;
-    line-height: 1.4;
-}
-
-.reader-content h4 {
-    font-size: 1.08rem;
-    margin: 1.2em 0 .5em;
-    font-weight: bold;
-    line-height: 1.4;
-}
-
-.reader-content .align-center {
-    text-align: center;
-}
+.reader-content .align-center { text-align: center; }
 
 .reader-content ruby rt {
     font-size: .55em;
@@ -945,60 +818,16 @@ h1 {
 .reader-content .indent-9 { padding-left: 9em; }
 .reader-content .indent-10 { padding-left: 10em; }
 
-.reader-content .boten {
-    font-style: normal;
-    text-emphasis: filled dot;
-    -webkit-text-emphasis: filled dot;
-}
-
-.reader-content .boten-maru {
-    font-style: normal;
-    text-emphasis: filled circle;
-    -webkit-text-emphasis: filled circle;
-}
-
-.reader-content .boten-shiromaru {
-    font-style: normal;
-    text-emphasis: open circle;
-    -webkit-text-emphasis: open circle;
-}
-
-.reader-content .boten-double {
-    font-style: normal;
-    text-emphasis: double-circle;
-    -webkit-text-emphasis: double-circle;
-}
-
-.reader-content .boten-snake {
-    font-style: normal;
-    text-emphasis: open dot;
-    -webkit-text-emphasis: open dot;
-}
-
-.reader-content .boten-line {
-    text-decoration: underline;
-    font-style: normal;
-}
-
-.reader-content .boten-doubleline {
-    text-decoration: underline double;
-    font-style: normal;
-}
-
-.reader-content .boten-dash {
-    text-decoration: underline dashed;
-    font-style: normal;
-}
-
-.reader-content .boten-wave {
-    text-decoration: underline wavy;
-    font-style: normal;
-}
-
-.reader-content .boten-chain {
-    text-decoration: underline dashed;
-    font-style: normal;
-}
+.reader-content .boten { font-style: normal; text-emphasis: filled dot; -webkit-text-emphasis: filled dot; }
+.reader-content .boten-maru { font-style: normal; text-emphasis: filled circle; -webkit-text-emphasis: filled circle; }
+.reader-content .boten-shiromaru { font-style: normal; text-emphasis: open circle; -webkit-text-emphasis: open circle; }
+.reader-content .boten-double { font-style: normal; text-emphasis: double-circle; -webkit-text-emphasis: double-circle; }
+.reader-content .boten-snake { font-style: normal; text-emphasis: open dot; -webkit-text-emphasis: open dot; }
+.reader-content .boten-line { text-decoration: underline; font-style: normal; }
+.reader-content .boten-doubleline { text-decoration: underline double; font-style: normal; }
+.reader-content .boten-dash { text-decoration: underline dashed; font-style: normal; }
+.reader-content .boten-wave { text-decoration: underline wavy; font-style: normal; }
+.reader-content .boten-chain { text-decoration: underline dashed; font-style: normal; }
 
 .reader-content .warichu {
     font-size: .68em;
@@ -1019,25 +848,10 @@ h1 {
     -webkit-text-combine: horizontal;
 }
 
-.reader-content strong {
-    font-weight: bold;
-}
-
-.reader-content em {
-    font-style: italic;
-}
-
-.reader-content sup {
-    font-size: .7em;
-    vertical-align: super;
-    line-height: 0;
-}
-
-.reader-content sub {
-    font-size: .7em;
-    vertical-align: sub;
-    line-height: 0;
-}
+.reader-content strong { font-weight: bold; }
+.reader-content em { font-style: italic; }
+.reader-content sup { font-size: .7em; vertical-align: super; line-height: 0; }
+.reader-content sub { font-size: .7em; vertical-align: sub; line-height: 0; }
 
 .reader-content .loading-msg {
     text-align: center;
@@ -1054,15 +868,11 @@ h1 {
     z-index: 8000;
 }
 
-.settings-backdrop.active {
-    display: block;
-}
+.settings-backdrop.active { display: block; }
 
 .settings-panel {
     position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
+    top: 0; right: 0; bottom: 0;
     width: 340px;
     max-width: 90vw;
     background: var(--card-bg);
@@ -1077,9 +887,7 @@ h1 {
     padding-bottom: env(safe-area-inset-bottom);
 }
 
-.settings-panel.active {
-    transform: translateX(0);
-}
+.settings-panel.active { transform: translateX(0); }
 
 .settings-header {
     display: flex;
@@ -1090,10 +898,7 @@ h1 {
     padding-top: calc(16px + env(safe-area-inset-top));
 }
 
-.settings-header h2 {
-    font-size: 1.1rem;
-    font-weight: normal;
-}
+.settings-header h2 { font-size: 1.1rem; font-weight: normal; }
 
 .settings-close {
     background: none;
@@ -1108,9 +913,7 @@ h1 {
     min-height: var(--tap-min);
 }
 
-.settings-close:hover {
-    background: rgba(0,0,0,.05);
-}
+.settings-close:hover { background: rgba(0,0,0,.05); }
 
 .settings-body {
     flex: 1;
@@ -1119,9 +922,7 @@ h1 {
     overscroll-behavior: contain;
 }
 
-.settings-group {
-    margin-bottom: 24px;
-}
+.settings-group { margin-bottom: 24px; }
 
 .settings-group > label {
     display: block;
@@ -1131,11 +932,7 @@ h1 {
     opacity: .7;
 }
 
-.settings-options {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
+.settings-options { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .settings-options button {
     flex: 1;
@@ -1194,8 +991,7 @@ h1 {
 #announce-bar {
     position: fixed;
     top: calc(env(safe-area-inset-top) + 58px);
-    left: 0;
-    right: 0;
+    left: 0; right: 0;
     z-index: 500;
     background: var(--accent-color);
     color: #fff;
@@ -1396,10 +1192,7 @@ h1 {
     margin-bottom: 16px;
     word-break: break-word;
 }
-.detail-info-value.is-title {
-    font-weight: bold;
-    font-size: 1.05rem;
-}
+.detail-info-value.is-title { font-weight: bold; font-size: 1.05rem; }
 .detail-info-value.is-mono {
     font-family: monospace;
     font-size: .8rem;
@@ -1414,10 +1207,118 @@ h1 {
     word-break: break-all;
 }
 .detail-info-value a:hover { text-decoration: underline; }
-.detail-info-value .muted {
-    opacity: .55;
-    font-style: italic;
+.detail-info-value .muted { opacity: .55; font-style: italic; }
+
+/* ============================================================
+   このサイトについてモーダル
+   ============================================================ */
+#about-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 9400;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
 }
+#about-modal.active { display: flex; }
+.about-modal-box {
+    background: var(--card-bg);
+    color: var(--text-color);
+    border-radius: 8px;
+    max-width: 560px;
+    width: 100%;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 24px rgba(0,0,0,.25);
+    overflow: hidden;
+}
+.about-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+.about-modal-header h3 { font-size: 1.05rem; font-weight: bold; }
+.about-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--text-color);
+    padding: 4px 10px;
+    border-radius: 4px;
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+}
+.about-modal-close:hover { background: rgba(0,0,0,.05); }
+.about-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    overscroll-behavior: contain;
+    font-size: .88rem;
+    line-height: 1.7;
+}
+.about-section { margin-bottom: 22px; }
+.about-section:last-child { margin-bottom: 0; }
+.about-section h4 {
+    font-size: .95rem;
+    font-weight: bold;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-color);
+}
+.about-section p { margin-bottom: 8px; opacity: .9; }
+.about-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .82rem;
+    margin: 8px 0;
+}
+.about-table th,
+.about-table td {
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: top;
+}
+.about-table th { background: rgba(0,0,0,.03); font-weight: bold; }
+.about-note {
+    font-size: .78rem;
+    opacity: .85;
+    margin-top: 6px;
+    padding: 8px 10px;
+    background: rgba(0,0,0,.03);
+    border-radius: 4px;
+    border-left: 3px solid var(--accent-color);
+    line-height: 1.6;
+}
+.about-note.warn { border-left-color: #f0ad4e; }
+.about-note.summary {
+    font-size: .95rem;
+    font-weight: bold;
+    text-align: center;
+    padding: 14px 16px;
+    margin-bottom: 24px;
+    background: rgba(74,111,165,.08);
+    border-left: none;
+    border-radius: 6px;
+    border-top: 1px solid var(--accent-color);
+    border-bottom: 1px solid var(--accent-color);
+    line-height: 1.6;
+    opacity: 1;
+}
+.about-link {
+    color: var(--accent-color);
+    text-decoration: none;
+    word-break: break-all;
+}
+.about-link:hover { text-decoration: underline; }
 
 /* ============================================================
    診断モーダル
@@ -1468,10 +1369,7 @@ h1 {
     padding: 4px 12px;
     font-size: .85rem;
 }
-.diagnostics-header button:disabled {
-    opacity: .5;
-    cursor: default;
-}
+.diagnostics-header button:disabled { opacity: .5; cursor: default; }
 .diagnostics-header .diag-rerun-all {
     background: var(--accent-color);
     color: #fff;
@@ -1854,7 +1752,11 @@ h1 {
         </button>
         <button class="settings-announce-btn" onclick="openDiagnostics()">
             <span>接続・動作診断</span>
-            <span style="opacity:.5;font-size:.85rem;">🔧</span>
+            <span style="opacity:.5;font-size:.85rem;">診断</span>
+        </button>
+        <button class="settings-announce-btn" onclick="openAbout()">
+            <span>このサイトについて</span>
+            <span style="opacity:.5;font-size:.85rem;">情報</span>
         </button>
         <div class="settings-group">
             <label>表示モード</label>
@@ -1926,7 +1828,8 @@ h1 {
                 ・Project Runeberg: パブリックドメイン（北欧）<br>
                 ・PoetryDB / Faded Page: 著者没年チェック済み<br>
                 ・DOAJ / Zenodo / arXiv: オープンアクセス（URLを開く）<br>
-                ・NDL: インターネット公開のみ<span id="ndl-status-suffix"></span>
+                ・NDL: 保護期間満了のみ<span id="ndl-status-suffix"></span><br>
+                詳しくは「このサイトについて」をご確認ください。
             </div>
         </div>
     </div>
@@ -1973,11 +1876,21 @@ h1 {
     </div>
 </div>
 
+<div id="about-modal" onclick="if(event.target===this) closeAbout()">
+    <div class="about-modal-box">
+        <div class="about-modal-header">
+            <h3>ヤマビコについて</h3>
+            <button class="about-modal-close" onclick="closeAbout()" aria-label="閉じる">×</button>
+        </div>
+        <div class="about-modal-body" id="about-modal-body"></div>
+    </div>
+</div>
+
 <div id="diagnostics-modal" onclick="if(event.target===this) closeDiagnostics()">
     <div class="diagnostics-box">
         <div class="diagnostics-header">
             <h3>診断</h3>
-            <button class="diag-rerun-all" onclick="runAllDiagnostics()" title="全項目を診断し直す">↻ 全部</button>
+            <button class="diag-rerun-all" onclick="runAllDiagnostics()" title="全項目を診断し直す">全部</button>
             <button class="diag-close" onclick="closeDiagnostics()" aria-label="閉じる">×</button>
         </div>
         <div class="diagnostics-body" id="diagnostics-body"></div>
@@ -2027,7 +1940,7 @@ setupViewportTracking();
 const FEATURE_VERSION = '2025-01-20T00:00:00Z';
 
 /* ============================================================
-   ⚠️⚠️⚠️ NDL機能有効化フラグ ⚠️⚠️⚠️
+   NDL機能有効化フラグ
    ============================================================
    【絶対削除禁止！このコメントブロックは消すな！】
 
@@ -2054,12 +1967,17 @@ const FEATURE_VERSION = '2025-01-20T00:00:00Z';
    ============================================================ */
 const NDL_ENABLED = true;
 
+/* NDL営利モードフラグ。
+   true にすると、データ提供プロバイダのうち
+   「営利目的 ○ / CC BY / CC0」のものだけを検索対象にする。 */
+const NDL_COMMERCIAL_MODE = false;
+
 /* ============================================================
-   ⚠️ 著作権判定（絶対削除禁止！）
+   著作権判定（絶対削除禁止！）
    ============================================================
    ・権利処理済みソース（青空/Wikisource/NDL/Gutenberg）は無条件セーフ
    ・判定が必要なのは IA / OpenLibrary / OA系のみ
-   ・日本語名 → 没後70年、非日本語名 → 没後81年（戦後加算3794日込み）
+   ・日本語名 → 没後70年、非日本語名 → 没後81年（戦時加算3794日込み）
    ============================================================ */
 const COPYRIGHT_JA_YEARS = 70;
 const COPYRIGHT_NON_JA_YEARS = 81;
@@ -2070,7 +1988,40 @@ function isJapaneseName(name) {
 }
 
 /* ============================================================
-   ⚠️ お知らせ運用ルール（絶対削除禁止！）
+   NDLフィルタ用定数
+   ============================================================
+   【第1層】著作権: 保護期間満了のみ通す → detectNDLAccessLevel で判定
+   【第2層】提供プロバイダ: 営利モード時に許可リスト方式で絞る
+   【第3層】NDL自身: NDL発行本・NDLサイト固有コンテンツを除外
+
+   出典: https://ndlsearch.ndl.go.jp/help/api/provider
+   ============================================================ */
+
+/* 営利目的でも申請不要なデータプロバイダID
+   （「営利目的」欄が ○ または CC BY / CC0 のもの） */
+const NDL_COMMERCIAL_OK_DPIDS = new Set([
+    'zassaku', 'zassaku-online', 'aozora', 'okayama', 'jstage',
+    'warp', 'narajo', 'ibaraki',
+    'ndl-dl-open'
+]);
+
+/* NDL自身が発行した資料の出版者（除外対象） */
+const NDL_SELF_BLOCK_PUBLISHERS = new Set([
+    '国立国会図書館',
+    '国立国会図書館サーチ',
+    '国立国会図書館デジタルコレクション'
+]);
+
+/* NDLサイト固有コンテンツのプロバイダ名（除外対象） */
+const NDL_SELF_BLOCK_PROVIDERS = new Set([
+    'カレントアウェアネス',
+    '国立国会図書館リサーチ・ナビ',
+    'NDL-OPAC',
+    '国会会議録'
+]);
+
+/* ============================================================
+   お知らせ運用ルール（絶対削除禁止！）
    ============================================================
    【このコメントブロックは絶対に削除するな！】
 
@@ -2095,6 +2046,38 @@ function isJapaneseName(name) {
      ・id を変えると「未読」扱いになって再表示される。
    ============================================================ */
 const ANNOUNCEMENTS = [
+    {
+        id: 'ann_2026_09_19_01',
+        date: '2026-09-19',
+        title: '著作権チェックを強化し、「このサイトについて」を追加しました',
+        showInBar: true,
+        body: [
+            '【今回の変更点】',
+            '',
+            '■ このサイトについて',
+            '設定に「このサイトについて」ボタンを追加しました。',
+            'ヤマビコの著作権判定の方針、各データソースのライセンス、',
+            'NDL（国立国会図書館）の利用条件、プライバシー、免責事項を、',
+            'ここにまとめて確認できます。',
+            '各データソース名をタップすると、本家サイトに飛べます。',
+            '',
+            '■ 著作権チェックの強化',
+            '・Internet Archive: これまで「ライセンスがPDと明示されていれば保存できる」',
+            '  という抜け道がありましたが、著者の没年確認を必須としました。',
+            '・Faded Page: ダウンロード時にも著者の没年を再確認するようにしました。',
+            '・青空文庫: 公開停止の確認が通信エラーなどで行えなかった場合は、',
+            '  安全のためダウンロードを中断します。',
+            '',
+            '■ NDL（国立国会図書館）書誌データの取り込み',
+            'NDLの書誌データを、一括ダウンロードとSRU APIの2経路で利用できるようにしました。',
+            '書誌メタデータのみを取り扱い、本文・画像は「保護期間満了」のもののみを対象とします。',
+            '「許諾」「裁定」による公開や、NDL自身が発行した資料は取り扱いません。',
+            '',
+            '■ 表示の整理',
+            '設定内のボタンから、装飾的な記号を削除しました。'
+        ].join('\n'),
+        important: false
+    },
     {
         id: 'ann_2026_09_17_09',
         date: '2026-09-17',
@@ -2195,14 +2178,14 @@ const ANNOUNCEMENTS = [
             '設定に「接続・動作診断」ボタンを追加しました。',
             '検索で何も出ないとき、翻訳が動かないとき、何が原因かを確認できます。',
             '',
-            '・押すと14項目を自動でチェックします',
+            '・押すと項目を自動でチェックします',
             '・項目をタップすると、その項目だけやり直せます',
-            '・右上の「↻ 全部」で全項目を最初から診断し直せます',
+            '・右上の「全部」で全項目を最初から診断し直せます',
             '',
             'チェック内容:',
             '・ブラウザのオンライン状態',
             '・基本通信 / GitHub直叩き',
-            '・3種のプロキシ疎通（どれが生きているか）',
+            '・プロキシ疎通',
             '・Gutenberg / 青空のカタログ読み込み状況',
             '・日本語→英語の翻訳チェーン',
             '・Gutenberg検索の動作（英語・日本語）',
@@ -2400,9 +2383,6 @@ const AOZORA_CATALOG_SOURCES = [
     }
 ];
 
-/* ============================================================
-   Gutenberg 公式CSVカタログ
-   ============================================================ */
 const GUTENBERG_CSV_URL = 'https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv';
 const GUTENBERG_CATALOG_KEY = 'gutenberg_catalog_v2';
 const GUTENBERG_OLD_CATALOG_KEY = 'gutenberg_catalog_v1';
@@ -2415,16 +2395,9 @@ const GUTENBERG_MIRRORS = [
 ];
 
 const LANGUAGE_NAMES = {
-    ja: '日本語',
-    en: '英語',
-    zh: '中国語',
-    ko: '韓国語',
-    fr: 'フランス語',
-    de: 'ドイツ語',
-    es: 'スペイン語',
-    it: 'イタリア語',
-    pt: 'ポルトガル語',
-    ru: 'ロシア語'
+    ja: '日本語', en: '英語', zh: '中国語', ko: '韓国語',
+    fr: 'フランス語', de: 'ドイツ語', es: 'スペイン語',
+    it: 'イタリア語', pt: 'ポルトガル語', ru: 'ロシア語'
 };
 
 const INITIAL_PARALLELISM = 32;
@@ -2447,7 +2420,6 @@ const WIKI_JA_TITLE_CACHE_PREFIX = 'wiki_ja_title_v1:';
 const AUTHOR_YEAR_BATCH_SIZE = 50;
 const SEARCH_PAGE_SIZE = 500;
 
-/* 翻訳データ優先モードで「既存の日本語訳を探す」対象外のソース */
 const DATA_MODE_SKIP_SOURCES = ['aozora', 'genpaku', 'doaj', 'zenodo', 'arxiv'];
 
 const IA_SEARCH_ENDPOINT = 'https://archive.org/advancedsearch.php';
@@ -2499,21 +2471,11 @@ WIKISOURCE_LANGS.forEach(l => {
 });
 
 const WIKISOURCE_LANG_NAMES = {
-    ja: '日本語版',
-    en: '英語版',
-    zh: '中国語版',
-    ko: '韓国語版',
-    fr: 'フランス語版',
-    de: 'ドイツ語版',
-    ru: 'ロシア語版',
-    it: 'イタリア語版',
-    es: 'スペイン語版',
-    pt: 'ポルトガル語版',
-    pl: 'ポーランド語版',
-    sv: 'スウェーデン語版',
-    he: 'ヘブライ語版',
-    ar: 'アラビア語版',
-    fa: 'ペルシャ語版'
+    ja: '日本語版', en: '英語版', zh: '中国語版', ko: '韓国語版',
+    fr: 'フランス語版', de: 'ドイツ語版', ru: 'ロシア語版',
+    it: 'イタリア語版', es: 'スペイン語版', pt: 'ポルトガル語版',
+    pl: 'ポーランド語版', sv: 'スウェーデン語版', he: 'ヘブライ語版',
+    ar: 'アラビア語版', fa: 'ペルシャ語版'
 };
 
 const WIKISOURCE_USER_AGENT = 'Yamabiko/1.0 (personal reading app)';
@@ -3185,13 +3147,7 @@ function saveCacheToDB(key, value) {
     });
 }
 
-function checkChosakukenSafe(deathYear, authorName, source) {
-    if (source === 'aozora' || source === 'wikisource' || source === 'ndl') return true;
-    if (source === 'gutenberg') return true;
-    if (!deathYear) return false;
-    const years = new Date().getFullYear() - deathYear;
-    return years >= (isJapaneseName(authorName) ? COPYRIGHT_JA_YEARS : COPYRIGHT_NON_JA_YEARS);
-}
+/* checkChosakukenSafe は judgePD に統合されました（削除済み） */
 
 function isBookOutdated(book) {
     if (!book.rawParas || !Array.isArray(book.rawParas) || !book.rawParas.length) return false;
@@ -3305,8 +3261,6 @@ async function toEnglishQuery(query) {
 
 /* ============================================================
    翻訳データ優先モード
-   ── 保存しようとしている作品に「既存の日本語訳」があるかを探す。
-   ── 見つかれば青空文庫 / Wikisource日本語版の該当作品を代わりに保存する。
    ============================================================ */
 async function findAozoraEquivalent(enTitle, enAuthor) {
     if (!aozora_catalog_ready) {
@@ -4060,7 +4014,6 @@ function openSearchResultDetail(r) {
 }
 window.openSearchResultDetail = openSearchResultDetail;
 
-/* 検索結果アイテムから配布元URLを導出 */
 function getSearchResultUrl(r) {
     if (!r) return '';
     if (r.sourceUrl) return String(r.sourceUrl);
@@ -4258,7 +4211,6 @@ function renderUnifiedRow(r, tb) {
 }
 
 async function downloadFromUnified(r) {
-    // 翻訳データ優先モード: 既存の日本語訳を先に探す
     if (appSettings.translationMode === 'data' && !DATA_MODE_SKIP_SOURCES.includes(r.source)) {
         try {
             showToast('既存の日本語訳を探しています...', 'info', 3000);
@@ -4304,7 +4256,7 @@ async function downloadFromUnified(r) {
             case 'standardebooks':  return downloadAndSaveStandardEbooks(r.id, r.raw.epubUrl, r.title, r.author, false);
             case 'runeberg':        return downloadAndSaveRuneberg(r.raw.href, r.title, false);
             case 'poetrydb':        return downloadAndSavePoetryDB(r.raw, false);
-            case 'fadedpage':       return downloadAndSaveFadedPage(r.raw.bookid, r.title, false);
+            case 'fadedpage':       return downloadAndSaveFadedPage(r.raw.bookid, r.title, r.author, false);
             case 'genpaku':         return confirmExternalOpen(r.title, r.sourceUrl);
             case 'doaj':            return confirmExternalOpen(r.title, r.raw.url);
             case 'zenodo':          return confirmExternalOpen(r.title, r.raw.url);
@@ -5075,13 +5027,7 @@ function parseGutenbergCsv(text) {
             : [];
 
         catalog.push({
-            bookId,
-            title,
-            authors,
-            languages,
-            subjects,
-            issued,
-            type
+            bookId, title, authors, languages, subjects, issued, type
         });
     }
 
@@ -5417,8 +5363,9 @@ async function searchIAUnified(ctx) {
             const licenseSafe = isIAPublicDomain(item);
             const anyKnownCopyrighted = judgments.some(a => a.deathYear && !a.safe);
             const allKnownPD = judgments.length > 0 && judgments.every(a => a.safe);
-            const pdByLicense = licenseSafe && !anyKnownCopyrighted;
 
+            /* A修正: pdByLicense によるバイパスを削除。
+               著者全員の没年が確認できない限り、ライセンスPD表示だけでは保存させない。 */
             let safe, safetyNote;
             if (anyKnownCopyrighted) {
                 safe = false;
@@ -5429,14 +5376,12 @@ async function searchIAUnified(ctx) {
             } else if (allKnownPD) {
                 safe = true;
                 safetyNote = judgments.map(a => a.note).join(' / ');
-            } else if (pdByLicense) {
-                safe = true;
-                safetyNote = 'PD（ライセンス明示）';
+                if (licenseSafe) safetyNote += '（ライセンスPD明示）';
             } else {
                 safe = false;
                 safetyNote = judgments.length
                     ? judgments.map(a => a.note).join(' / ')
-                    : '判定不可';
+                    : '著者不明のため判定不可';
             }
 
             return {
@@ -5727,11 +5672,21 @@ async function searchFadedPageUnified(ctx) {
     }
 }
 
-async function downloadAndSaveFadedPage(bookid, title, silent) {
+/* D修正: authorName を追加。ダウンロード時にも著作権を再確認する。 */
+async function downloadAndSaveFadedPage(bookid, title, authorName, silent) {
     silent = !!silent;
     const key = 'fadedpage_' + bookid;
     if (!silent) showToast(`ダウンロード開始: ${title}`, 'info');
     try {
+        if (authorName) {
+            const yearMap = await batchResolveYears([authorName]);
+            const info = yearMap[authorName] || { deathYear: null, birthYear: null };
+            const j = judgePD(info, authorName);
+            if (!j.safe) {
+                throw new Error(`パブリックドメイン確認不可（${authorName}: ${j.note}）`);
+            }
+        }
+
         const bookUrl = `${FADEDPAGE_BASE}/ebook.php?bookid=${bookid}`;
         const res = await smartFetch(bookUrl, {}, FETCH_TIMEOUT_BOOK);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -5777,7 +5732,7 @@ async function downloadAndSaveFadedPage(bookid, title, silent) {
         const bd = {
             id: key,
             title,
-            author: '',
+            author: authorName || '',
             content: ch,
             contentTranslated: '',
             paragraphs: paras,
@@ -6720,9 +6675,21 @@ window.downloadAndSaveRuneberg = downloadAndSaveRuneberg;
    ============================================================ */
 function detectNDLAccessLevel(record) {
     const desc = (record.description || '').toLowerCase();
-    if (desc.includes('インターネット公開') || desc.includes('internet public')) return NDL_ACCESS_PUBLIC;
-    if (desc.includes('個人送信') || desc.includes('個人向け') || desc.includes('personal')) return NDL_ACCESS_PERSONAL;
-    if (desc.includes('館内限定') || desc.includes('図書館送信') || desc.includes('library')) return NDL_ACCESS_LIBRARY;
+    /* 第1層: 保護期間満了のみ通す。「許諾」「裁定」は public にしない。 */
+    if (desc.includes('保護期間満了') ||
+        desc.includes('インターネット公開（保護期間満了）') ||
+        desc.includes('public domain')) {
+        return NDL_ACCESS_PUBLIC;
+    }
+    if (desc.includes('許諾') || desc.includes('裁定')) {
+        return NDL_ACCESS_PERSONAL;
+    }
+    if (desc.includes('個人送信') || desc.includes('個人向け') || desc.includes('personal')) {
+        return NDL_ACCESS_PERSONAL;
+    }
+    if (desc.includes('館内限定') || desc.includes('図書館送信') || desc.includes('library')) {
+        return NDL_ACCESS_LIBRARY;
+    }
     return NDL_ACCESS_UNKNOWN;
 }
 
@@ -6758,16 +6725,24 @@ async function searchNDLAll(query) {
                     const el = rec.querySelector(tag);
                     return el ? el.textContent.trim() : '';
                 };
+                /* 名前空間を跨いで取得するヘルパ */
+                const getLocal = (localName) => {
+                    const el = rec.querySelector(`*[local-name()="${localName}"]`);
+                    return el ? el.textContent.trim() : '';
+                };
                 const identifier = get('identifier');
                 const pidMatch = identifier.match(/(\d{6,})/);
                 const record = {
-                    title: get('title'),
-                    creator: get('creator'),
-                    date: get('date'),
+                    title: get('title') || getLocal('title'),
+                    creator: get('creator') || getLocal('creator'),
+                    date: get('date') || getLocal('date'),
                     identifier,
                     pid: pidMatch ? pidMatch[1] : null,
-                    description: get('description'),
-                    type: get('type')
+                    description: get('description') || getLocal('description'),
+                    type: get('type') || getLocal('type'),
+                    provider: getLocal('provider') || getLocal('dataProvider') || '',
+                    dpid: getLocal('dpid') || '',
+                    publisher: getLocal('publisher') || ''
                 };
                 record.accessLevel = detectNDLAccessLevel(record);
                 records.push(record);
@@ -6794,7 +6769,26 @@ async function searchNDLUnified(ctx) {
     try {
         const records = await searchNDLAll(q);
         return records
+            /* 第1層: 保護期間満了のみ */
             .filter(r => r.accessLevel === NDL_ACCESS_PUBLIC)
+            /* 第3層: NDL自身のコンテンツを除外 */
+            .filter(r => {
+                const pub = (r.publisher || '').trim();
+                if (!pub) return true;
+                return !NDL_SELF_BLOCK_PUBLISHERS.has(pub);
+            })
+            .filter(r => {
+                const prov = (r.provider || '').trim();
+                if (!prov) return true;
+                return !NDL_SELF_BLOCK_PROVIDERS.has(prov);
+            })
+            /* 第2層: 営利モード時は許可プロバイダのみ */
+            .filter(r => {
+                if (!NDL_COMMERCIAL_MODE) return true;
+                const dpid = (r.dpid || '').trim();
+                if (!dpid) return false;
+                return NDL_COMMERCIAL_OK_DPIDS.has(dpid);
+            })
             .map(r => ({
                 source: 'ndl',
                 id: 'ndl_' + r.pid,
@@ -7063,12 +7057,19 @@ async function resolveAozoraZipName(workId, personId, initialZipName) {
     return { zipName: null, via: null };
 }
 
+/* F修正: 通信エラー等で確認できなかった場合は安全側（suspended: true）に倒す */
 async function checkAozoraSuspended(workId, personId) {
     try {
         const paddedPersonId = String(personId).padStart(6, '0');
         const cardUrl = `https://www.aozora.gr.jp/cards/${paddedPersonId}/card${workId}.html`;
         const res = await smartFetch(cardUrl, {}, FETCH_TIMEOUT_API);
-        if (!res.ok) return { suspended: false, reason: null };
+        if (!res.ok) {
+            return {
+                suspended: true,
+                uncertain: true,
+                reason: `公開状態を確認できません（HTTP ${res.status}）`
+            };
+        }
         const html = await res.text();
         const patterns = [
             /この作品の公開は現在、?一時的に停止されています/,
@@ -7078,10 +7079,18 @@ async function checkAozoraSuspended(workId, personId) {
             /公開停止中/
         ];
         for (const re of patterns) {
-            if (re.test(html)) return { suspended: true, reason: '公開停止中' };
+            if (re.test(html)) {
+                return { suspended: true, uncertain: false, reason: '公開停止中' };
+            }
         }
-    } catch (e) {}
-    return { suspended: false, reason: null };
+        return { suspended: false, uncertain: false, reason: null };
+    } catch (e) {
+        return {
+            suspended: true,
+            uncertain: true,
+            reason: '公開状態を確認できません（通信エラー）'
+        };
+    }
 }
 
 async function downloadAndSaveAozora(workId, personId, title, personName, zipName, silent) {
@@ -7097,9 +7106,12 @@ async function downloadAndSaveAozora(workId, personId, title, personName, zipNam
 
         const susp = await checkAozoraSuspended(workId, personId);
         if (susp.suspended) {
+            const msg = susp.uncertain
+                ? `「${title}」の${susp.reason}。ダウンロードを中断しました。時間をおいて再度お試しください。`
+                : `「${title}」は${susp.reason}のため、ダウンロードできません。`;
             if (!silent) {
-                setStatus('search-status', `「${title}」は${susp.reason}です`, 'warn');
-                showToast(`「${title}」は${susp.reason}のため、ダウンロードできません。`, 'warn', 8000);
+                setStatus('search-status', msg, 'warn');
+                showToast(msg, 'warn', 8000);
             }
             throw new Error(susp.reason);
         }
@@ -7269,13 +7281,13 @@ async function downloadAndSaveInternetArchive(identifier, titleHint, silent, ski
 
         const anyKnownCopyrighted = judgments.some(a => a.deathYear && !a.safe);
         const allKnownPD = judgments.length > 0 && judgments.every(a => a.safe);
-        const pdByLicense = licenseSafe && !anyKnownCopyrighted;
 
-        if (!skipPDCheck && !allKnownPD && !pdByLicense) {
+        /* A修正: pdByLicense バイパス削除 */
+        if (!skipPDCheck && !allKnownPD) {
             const detail = judgments.length
                 ? judgments.map(a => `${a.name}: ${a.note}`).join(' / ')
                 : '著者不明';
-            const reason = `ライセンス:${licenseSafe ? 'OK' : 'NG'} / ${detail}`;
+            const reason = licenseSafe ? 'ライセンスPD明示 / ' + detail : detail;
             throw new Error(`パブリックドメイン確認不可（${reason}）`);
         }
 
@@ -7412,10 +7424,7 @@ function buildBidirectionalQueue(total) {
     const q = [];
     let f = 0, b = total - 1;
     while (f <= b) {
-        if (f === b) {
-            q.push(f);
-            break;
-        }
+        if (f === b) { q.push(f); break; }
         q.push(f);
         q.push(b);
         f++;
@@ -8041,6 +8050,7 @@ document.addEventListener('click', (ev) => {
     if (ev.target && ev.target.closest && ev.target.closest('#detail-modal')) return;
     if (ev.target && ev.target.closest && ev.target.closest('#external-open-modal')) return;
     if (ev.target && ev.target.closest && ev.target.closest('#diagnostics-modal')) return;
+    if (ev.target && ev.target.closest && ev.target.closest('#about-modal')) return;
     closeAllRowMenus();
 });
 document.addEventListener('scroll', () => closeAllRowMenus(), true);
@@ -8644,8 +8654,8 @@ const DIAGNOSTICS = [
             const detail = sources.map(s => {
                 const p = perSource[s];
                 const name = (sourceNameOf(s) + '                    ').slice(0, 20);
-                if (p.error) return name + ' ×  ' + p.error + ' (' + p.ms + 'ms)';
-                return name + ' ✓  ' + p.count + '件 (' + p.ms + 'ms)';
+                if (p.error) return name + ' x  ' + p.error + ' (' + p.ms + 'ms)';
+                return name + ' OK ' + p.count + '件 (' + p.ms + 'ms)';
             }).join('\n');
 
             let status = 'ok';
@@ -8677,7 +8687,7 @@ const DIAGNOSTICS = [
             for (const [src, info] of Object.entries(d.perSource)) {
                 const name = (sourceNameOf(src) + '                    ').slice(0, 20);
                 if (info.error) {
-                    lines.push(name + ' ×  ' + info.error);
+                    lines.push(name + ' x  ' + info.error);
                 } else {
                     lines.push(name + ' → ' + info.raw + '件 → 累積' + info.totalHits + '件');
                 }
@@ -8941,7 +8951,7 @@ const DIAGNOSTICS = [
             try {
                 const ja = await lookupJapaneseTitle('Kokoro');
                 if (ja) {
-                    lines.push('"Kokoro" → "' + ja + '" ✓');
+                    lines.push('"Kokoro" → "' + ja + '" OK');
                 } else {
                     lines.push('"Kokoro" → 取得失敗');
                 }
@@ -8956,7 +8966,8 @@ const DIAGNOSTICS = [
         label: 'NDL（フラグ状態）',
         run: async () => {
             if (!NDL_ENABLED) return { status: 'skip', msg: '停止中（NDL_ENABLED = false）' };
-            return { status: 'ok', msg: '有効' };
+            const mode = NDL_COMMERCIAL_MODE ? '営利モード' : '非営利モード';
+            return { status: 'ok', msg: '有効（' + mode + '）' };
         }
     },
     {
@@ -9003,12 +9014,12 @@ let _allDiagRunning = false;
 
 function iconForDiag(status) {
     switch (status) {
-        case 'ok': return '✓';
+        case 'ok': return 'o';
         case 'warn': return '!';
-        case 'fail': return '×';
-        case 'running': return '⟳';
-        case 'skip': return '－';
-        default: return '·';
+        case 'fail': return 'x';
+        case 'running': return '*';
+        case 'skip': return '-';
+        default: return '.';
     }
 }
 
@@ -9101,7 +9112,7 @@ async function runAllDiagnostics() {
         }
     } finally {
         _allDiagRunning = false;
-        if (btn) { btn.disabled = false; btn.textContent = '↻ 全部'; }
+        if (btn) { btn.disabled = false; btn.textContent = '全部'; }
     }
 }
 
@@ -9123,6 +9134,173 @@ window.openDiagnostics = openDiagnostics;
 window.closeDiagnostics = closeDiagnostics;
 window.runAllDiagnostics = runAllDiagnostics;
 window.runDiagnostic = runDiagnostic;
+
+/* ============================================================
+   このサイトについて
+   ============================================================ */
+function renderAboutContent() {
+    const body = document.getElementById('about-modal-body');
+    if (!body) return;
+
+    body.innerHTML = `
+        <div class="about-note summary">
+            <strong>ヤマビコの著作権判定は「わからないものは保存しない」を基本方針としています。</strong>
+        </div>
+
+        <div class="about-section">
+            <h4>ヤマビコとは</h4>
+            <p>ヤマビコは、パブリックドメイン作品を検索・保存・閲覧するための個人用電子書籍リーダーです。複数のデジタルアーカイブを横断検索し、本棚に保存して読むことができます。</p>
+        </div>
+
+        <div class="about-section">
+            <h4>著作権判定の方針</h4>
+            <p>ヤマビコは、著作権が不明な作品を安易に保存しないよう、以下の方針で判定しています。</p>
+            <table class="about-table">
+                <tr><th>対象</th><th>判定基準</th></tr>
+                <tr><td>日本語名の著者</td><td>没後70年</td></tr>
+                <tr><td>非日本語名の著者</td><td>没後81年（戦時加算を含む保守的判定）</td></tr>
+                <tr><td>没年不明</td><td>生年＋120年</td></tr>
+                <tr><td>著者情報なし</td><td>保存しない（安全側）</td></tr>
+            </table>
+            <div class="about-note">
+                判定は安全側に倒しています。本来パブリックドメインの作品でも、著者情報が取得できない場合は保存できないことがあります。
+            </div>
+        </div>
+
+        <div class="about-section">
+            <h4>データソースと利用条件</h4>
+            <table class="about-table">
+                <tr><th>ソース</th><th>ライセンス・条件</th></tr>
+                <tr>
+                    <td><a class="about-link" href="https://www.aozora.gr.jp/" target="_blank" rel="noopener noreferrer">青空文庫</a></td>
+                    <td>パブリックドメイン（公開停止作品は除外）</td>
+                </tr>
+                <tr>
+                    <td><a class="about-link" href="https://www.gutenberg.org/" target="_blank" rel="noopener noreferrer">Project Gutenberg</a></td>
+                    <td>米国パブリックドメイン</td>
+                </tr>
+                <tr>
+                    <td><a class="about-link" href="https://archive.org/" target="_blank" rel="noopener noreferrer">Internet Archive</a></td>
+                    <td>著者没年＋ライセンスを確認</td>
+                </tr>
+                <tr>
+                    <td><a class="about-link" href="https://openlibrary.org/" target="_blank" rel="noopener noreferrer">Open Library</a></td>
+                    <td>IAメタデータ。著者・訳者全員の没年必須</td>
+                </tr>
+                <tr>
+                    <td><a class="about-link" href="https://ja.wikisource.org/" target="_blank" rel="noopener noreferrer">Wikisource</a></td>
+                    <td>CC BY-SA 4.0（出典を本文末尾に表示）</td>
+                </tr>
+                <tr>
+                    <td><a class="about-link" href="https://standardebooks.org/" target="_blank" rel="noopener noreferrer">Standard Ebooks</a></td>
+                    <td>米国パブリックドメイン（CC0）</td>
+                </tr>
+                <tr>
+                    <td><a class="about-link" href="https://runeberg.org/" target="_blank" rel="noopener noreferrer">Project Runeberg</a></td>
+                    <td>パブリックドメイン（北欧）</td>
+                </tr>
+                <tr>
+                    <td><a class="about-link" href="https://poetrydb.org/" target="_blank" rel="noopener noreferrer">PoetryDB</a></td>
+                    <td>パブリックドメイン（著者没年確認済み）</td>
+                </tr>
+                <tr>
+                    <td><a class="about-link" href="https://www.fadedpage.com/" target="_blank" rel="noopener noreferrer">Faded Page</a></td>
+                    <td>カナダPD。日本法で再判定</td>
+                </tr>
+                <tr>
+                    <td><a class="about-link" href="https://www.genpaku.org/" target="_blank" rel="noopener noreferrer">プロジェクト杉田玄白</a></td>
+                    <td>外部リンクのみ（本文は保存しない）</td>
+                </tr>
+                <tr>
+                    <td>
+                        <a class="about-link" href="https://doaj.org/" target="_blank" rel="noopener noreferrer">DOAJ</a> /
+                        <a class="about-link" href="https://zenodo.org/" target="_blank" rel="noopener noreferrer">Zenodo</a> /
+                        <a class="about-link" href="https://arxiv.org/" target="_blank" rel="noopener noreferrer">arXiv</a>
+                    </td>
+                    <td>オープンアクセス（外部URLを開くのみ）</td>
+                </tr>
+                <tr>
+                    <td><a class="about-link" href="https://ndlsearch.ndl.go.jp/" target="_blank" rel="noopener noreferrer">NDL（国立国会図書館）</a></td>
+                    <td>保護期間満了のみ（下記参照）</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="about-section">
+            <h4>NDL（国立国会図書館）について</h4>
+            <p>NDLのデータは、書誌情報（メタデータ）と本文・画像で利用条件が異なります。</p>
+            <table class="about-table">
+                <tr><th>種類</th><th>条件</th></tr>
+                <tr><td>書誌データ（一括DL）</td><td>NDL作成分はCC0相当。営利・非営利問わず申請不要</td></tr>
+                <tr><td>書誌データ（SRU API）</td><td>非営利は申請不要。営利はデータ提供機関ごとに条件が異なる</td></tr>
+                <tr><td>本文・画像（保護期間満了）</td><td>自由に利用可能</td></tr>
+                <tr><td>本文・画像（許諾・裁定）</td><td>NDLへの申請が必要。ヤマビコは対象外</td></tr>
+            </table>
+            <div class="about-note warn">
+                ヤマビコは、NDLの本文・画像のうち「保護期間満了」のもののみを対象としています。「許諾」「裁定」による公開は取り扱いません。
+            </div>
+            <div class="about-note warn">
+                NDLサーチAPIは、広告等で収益が発生する場合は営利目的と見なされ、利用申請が必要です。ヤマビコでは、広告収益が発生した時点でNDL機能を停止する設定になっています。
+            </div>
+        </div>
+
+        <div class="about-section">
+            <h4>翻訳について</h4>
+            <p>外国語作品の翻訳には、Lingva / LibreTranslate の公開インスタンスを利用しています。翻訳結果は機械翻訳であり、正確性は保証されません。</p>
+            <p>「翻訳データ優先」モードでは、保存しようとしている作品に既存の日本語訳（青空文庫・Wikisource日本語版）がある場合、そちらを優先して保存します。</p>
+        </div>
+
+        <div class="about-section">
+            <h4>プライバシー</h4>
+            <p>ヤマビコは、利用者の個人情報を一切収集しません。アカウント登録も不要です。</p>
+            <table class="about-table">
+                <tr><th>項目</th><th>取り扱い</th></tr>
+                <tr><td>本棚のデータ</td><td>端末内（IndexedDB）にのみ保存。外部送信しません</td></tr>
+                <tr><td>読書位置・お気に入り</td><td>端末内にのみ保存。外部送信しません</td></tr>
+                <tr><td>設定内容</td><td>端末内（localStorage）にのみ保存。外部送信しません</td></tr>
+                <tr><td>外部送信が発生する操作</td><td>作品の検索・ダウンロード・翻訳のみ</td></tr>
+                <tr><td>翻訳時の送信内容</td><td>翻訳対象の本文テキスト</td></tr>
+                <tr><td>解析・トラッキング</td><td>行っていません</td></tr>
+                <tr><td>広告・第三者スクリプト</td><td>現在、読み込んでいません</td></tr>
+            </table>
+            <div class="about-note">
+                検索時は、入力した検索語が各データソース（青空文庫、Gutenberg等）に送信されます。これは通常のWeb検索と同じ動作です。
+            </div>
+        </div>
+
+        <div class="about-section">
+            <h4>免責事項</h4>
+            <p>ヤマビコは、各データソースのコンテンツを保証しません。リンク先のサイトは予告なく変更・停止される場合があります。</p>
+            <p>著作権の最終判断は利用者ご自身で行ってください。本アプリの著作権判定は補助的なものであり、法的な助言ではありません。</p>
+        </div>
+
+        <div class="about-section">
+            <h4>参考リンク</h4>
+            <p>
+                <a class="about-link" href="https://ndlsearch.ndl.go.jp/help/api" target="_blank" rel="noopener noreferrer">NDLサーチ APIのご利用について</a><br>
+                <a class="about-link" href="https://ndlsearch.ndl.go.jp/help/api/provider" target="_blank" rel="noopener noreferrer">API提供対象データプロバイダ一覧</a><br>
+                <a class="about-link" href="https://lab.ndl.go.jp/service/tsugidigi/tsugidigi_en/" target="_blank" rel="noopener noreferrer">次世代デジタルライブラリー API</a><br>
+                <a class="about-link" href="https://www.ndl.go.jp/jp/data/data_service/index.html" target="_blank" rel="noopener noreferrer">NDL 書誌データの提供</a>
+            </p>
+        </div>
+    `;
+}
+
+function openAbout() {
+    closeSettings();
+    const m = document.getElementById('about-modal');
+    if (!m) return;
+    renderAboutContent();
+    m.classList.add('active');
+}
+
+function closeAbout() {
+    const m = document.getElementById('about-modal');
+    if (m) m.classList.remove('active');
+}
+
+window.openAbout = openAbout;
+window.closeAbout = closeAbout;
 
 /* ============================================================
    起動処理
@@ -9264,7 +9442,8 @@ Object.assign(window, {
     openBookDetail, closeBookDetail,
     openSearchResultDetail,
     getSearchResultUrl,
-    openDiagnostics, closeDiagnostics, runAllDiagnostics, runDiagnostic
+    openDiagnostics, closeDiagnostics, runAllDiagnostics, runDiagnostic,
+    openAbout, closeAbout
 });
 </script>
 </body>
