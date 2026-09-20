@@ -1922,6 +1922,14 @@ function setupViewportTracking() {
         window.visualViewport.addEventListener('resize', updateAppHeight, { passive: true });
         window.visualViewport.addEventListener('scroll', updateAppHeight, { passive: true });
     }
+    let lastH = 0;
+    setInterval(() => {
+        const cur = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+        if (Math.abs(cur - lastH) > 2) {
+            lastH = cur;
+            updateAppHeight();
+        }
+    }, 400);
 }
 
 setupViewportTracking();
@@ -1970,7 +1978,6 @@ const NDL_COMMERCIAL_MODE = false;
    ・権利処理済みソース（青空/Wikisource/NDL/Gutenberg）は無条件セーフ
    ・判定が必要なのは IA / OpenLibrary / OA系のみ
    ・日本語名 → 没後70年、非日本語名 → 没後81年（戦時加算3794日込み）
-   ・翌年1月1日にPDになる（＝没年 + limitYears を「超過」で判定）
    ============================================================ */
 const COPYRIGHT_JA_YEARS = 70;
 const COPYRIGHT_NON_JA_YEARS = 81;
@@ -2319,33 +2326,11 @@ const LIBRETRANSLATE_INSTANCES = [
     'https://translate.cutie.dating'
 ];
 
-/* CORSプロキシは自前のCloudflare Worker 1本のみ。
-   フォールバックは「直fetch」と、Worker内の /backup ルートで対応する。 */
 const CORS_PROXIES = [
-    { name: 'aoi', build: (u) => 'https://aoi-box-lab.idosenpai.workers.dev/?url=' + encodeURIComponent(u) }
+    { name: 'aoi',        build: (u) => 'https://aoi-box-lab.idosenpai.workers.dev/?url=' + encodeURIComponent(u) },
+    { name: 'allorigins', build: (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u) },
+    { name: 'corsproxy',  build: (u) => 'https://corsproxy.io/?' + encodeURIComponent(u) }
 ];
-
-/* プロキシのサーキットブレーカー＆成功率トラッキング */
-const proxyStats = {};
-function getProxyStats(name) {
-    if (!proxyStats[name]) proxyStats[name] = { success: 0, fail: 0, lastFailAt: 0 };
-    return proxyStats[name];
-}
-
-function orderProxies() {
-    const now = Date.now();
-    return CORS_PROXIES.slice().sort((a, b) => {
-        const sa = getProxyStats(a.name);
-        const sb = getProxyStats(b.name);
-        const penA = (now - sa.lastFailAt < 300000) ? 1000 : 0;
-        const penB = (now - sb.lastFailAt < 300000) ? 1000 : 0;
-        const totalA = sa.success + sa.fail;
-        const totalB = sb.success + sb.fail;
-        const rateA = totalA > 0 ? sa.success / totalA : 0.5;
-        const rateB = totalB > 0 ? sb.success / totalB : 0.5;
-        return (penA - rateA * 100) - (penB - rateB * 100);
-    });
-}
 
 const AOZORA_CATALOG_SOURCES = [
     {
@@ -2373,14 +2358,11 @@ const LANGUAGE_NAMES = {
     it: 'イタリア語', pt: 'ポルトガル語', ru: 'ロシア語'
 };
 
-/* 翻訳の並列度は控えめに（公開翻訳APIへの負荷軽減） */
-const INITIAL_PARALLELISM = 3;
-const MIN_PARALLELISM = 2;
-const FAILS_TO_DROP_CONCURRENCY = 5;
-const GLOBAL_TRANSLATION_LIMIT = 4;
-
+const INITIAL_PARALLELISM = 8;
 const WORKER_DELAY_MS = 10;
 const MAX_RETRY_PER_PARAGRAPH = 20;
+const FAILS_TO_DROP_CONCURRENCY = 8;
+const MIN_PARALLELISM = 4;
 const CHUNK_MAX_LEN = 1500;
 const BOOKMARK_SAVE_DEBOUNCE_MS = 500;
 const FETCH_TIMEOUT_TRANSLATE = 2500;
@@ -2513,6 +2495,7 @@ let standardebooks_catalog_loading = false;
 let genpaku_catalog = null;
 let genpaku_catalog_ready = false;
 let genpaku_catalog_loading = false;
+const gata_gap_haba = 60;
 let ima_yonderu_hon = null;
 let active_translation_jobs = {};
 let translation_generation = {};
@@ -2746,20 +2729,13 @@ async function politeFetch(url, options, timeoutMs) {
 
 async function smartFetch(url, options, timeoutMs) {
     const errors = [];
-    for (const px of orderProxies()) {
-        const st = getProxyStats(px.name);
+    const order = shuffled(CORS_PROXIES);
+    for (const px of order) {
         try {
             const res = await politeFetch(px.build(url), options, timeoutMs);
-            if (res.ok) {
-                st.success++;
-                return res;
-            }
-            st.fail++;
-            st.lastFailAt = Date.now();
+            if (res.ok) return res;
             errors.push(px.name + ': HTTP ' + res.status);
         } catch (e) {
-            st.fail++;
-            st.lastFailAt = Date.now();
             errors.push(px.name + ': ' + ((e && e.message) || 'failed'));
         }
     }
@@ -2783,15 +2759,6 @@ function shuffled(arr) {
     return a;
 }
 
-function isValidUtf8(buf) {
-    try {
-        new TextDecoder('utf-8', { fatal: true }).decode(buf);
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
-
 function decodeJapaneseText(buf) {
     if (buf.byteLength >= 3) {
         const b0 = buf[0], b1 = buf[1], b2 = buf[2];
@@ -2799,14 +2766,14 @@ function decodeJapaneseText(buf) {
             return new TextDecoder('utf-8').decode(buf);
         }
     }
-    if (isValidUtf8(buf)) {
-        return new TextDecoder('utf-8').decode(buf);
-    }
-    try {
-        return new TextDecoder('shift_jis').decode(buf);
-    } catch (e) {
-        return new TextDecoder('utf-8').decode(buf);
-    }
+    let sjis = '', utf8 = '';
+    try { sjis = new TextDecoder('shift_jis').decode(buf); } catch (e) {}
+    try { utf8 = new TextDecoder('utf-8').decode(buf); } catch (e) {}
+    const sjisBad = (sjis.match(/\uFFFD/g) || []).length;
+    const utf8Bad = (utf8.match(/\uFFFD/g) || []).length;
+    if (utf8Bad === 0 && sjisBad > 0) return utf8;
+    if (sjisBad === 0 && utf8Bad > 0) return sjis;
+    return sjisBad <= utf8Bad ? sjis : utf8;
 }
 
 function showHeaderSpinner() {
@@ -2984,22 +2951,10 @@ window.dismissAllAnnouncements = dismissAllAnnouncements;
 /* ============================================================
    検索用の緩いマッチング
    ============================================================ */
-const _normCache = new Map();
-const NORM_CACHE_MAX = 5000;
-
 function normalizeForSearch(s) {
     if (s == null) return '';
-    const key = String(s);
-    const cached = _normCache.get(key);
-    if (cached !== undefined) return cached;
-    const result = key.toLowerCase().normalize('NFKC')
+    return String(s).toLowerCase().normalize('NFKC')
         .replace(/[・･=＝\-–—ー~〜_,.;:!?！？。、\s（）()「」『』【】\[\]&＋+"'`]+/g, '');
-    if (_normCache.size >= NORM_CACHE_MAX) {
-        const first = _normCache.keys().next().value;
-        _normCache.delete(first);
-    }
-    _normCache.set(key, result);
-    return result;
 }
 
 function makeSearchTokens(query) {
@@ -3467,7 +3422,7 @@ function buildAozoraParagraphs(rawParas) {
 
         for (const tgt of emphTargets) {
             const escTgt = escapeHtml(tgt.text);
-            const idx = html.indexOf(escTgt);
+            const idx = html.lastIndexOf(escTgt);
             if (idx < 0) continue;
             const cls = emphClassFor(tgt.type);
             html = html.slice(0, idx) + `<em class="${cls}">${escTgt}</em>` + html.slice(idx + escTgt.length);
@@ -4145,6 +4100,7 @@ function renderBookDetail(book) {
     }
     body.appendChild(_detailRow('対応URL', urlWrap));
 
+    /* 翻訳データ欄 */
     const paragraphs = book.paragraphs || [];
     const texts = book.translatedTexts || [];
     const total = book.translationTotal || paragraphs.length;
@@ -4620,15 +4576,6 @@ async function batchResolveYears(names) {
 }
 
 const _deathYearCache = new Map();
-const DEATH_YEAR_CACHE_MAX = 500;
-
-function setDeathYearCache(key, value) {
-    if (_deathYearCache.size >= DEATH_YEAR_CACHE_MAX) {
-        const first = _deathYearCache.keys().next().value;
-        _deathYearCache.delete(first);
-    }
-    _deathYearCache.set(key, value);
-}
 
 async function getAuthorDeathYear(authorName) {
     if (!authorName || /^[0-9\s]+$/.test(authorName)) {
@@ -4644,7 +4591,7 @@ async function getAuthorDeathYear(authorName) {
             birthYear: embedded.birthYear,
             name: cacheKey
         };
-        setDeathYearCache(cacheKey, r);
+        _deathYearCache.set(cacheKey, r);
         return r;
     }
 
@@ -4658,25 +4605,22 @@ async function getAuthorDeathYear(authorName) {
                 birthYear: info.birthYear || null,
                 name
             };
-            setDeathYearCache(cacheKey, out);
+            _deathYearCache.set(cacheKey, out);
             return out;
         }
     }
     return { deathYear: null, birthYear: null, name: cacheKey };
 }
 
-/* 著作権判定（off-by-one修正済み）
-   死後70年/81年を「経過」ではなく「超過」で判定する。
-   ＝ 没年 + limitYears の翌年1月1日にPD。 */
 function judgePD(info, authorName) {
     const cy = new Date().getFullYear();
     const name = authorName || info.name || '';
     const limitYears = isJapaneseName(name) ? COPYRIGHT_JA_YEARS : COPYRIGHT_NON_JA_YEARS;
 
     const yearExpired =
-        (info.deathYear && (cy - info.deathYear) > limitYears) ||
-        (!info.deathYear && info.birthYear && (cy - info.birthYear) > 120);
-    const knownCopyrighted = info.deathYear && !((cy - info.deathYear) > limitYears);
+        (info.deathYear && (cy - info.deathYear) >= limitYears) ||
+        (!info.deathYear && info.birthYear && (cy - info.birthYear) >= 120);
+    const knownCopyrighted = info.deathYear && !((cy - info.deathYear) >= limitYears);
 
     if (knownCopyrighted) {
         return { safe: false, note: `保護中（没年${info.deathYear}）` };
@@ -6745,14 +6689,8 @@ function detectNDLAccessLevel(record) {
     return NDL_ACCESS_UNKNOWN;
 }
 
-/* CQLエスケープ：バックスラッシュ・ダブルクォートに加え、
-   ワイルドカード（* ?）も無効化する。 */
 function escapeCQL(s) {
-    return String(s)
-        .replace(/\\/g, '\\\\')
-        .replace(/"/g, '\\"')
-        .replace(/\*/g, '\\*')
-        .replace(/\?/g, '\\?');
+    return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
 async function searchNDLAll(query) {
@@ -7111,8 +7049,7 @@ async function resolveAozoraZipName(workId, personId, initialZipName) {
     return { zipName: null, via: null };
 }
 
-async function checkAozoraSuspended(workId, personId, retries) {
-    if (retries == null) retries = 2;
+async function checkAozoraSuspended(workId, personId) {
     try {
         const paddedPersonId = String(personId).padStart(6, '0');
         const cardUrl = `https://www.aozora.gr.jp/cards/${paddedPersonId}/card${workId}.html`;
@@ -7139,10 +7076,6 @@ async function checkAozoraSuspended(workId, personId, retries) {
         }
         return { suspended: false, uncertain: false, reason: null };
     } catch (e) {
-        if (retries > 0) {
-            await sleep(1000);
-            return checkAozoraSuspended(workId, personId, retries - 1);
-        }
         return {
             suspended: true,
             uncertain: true,
@@ -7414,28 +7347,8 @@ async function downloadAndSaveInternetArchive(identifier, titleHint, silent, ski
 window.downloadAndSaveInternetArchive = downloadAndSaveInternetArchive;
 
 /* ============================================================
-   翻訳：グローバルスロット（公開翻訳APIへの負荷軽減）
+   翻訳
    ============================================================ */
-let globalTranslationActive = 0;
-const globalTranslationQueue = [];
-
-async function acquireGlobalTranslationSlot() {
-    if (globalTranslationActive < GLOBAL_TRANSLATION_LIMIT) {
-        globalTranslationActive++;
-        return;
-    }
-    await new Promise(r => globalTranslationQueue.push(r));
-}
-
-function releaseGlobalTranslationSlot() {
-    globalTranslationActive--;
-    const next = globalTranslationQueue.shift();
-    if (next) {
-        globalTranslationActive++;
-        next();
-    }
-}
-
 function splitTextRoughly(text, maxLen) {
     const chunks = [];
     let rest = text;
@@ -7456,37 +7369,32 @@ function splitTextRoughly(text, maxLen) {
 
 async function translateChunk(text, source, target) {
     if (!text || !text.trim()) return { ok: true, text };
-    await acquireGlobalTranslationSlot();
-    try {
-        for (const inst of shuffled(LINGVA_INSTANCES)) {
-            try {
-                const url = `${inst}/api/v1/${source}/${target}/${encodeURIComponent(text)}`;
-                const res = await fetchWithTimeout(url, { cache: 'no-store' }, FETCH_TIMEOUT_TRANSLATE);
-                if (!res.ok) continue;
-                const data = await res.json();
-                if (data && data.translation) {
-                    return { ok: true, text: data.translation, endpoint: 'Lingva' };
-                }
-            } catch (e) {}
-        }
-        for (const inst of shuffled(LIBRETRANSLATE_INSTANCES)) {
-            try {
-                const res = await fetchWithTimeout(`${inst}/translate`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ q: text, source, target })
-                }, FETCH_TIMEOUT_TRANSLATE);
-                if (!res.ok) continue;
-                const data = await res.json();
-                if (data && data.translatedText) {
-                    return { ok: true, text: data.translatedText, endpoint: 'LibreTranslate' };
-                }
-            } catch (e) {}
-        }
-        return { ok: false, error: '全翻訳APIが失敗しました' };
-    } finally {
-        releaseGlobalTranslationSlot();
+    for (const inst of shuffled(LINGVA_INSTANCES)) {
+        try {
+            const url = `${inst}/api/v1/${source}/${target}/${encodeURIComponent(text)}`;
+            const res = await fetchWithTimeout(url, { cache: 'no-store' }, FETCH_TIMEOUT_TRANSLATE);
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (data && data.translation) {
+                return { ok: true, text: data.translation, endpoint: 'Lingva' };
+            }
+        } catch (e) {}
     }
+    for (const inst of shuffled(LIBRETRANSLATE_INSTANCES)) {
+        try {
+            const res = await fetchWithTimeout(`${inst}/translate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ q: text, source, target })
+            }, FETCH_TIMEOUT_TRANSLATE);
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (data && data.translatedText) {
+                return { ok: true, text: data.translatedText, endpoint: 'LibreTranslate' };
+            }
+        } catch (e) {}
+    }
+    return { ok: false, error: '全翻訳APIが失敗しました' };
 }
 
 async function translateParagraph(text, source, target) {
@@ -7643,7 +7551,7 @@ async function startBackgroundTranslation(bookId) {
                     book.lastError = `段落${idx}: ${lastErr}`;
                     if (fails >= FAILS_TO_DROP_CONCURRENCY) {
                         if (para > MIN_PARALLELISM) {
-                            para = Math.max(MIN_PARALLELISM, Math.floor(para / 2));
+                            para = para === 8 ? 4 : MIN_PARALLELISM;
                         }
                         fails = 0;
                     }
@@ -8283,16 +8191,10 @@ let ima_no_page = 0;
 let zenbu_page_su = 1;
 let is_showing_translation = false;
 
-/* 韓国語（ko）は縦書きRTLから除外。現代韓国語は横書きLTR。 */
 function detectReadingDirection(book) {
     const lang = (book.sourceLang || 'en').toLowerCase();
-    if (lang === 'ja' || lang === 'zh' || lang === 'zh-tw' || lang === 'zh-cn') return 'rtl';
+    if (lang === 'ja' || lang === 'zh' || lang === 'ko' || lang === 'zh-tw' || lang === 'zh-cn') return 'rtl';
     return 'ltr';
-}
-
-/* ページ間ギャップを画面幅に応じて動的計算 */
-function getPageGap() {
-    return Math.max(20, Math.min(60, window.innerWidth * 0.05));
 }
 
 function updateReaderFontSize() {
@@ -8528,12 +8430,11 @@ function computePageLayout(keep) {
     const padBottom = parseFloat(style.paddingBottom) || 0;
     const contentW = Math.max(50, rb.clientWidth - padLeft - padRight);
     const contentH = Math.max(50, rb.clientHeight - padTop - padBottom);
-    const gap = getPageGap();
 
     flow.style.transition = 'none';
     flow.style.transform = 'none';
     flow.style.writingMode = (readingDirection === 'rtl') ? 'vertical-rl' : 'horizontal-tb';
-    flow.style.columnGap = `${gap}px`;
+    flow.style.columnGap = `${gata_gap_haba}px`;
     flow.style.columnFill = 'auto';
     flow.style.height = `${contentH}px`;
     flow.style.columnCount = '';
@@ -8541,9 +8442,9 @@ function computePageLayout(keep) {
     flow.style.width = 'auto';
 
     const measured = Math.max(flow.scrollWidth, flow.offsetWidth, contentW);
-    const step = contentW + gap;
-    zenbu_page_su = Math.max(1, Math.round((measured + gap) / step));
-    const totalW = zenbu_page_su * contentW + (zenbu_page_su - 1) * gap;
+    const step = contentW + gata_gap_haba;
+    zenbu_page_su = Math.max(1, Math.round((measured + gata_gap_haba) / step));
+    const totalW = zenbu_page_su * contentW + (zenbu_page_su - 1) * gata_gap_haba;
     flow.style.columnWidth = `${contentW}px`;
     flow.style.columnCount = String(zenbu_page_su);
     flow.style.width = `${totalW}px`;
@@ -8563,13 +8464,12 @@ function applyPageTransform(pageIndex, animate) {
     const flow = document.getElementById('reader-flow');
     const style = getComputedStyle(rb);
     const contentW = rb.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-    const gap = getPageGap();
-    const totalW = zenbu_page_su * contentW + (zenbu_page_su - 1) * gap;
+    const totalW = zenbu_page_su * contentW + (zenbu_page_su - 1) * gata_gap_haba;
     let tx;
     if (readingDirection === 'rtl') {
-        tx = -(totalW - (pageIndex + 1) * contentW - pageIndex * gap);
+        tx = -(totalW - (pageIndex + 1) * contentW - pageIndex * gata_gap_haba);
     } else {
-        tx = -pageIndex * (contentW + gap);
+        tx = -pageIndex * (contentW + gata_gap_haba);
     }
     tx = Math.round(tx);
     const newTransform = `translate3d(${tx}px, 0, 0)`;
@@ -8887,7 +8787,7 @@ const DIAGNOSTICS = [
     },
     {
         id: 'proxies',
-        label: 'プロキシ疎通',
+        label: 'プロキシ疎通（全種）',
         run: async () => {
             const testUrl = 'https://www.gutenberg.org/cache/epub/11/pg11.txt';
             const names = CORS_PROXIES.map(p => p.name);
@@ -8900,22 +8800,6 @@ const DIAGNOSTICS = [
             if (okCount === names.length) return { status: 'ok', msg: '全' + names.length + '種OK', detail };
             if (okCount === 0) return { status: 'fail', msg: '全滅（プロキシ死亡）', detail };
             return { status: 'warn', msg: okCount + '/' + names.length + ' OK', detail };
-        }
-    },
-    {
-        id: 'proxy-stats',
-        label: 'プロキシ統計',
-        run: async () => {
-            const lines = [];
-            for (const name of Object.keys(proxyStats)) {
-                const s = proxyStats[name];
-                const total = s.success + s.fail;
-                const rate = total > 0 ? Math.round((s.success / total) * 100) : 0;
-                const cooled = (Date.now() - s.lastFailAt < 300000) ? ' [冷却中]' : '';
-                lines.push(`${name}: 成功${s.success} 失敗${s.fail} 成功率${rate}%${cooled}`);
-            }
-            if (!lines.length) return { status: 'skip', msg: 'まだ通信していません' };
-            return { status: 'ok', msg: '記録 ' + lines.length + '件', detail: lines.join('\n') };
         }
     },
     {
@@ -9457,7 +9341,7 @@ window.closeAbout = closeAbout;
 /* ============================================================
    起動処理
    ============================================================ */
-async function startup() {
+window.onload = async () => {
     loadSettings();
     applyTheme(appSettings.theme);
     applyFontFamily();
@@ -9554,13 +9438,7 @@ async function startup() {
             '\n広告収益が発生したらNDL利用申請を行い、NDL_ENABLED を true に戻してください。'
         );
     }
-}
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', startup);
-} else {
-    startup();
-}
+};
 
 window.addEventListener('error', (ev) => {
     const msg = ev.message || 'unknown';
