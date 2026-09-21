@@ -1697,7 +1697,7 @@ h1 {
     <div id="bookshelf-view" class="view-panel">
         <h2>保存済み作品</h2>
         <div class="bookshelf-filters">
-            <input type="text" id="bookshelf-search" placeholder="タイトル・著者で絞り込み" oninput="loadBookshelf()">
+            <input type="text" id="bookshelf-search" placeholder="タイトル・著者で絞り込み">
             <label>
                 <input type="checkbox" id="bookshelf-fav-only" onchange="loadBookshelf()"> お気に入りのみ
             </label>
@@ -1939,46 +1939,18 @@ setupViewportTracking();
    ============================================================ */
 const FEATURE_VERSION = '2025-01-20T00:00:00Z';
 
-/* ============================================================
-   NDL機能有効化フラグ
-   ============================================================
+/* NDL機能有効化フラグ
    【絶対削除禁止！このコメントブロックは消すな！】
-
    NDLサーチAPI・次世代デジタルライブラリーAPIは、
-   サイトに広告を貼って「営利目的」と見なされると
-   利用申請が必要になる。
-
-   ── フェーズ運用ルール ──
-   フェーズ1【広告なし】           → NDL_ENABLED = true
-   フェーズ2【広告あり・収益なし】 → NDL_ENABLED = false
-   フェーズ3【収益あり＋申請済み】 → NDL_ENABLED = true
-
-   ── 切り替え手順 ──
-   ・下の NDL_ENABLED を true / false にするだけ
-   ・コード側は何も触らなくてよい
-   ・UIも自動でボタン非表示／検索ブロックに切り替わる
-
-   ── なぜこうするか ──
-   NDLの「インターネット公開（保護期間満了）」資料の
-   コンテンツ自体は広告があっても商用利用可能だが、
-   「APIの利用」は別レイヤーで、営利目的だと申請が要る。
-   このフラグはAPIレイヤーの話であって、
-   コンテンツの権利判定（judgePD等）とは無関係。
-   ============================================================ */
+   サイトに広告を貼って「営利目的」と見なされると利用申請が必要になる。
+   フェーズ1【広告なし】→ NDL_ENABLED = true
+   フェーズ2【広告あり・収益なし】→ NDL_ENABLED = false
+   フェーズ3【収益あり＋申請済み】→ NDL_ENABLED = true
+*/
 const NDL_ENABLED = true;
-
-/* NDL営利モードフラグ。
-   true にすると、データ提供プロバイダのうち
-   「営利目的 ○ / CC BY / CC0」のものだけを検索対象にする。 */
 const NDL_COMMERCIAL_MODE = false;
 
-/* ============================================================
-   著作権判定（絶対削除禁止！）
-   ============================================================
-   ・権利処理済みソース（青空/Wikisource/NDL/Gutenberg）は無条件セーフ
-   ・判定が必要なのは IA / OpenLibrary / OA系のみ
-   ・日本語名 → 没後70年、非日本語名 → 没後81年（戦時加算3794日込み）
-   ============================================================ */
+/* 著作権判定（絶対削除禁止！） */
 const COPYRIGHT_JA_YEARS = 70;
 const COPYRIGHT_NON_JA_YEARS = 81;
 const JAPANESE_NAME_RE = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/;
@@ -1987,15 +1959,10 @@ function isJapaneseName(name) {
     return JAPANESE_NAME_RE.test(String(name || ''));
 }
 
-/* ============================================================
-   NDLフィルタ用定数
-   ============================================================
-   出典: https://ndlsearch.ndl.go.jp/help/api/provider
-   ============================================================ */
+/* NDLフィルタ用定数 */
 const NDL_COMMERCIAL_OK_DPIDS = new Set([
     'zassaku', 'zassaku-online', 'aozora', 'okayama', 'jstage',
-    'warp', 'narajo', 'ibaraki',
-    'ndl-dl-open'
+    'warp', 'narajo', 'ibaraki', 'ndl-dl-open'
 ]);
 
 const NDL_SELF_BLOCK_PUBLISHERS = new Set([
@@ -2011,9 +1978,7 @@ const NDL_SELF_BLOCK_PROVIDERS = new Set([
     '国会会議録'
 ]);
 
-/* ============================================================
-   お知らせ運用ルール（絶対削除禁止！）
-   ============================================================ */
+/* お知らせ運用ルール */
 const ANNOUNCEMENTS = [
     {
         id: 'ann_2026_09_19_01',
@@ -2326,15 +2291,7 @@ const LIBRETRANSLATE_INSTANCES = [
     'https://translate.cutie.dating'
 ];
 
-/* ============================================================
-   CORSプロキシ
-   ------------------------------------------------------------
-   公開プロキシ（allorigins/corsproxy等）は、以下の理由で削除した:
-   - 全リクエストが中継業者に丸見え（検索語、URL、ヘッダ）
-   - 応答の改ざんリスク
-   - 予告なく死ぬ／乗っ取られる
-   自前Worker（aoi）のみを使う。priority が小さいほど優先。
-   ============================================================ */
+/* CORSプロキシ（自前Workerのみ。priority小さいほど優先） */
 const CORS_PROXIES = [
     { name: 'aoi', priority: 1, build: (u) => 'https://aoi-box-lab.idosenpai.workers.dev/?url=' + encodeURIComponent(u) }
 ];
@@ -2372,9 +2329,11 @@ const FAILS_TO_DROP_CONCURRENCY = 8;
 const MIN_PARALLELISM = 4;
 const CHUNK_MAX_LEN = 1500;
 const BOOKMARK_SAVE_DEBOUNCE_MS = 500;
-const FETCH_TIMEOUT_TRANSLATE = 2500;
+const FETCH_TIMEOUT_TRANSLATE = 6000;
 const FETCH_TIMEOUT_API = 8000;
 const FETCH_TIMEOUT_BOOK = 90000;
+const FETCH_TIMEOUT_PROXY_HEAVY = 20000;
+const FETCH_TIMEOUT_PROXY_SEARCH = 15000;
 const CATALOG_CACHE_KEY = 'aozora_catalog_v3';
 const AOZORA_TEXT_MIRROR = 'https://raw.githubusercontent.com/aozorahack/aozorabunko_text/master/cards';
 const BOOK_FORMAT_VERSION = 3;
@@ -2382,7 +2341,7 @@ const SETTINGS_KEY = 'yamabiko_settings_v1';
 const AUTHOR_YEAR_CACHE_PREFIX = 'author_year_v1:';
 const WIKI_TITLE_CACHE_PREFIX = 'wiki_title_v1:';
 const WIKI_JA_TITLE_CACHE_PREFIX = 'wiki_ja_title_v1:';
-const AUTHOR_YEAR_BATCH_SIZE = 50;
+const AUTHOR_YEAR_BATCH_SIZE = 100;
 const SEARCH_PAGE_SIZE = 500;
 
 const DATA_MODE_SKIP_SOURCES = ['aozora', 'genpaku', 'doaj', 'zenodo', 'arxiv'];
@@ -2539,6 +2498,10 @@ function loadErrorLog() {
     try {
         const s = localStorage.getItem('yamabiko_error_log_v1');
         errorLog = s ? JSON.parse(s) : [];
+        const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        errorLog = errorLog.filter(e => {
+            try { return new Date(e.at).getTime() > cutoff; } catch (_) { return false; }
+        });
     } catch (e) { errorLog = []; }
 }
 
@@ -2560,9 +2523,6 @@ const FONT_STACKS = {
     ud:       "'BIZ UDPMincho','BIZ UDGothic','UD デジタル 教科書体 NP-R',sans-serif"
 };
 
-/* ============================================================
-   設定の読み書き
-   ============================================================ */
 function loadSettings() {
     try {
         const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
@@ -2590,8 +2550,6 @@ function applyTheme(t) {
 function applyFontFamily() {
     const stack = FONT_STACKS[appSettings.fontFamily] || FONT_STACKS.mincho;
     document.documentElement.style.setProperty('--reader-font-family', stack);
-    const rb = document.getElementById('reader-body');
-    if (rb) rb.style.fontFamily = stack;
 }
 
 function updateSettingsUI() {
@@ -2685,9 +2643,6 @@ function applyNDLStatusToUI() {
     }
 }
 
-/* ============================================================
-   基本ヘルパ
-   ============================================================ */
 function sleep(ms) {
     return new Promise(r => setTimeout(r, ms));
 }
@@ -2705,12 +2660,14 @@ async function fetchWithTimeout(url, options, timeoutMs) {
 const _hostQueues = {};
 const _lastRequestTime = {};
 
-async function politeFetch(url, options, timeoutMs) {
-    let host = '';
-    try {
-        host = new URL(url, location.href).host;
-    } catch (e) {
-        host = 'unknown';
+async function politeFetch(url, options, timeoutMs, rateLimitHost) {
+    let host = rateLimitHost || '';
+    if (!host) {
+        try {
+            host = new URL(url, location.href).host;
+        } catch (e) {
+            host = 'unknown';
+        }
     }
     const interval = (host.includes('archive.org') || host.includes('openlibrary.org'))
         ? IA_MIN_INTERVAL_MS
@@ -2734,15 +2691,17 @@ async function politeFetch(url, options, timeoutMs) {
     }
 }
 
-/* smartFetch: 自前プロキシを優先順位順に試し、最後に直接fetchへフォールバック */
 async function smartFetch(url, options, timeoutMs) {
     const errors = [];
+    let rateHost = 'unknown';
+    try { rateHost = new URL(url, location.href).host; } catch (e) {}
+
     const order = CORS_PROXIES.slice().sort(
         (a, b) => (a.priority || 999) - (b.priority || 999)
     );
     for (const px of order) {
         try {
-            const res = await politeFetch(px.build(url), options, timeoutMs);
+            const res = await politeFetch(px.build(url), options, timeoutMs, rateHost);
             if (res.ok) return res;
             errors.push(px.name + ': HTTP ' + res.status);
         } catch (e) {
@@ -2750,7 +2709,7 @@ async function smartFetch(url, options, timeoutMs) {
         }
     }
     try {
-        const res = await politeFetch(url, options, timeoutMs);
+        const res = await politeFetch(url, options, timeoutMs, rateHost);
         if (res.ok) return res;
         errors.push('direct: HTTP ' + res.status);
     } catch (e) {
@@ -2841,9 +2800,6 @@ function escapeHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
-/* ============================================================
-   お知らせロジック
-   ============================================================ */
 function loadDismissedAnnouncements() {
     try { return JSON.parse(localStorage.getItem(ANNOUNCE_DISMISSED_KEY) || '[]'); }
     catch (e) { return []; }
@@ -2958,9 +2914,6 @@ window.openAnnounceModal = openAnnounceModal;
 window.closeAnnounceModal = closeAnnounceModal;
 window.dismissAllAnnouncements = dismissAllAnnouncements;
 
-/* ============================================================
-   検索用の緩いマッチング
-   ============================================================ */
 function normalizeForSearch(s) {
     if (s == null) return '';
     return String(s).toLowerCase().normalize('NFKC')
@@ -3026,9 +2979,6 @@ function computeRelevance(r, query) {
     return score;
 }
 
-/* ============================================================
-   IndexedDB
-   ============================================================ */
 function initDB() {
     return new Promise((resolve, reject) => {
         const req = indexedDB.open('YamabikoDB', 2);
@@ -3100,12 +3050,40 @@ function getAllBooksFromDB() {
     });
 }
 
-function saveBookToDB(book) {
-    return safeDBOp(['books'], 'readwrite', (tx, resolve, reject) => {
-        tx.objectStore('books').put(book);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-    });
+async function saveBookToDB(book) {
+    try {
+        return await safeDBOp(['books'], 'readwrite', (tx, resolve, reject) => {
+            tx.objectStore('books').put(book);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
+    } catch (e) {
+        if (e && e.name === 'QuotaExceededError') {
+            showToast('保存容量が一杯です。不要な本を削除してください。', 'error', 15000);
+        } else {
+            showToast('保存失敗: ' + ((e && e.message) || e), 'error');
+        }
+        throw e;
+    }
+}
+
+async function saveTranslationProgress(bookId, updates) {
+    try {
+        const fresh = await getBookFromDB(bookId);
+        if (!fresh) return false;
+        if ('translatedTexts' in updates) fresh.translatedTexts = updates.translatedTexts;
+        if ('translationStatus' in updates) fresh.translationStatus = updates.translationStatus;
+        if ('translationDone' in updates) fresh.translationDone = updates.translationDone;
+        if ('translationTotal' in updates) fresh.translationTotal = updates.translationTotal;
+        if ('lastError' in updates) {
+            if (updates.lastError == null) delete fresh.lastError;
+            else fresh.lastError = updates.lastError;
+        }
+        await saveBookToDB(fresh);
+        return true;
+    } catch (e) {
+        return false;
+    }
 }
 
 function getCacheFromDB(key) {
@@ -3129,9 +3107,6 @@ function isBookOutdated(book) {
     return (book.formatVersion || 0) < BOOK_FORMAT_VERSION;
 }
 
-/* ============================================================
-   Wikipedia 経由の英題ルックアップ（ja→en）
-   ============================================================ */
 async function lookupEnglishTitle(query) {
     const cacheKey = WIKI_TITLE_CACHE_PREFIX + query;
     try {
@@ -3174,9 +3149,6 @@ async function lookupEnglishTitle(query) {
     return null;
 }
 
-/* ============================================================
-   Wikipedia 経由の和題ルックアップ（en→ja）
-   ============================================================ */
 async function lookupJapaneseTitle(enTitle) {
     if (!enTitle || !enTitle.trim()) return null;
     if (/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/.test(enTitle)) return enTitle;
@@ -3234,9 +3206,6 @@ async function toEnglishQuery(query) {
     return query;
 }
 
-/* ============================================================
-   翻訳データ優先モード
-   ============================================================ */
 async function findAozoraEquivalent(enTitle, enAuthor) {
     if (!aozora_catalog_ready) {
         if (!aozora_catalog_loading) fetchAozoraCatalog();
@@ -3319,9 +3288,6 @@ async function resolveExistingJapaneseTranslation(resultItem) {
     return null;
 }
 
-/* ============================================================
-   青空文庫注記パーサ
-   ============================================================ */
 function emphClassFor(type) {
     switch (type) {
         case '傍点': return 'boten';
@@ -3447,9 +3413,6 @@ function buildAozoraParagraphs(rawParas) {
     return result;
 }
 
-/* ============================================================
-   再処理
-   ============================================================ */
 async function reprocessBook(bookId) {
     const book = await getBookFromDB(bookId);
     if (!book) return { ok: false, reason: '本が見つかりません' };
@@ -3555,9 +3518,6 @@ async function handleReprocessAll() {
 }
 window.handleReprocessAll = handleReprocessAll;
 
-/* ============================================================
-   詳細検索 UI
-   ============================================================ */
 function toggleDetailSearch() {
     const panel = document.getElementById('detail-search-panel');
     const btn = document.getElementById('detail-toggle-btn');
@@ -3611,9 +3571,6 @@ async function execDetailSearch() {
 }
 window.execDetailSearch = execDetailSearch;
 
-/* ============================================================
-   統合検索（到着順に逐次反映）
-   ============================================================ */
 async function unifiedSearch({ query, filters, defaultSort }) {
     const myGen = ++currentSearchGen;
     const t = document.getElementById('results-table');
@@ -3757,9 +3714,6 @@ function updateSortDirectionButton() {
     btn.title = currentSortAsc ? '昇順（クリックで降順）' : '降順（クリックで昇順）';
 }
 
-/* ============================================================
-   検索結果の描画（500件ずつページング）
-   ============================================================ */
 function renderSearchResults() {
     const tb = document.getElementById('results-tbody');
     const countEl = document.getElementById('sort-count');
@@ -3854,9 +3808,6 @@ function sourceNameOf(source) {
     }[source] || source;
 }
 
-/* ============================================================
-   出典URLの自動生成（book.sourceUrl が最優先）
-   ============================================================ */
 function getSourceUrl(book) {
     if (!book) return '';
     if (book.sourceUrl) return String(book.sourceUrl);
@@ -3927,9 +3878,6 @@ function getSourceUrl(book) {
     return '';
 }
 
-/* ============================================================
-   作品詳細モーダル
-   ============================================================ */
 async function openBookDetail(bookId) {
     closeAllRowMenus();
     const book = await getBookFromDB(bookId);
@@ -4110,7 +4058,6 @@ function renderBookDetail(book) {
     }
     body.appendChild(_detailRow('対応URL', urlWrap));
 
-    /* 翻訳データ欄 */
     const paragraphs = book.paragraphs || [];
     const texts = book.translatedTexts || [];
     const total = book.translationTotal || paragraphs.length;
@@ -4166,9 +4113,6 @@ function renderBookDetail(book) {
     body.appendChild(_detailRow('翻訳データ', transEl));
 }
 
-/* ============================================================
-   検索結果の行
-   ============================================================ */
 function renderUnifiedRow(r, tb) {
     const tr = document.createElement('tr');
 
@@ -4286,9 +4230,6 @@ function openExternalUrl(url) {
 }
 window.openExternalUrl = openExternalUrl;
 
-/* ============================================================
-   外部サイト確認モーダル
-   ============================================================ */
 function confirmExternalOpen(title, url, message) {
     if (!url) {
         showToast('URL不明', 'warn');
@@ -4347,9 +4288,6 @@ function executeExternalOpen() {
 }
 window.executeExternalOpen = executeExternalOpen;
 
-/* ============================================================
-   年度・カテゴリ
-   ============================================================ */
 function parseYear(dateStr) {
     if (!dateStr) return null;
     const m = String(dateStr).match(/\b(1[0-9]{3}|20[0-9]{2})\b/);
@@ -4381,9 +4319,6 @@ function guessGutenbergCategory(subjects, bookshelves) {
     return null;
 }
 
-/* ============================================================
-   著者没年：Wikidata バッチ + IndexedDB 永続キャッシュ
-   ============================================================ */
 async function getAuthorYearFromCache(name) {
     try {
         const cached = await getCacheFromDB(AUTHOR_YEAR_CACHE_PREFIX + name);
@@ -4663,9 +4598,6 @@ async function translateText(text, source, target) {
     return text;
 }
 
-/* ============================================================
-   青空文庫カタログ
-   ============================================================ */
 async function fetchAozoraCatalog() {
     if (aozora_catalog_loading || aozora_catalog_ready) return;
     aozora_catalog_loading = true;
@@ -4783,9 +4715,6 @@ function parseAozoraCardJson(json) {
     return catalog;
 }
 
-/* ============================================================
-   Gutenberg CSVカタログ
-   ============================================================ */
 async function fetchGutenbergCatalog() {
     if (gutenberg_catalog_loading || gutenberg_catalog_ready) return;
     gutenberg_catalog_loading = true;
@@ -4839,9 +4768,6 @@ async function fetchGutenbergCatalog() {
     }
 }
 
-/* ============================================================
-   Standard Ebooks OPDS カタログ
-   ============================================================ */
 async function fetchStandardEbooksCatalog() {
     if (standardebooks_catalog_loading || standardebooks_catalog_ready) return;
     standardebooks_catalog_loading = true;
@@ -4862,18 +4788,41 @@ async function fetchStandardEbooksCatalog() {
         }
     } catch (e) {}
 
-    try {
-        const catalog = [];
-        const seen = new Set();
-        let nextUrl = SE_OPDS_ALL;
-        let pageCount = 0;
+    const catalog = [];
+    const seen = new Set();
+    let pageCount = 0;
+    let failStreak = 0;
+    let nextUrl = SE_OPDS_ALL;
 
-        while (nextUrl && pageCount < 60) {
+    try {
+        while (nextUrl && pageCount < 100) {
             pageCount++;
-            const res = await smartFetch(nextUrl, {}, FETCH_TIMEOUT_API);
-            if (!res.ok) throw new Error(`HTTP ${res.status} (page ${pageCount})`);
+            let res = null;
+            try {
+                res = await smartFetch(nextUrl, {}, 20000);
+            } catch (e) {
+                failStreak++;
+                console.warn(`[se-catalog] page ${pageCount} error:`, e.message);
+                if (failStreak >= 3) throw new Error(`連続${failStreak}回失敗（page ${pageCount}）`);
+                await sleep(1000);
+                continue;
+            }
+            if (!res.ok) {
+                failStreak++;
+                console.warn(`[se-catalog] page ${pageCount} HTTP ${res.status}`);
+                if (failStreak >= 3) throw new Error(`HTTP ${res.status}（page ${pageCount}）`);
+                await sleep(1000);
+                continue;
+            }
+            failStreak = 0;
+
             const xml = await res.text();
-            const doc = new DOMParser().parseFromString(xml, 'application/atom+xml');
+            let doc;
+            try {
+                doc = new DOMParser().parseFromString(xml, 'application/atom+xml');
+            } catch (e) {
+                throw new Error('XMLパース失敗');
+            }
             const entries = doc.querySelectorAll('entry');
 
             entries.forEach(e => {
@@ -4910,7 +4859,17 @@ async function fetchStandardEbooksCatalog() {
                     if (href) next = href;
                 }
             });
-            nextUrl = next;
+            if (next) {
+                try {
+                    nextUrl = new URL(next, nextUrl).href;
+                } catch (e) {
+                    nextUrl = null;
+                }
+            } else {
+                nextUrl = null;
+            }
+
+            await sleep(150);
         }
 
         if (!catalog.length) throw new Error('カタログが空');
@@ -4921,10 +4880,19 @@ async function fetchStandardEbooksCatalog() {
             await saveCacheToDB(SE_CATALOG_KEY, catalog);
         } catch (e) {}
         showToast(`Standard Ebooksカタログ読み込み完了（${catalog.length}件）`, 'success', 5000);
-        console.log(`[se-catalog] loaded from network (${catalog.length}件, ${pageCount}ページ)`);
+        console.log(`[se-catalog] loaded (${catalog.length}件, ${pageCount}ページ)`);
     } catch (e) {
         console.warn('[se-catalog] failed:', e);
-        showToast('Standard Ebooksカタログの取得に失敗しました（検索APIに切り替えます）', 'warn', 8000);
+        if (catalog.length >= 50) {
+            standardebooks_catalog = catalog;
+            standardebooks_catalog_ready = true;
+            try {
+                await saveCacheToDB(SE_CATALOG_KEY, catalog);
+            } catch (_) {}
+            showToast(`Standard Ebooksカタログを部分的に読み込みました（${catalog.length}件）`, 'warn', 8000);
+        } else {
+            showToast('Standard Ebooksカタログの取得に失敗しました（検索APIに切り替えます）', 'warn', 8000);
+        }
     } finally {
         standardebooks_catalog_loading = false;
         hideHeaderSpinner();
@@ -5048,7 +5016,7 @@ async function searchGutenbergViaOPDS(query) {
     try {
         const searchQ = await toEnglishQuery(query);
         const url = `https://www.gutenberg.org/ebooks/search.opds/?query=${encodeURIComponent(searchQ)}`;
-        const res = await smartFetch(url, {}, FETCH_TIMEOUT_API);
+        const res = await smartFetch(url, {}, FETCH_TIMEOUT_PROXY_SEARCH);
         if (!res.ok) return [];
         const xml = await res.text();
         const doc = new DOMParser().parseFromString(xml, 'application/atom+xml');
@@ -5084,9 +5052,6 @@ async function searchGutenbergViaOPDS(query) {
     }
 }
 
-/* ============================================================
-   各ソース：Gutenberg
-   ============================================================ */
 async function searchGutenbergUnified(ctx) {
     const titleQ = (ctx.filters.title || '').trim();
     const authorQ = (ctx.filters.author || '').trim();
@@ -5121,7 +5086,7 @@ async function searchGutenbergUnified(ctx) {
     if (!gutenberg_catalog_ready) {
         if (!gutenberg_catalog_loading) fetchGutenbergCatalog();
         let waited = 0;
-        while (!gutenberg_catalog_ready && waited < 30000) {
+        while (!gutenberg_catalog_ready && waited < 5000) {
             await sleep(300);
             waited += 300;
         }
@@ -5186,9 +5151,6 @@ async function searchGutenbergUnified(ctx) {
     });
 }
 
-/* ============================================================
-   各ソース：青空文庫
-   ============================================================ */
 async function searchAozoraUnified(ctx) {
     const titleQ = (ctx.filters.title || '').trim();
     const authorQ = (ctx.filters.author || '').trim();
@@ -5197,7 +5159,7 @@ async function searchAozoraUnified(ctx) {
     if (!aozora_catalog_ready) {
         if (!aozora_catalog_loading) fetchAozoraCatalog();
         let waited = 0;
-        while (!aozora_catalog_ready && waited < 30000) {
+        while (!aozora_catalog_ready && waited < 5000) {
             await sleep(300);
             waited += 300;
         }
@@ -5236,12 +5198,9 @@ async function searchAozoraUnified(ctx) {
     }));
 }
 
-/* ============================================================
-   IA
-   ============================================================ */
 async function searchInternetArchiveAll(query, yearRange) {
     const rowsPerPage = 100;
-    const maxPages = 20;
+    const maxPages = 5;
 
     const buildUrl = (page) => {
         const p = new URLSearchParams();
@@ -5410,9 +5369,6 @@ async function searchIAUnified(ctx) {
     }
 }
 
-/* ============================================================
-   Open Library
-   ============================================================ */
 async function searchOpenLibraryUnified(ctx) {
     const titleQ = (ctx.filters.title || '').trim();
     const authorQ = (ctx.filters.author || '').trim();
@@ -5494,9 +5450,6 @@ async function downloadAndSaveOpenLibrary(item, silent) {
 }
 window.downloadAndSaveOpenLibrary = downloadAndSaveOpenLibrary;
 
-/* ============================================================
-   PoetryDB
-   ============================================================ */
 async function searchPoetryDBUnified(ctx) {
     const titleQ = (ctx.filters.title || '').trim();
     const authorQ = (ctx.filters.author || '').trim();
@@ -5630,9 +5583,6 @@ async function downloadAndSavePoetryDB(poem, silent) {
 }
 window.downloadAndSavePoetryDB = downloadAndSavePoetryDB;
 
-/* ============================================================
-   Faded Page
-   ============================================================ */
 async function searchFadedPageUnified(ctx) {
     const authorQ = (ctx.filters.author || '').trim() || (ctx.query || '').trim();
     if (!authorQ) return [];
@@ -5645,7 +5595,7 @@ async function searchFadedPageUnified(ctx) {
         if (!j.safe) return [];
 
         const url = `${FADEDPAGE_BASE}/csearch.php?author=${encodeURIComponent(authorQ)}&stype=author`;
-        const res = await smartFetch(url, {}, FETCH_TIMEOUT_API);
+        const res = await smartFetch(url, {}, FETCH_TIMEOUT_PROXY_SEARCH);
         if (!res.ok) return [];
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -5772,9 +5722,6 @@ async function downloadAndSaveFadedPage(bookid, title, authorName, silent) {
 }
 window.downloadAndSaveFadedPage = downloadAndSaveFadedPage;
 
-/* ============================================================
-   DOAJ
-   ============================================================ */
 async function searchDoajUnified(ctx) {
     const titleQ = (ctx.filters.title || '').trim();
     const authorQ = (ctx.filters.author || '').trim();
@@ -5829,9 +5776,6 @@ async function searchDoajUnified(ctx) {
     }
 }
 
-/* ============================================================
-   Zenodo
-   ============================================================ */
 async function searchZenodoUnified(ctx) {
     const titleQ = (ctx.filters.title || '').trim();
     const authorQ = (ctx.filters.author || '').trim();
@@ -5886,9 +5830,6 @@ async function searchZenodoUnified(ctx) {
     }
 }
 
-/* ============================================================
-   arXiv
-   ============================================================ */
 async function searchArxivUnified(ctx) {
     const titleQ = (ctx.filters.title || '').trim();
     const authorQ = (ctx.filters.author || '').trim();
@@ -5955,9 +5896,6 @@ async function searchArxivUnified(ctx) {
     }
 }
 
-/* ============================================================
-   Wikisource 多言語
-   ============================================================ */
 function detectWikisourceLangs(query) {
     if (/[\u3040-\u309f\u30a0-\u30ff]/.test(query)) return ['ja'];
     if (/[\uac00-\ud7af]/.test(query)) return ['ko'];
@@ -6006,7 +5944,7 @@ async function searchWikisourceAll(query, lang) {
 async function preferJapaneseWikisource(originalTitle) {
     try {
         const url = `https://ja.wikisource.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(originalTitle)}&format=json&origin=*&srlimit=5`;
-        const res = await politeFetch(url, { headers: { 'User-Agent': WIKISOURCE_USER_AGENT } }, FETCH_TIMEOUT_API);
+        const res = await politeFetch(url, { headers: { 'User-Agent': WIKISOURCE_USER_AGENT } }, FETCH_TIMEOUT_PROXY_SEARCH);
         if (!res.ok) return null;
         const data = await res.json();
         const hits = (data.query && data.query.search) || [];
@@ -6028,23 +5966,25 @@ async function searchWikisourceUnified(ctx) {
 
     const langs = detectWikisourceLangs(q);
     const allResults = [];
-    for (const lang of langs) {
-        try {
-            const results = await searchWikisourceAll(q, lang);
-            for (const item of results) {
-                allResults.push({
-                    source: 'wikisource',
-                    id: 'wikisource_' + lang + '_' + item.pageid,
-                    title: item.title,
-                    author: '',
-                    year: null,
-                    category: null,
-                    safe: true,
-                    raw: { ...item, lang }
-                });
-            }
-        } catch (e) {}
-    }
+    const langResults = await Promise.allSettled(
+        langs.map(lang => searchWikisourceAll(q, lang))
+    );
+    langResults.forEach((r, i) => {
+        if (r.status !== 'fulfilled') return;
+        const lang = langs[i];
+        for (const item of r.value) {
+            allResults.push({
+                source: 'wikisource',
+                id: 'wikisource_' + lang + '_' + item.pageid,
+                title: item.title,
+                author: '',
+                year: null,
+                category: null,
+                safe: true,
+                raw: { ...item, lang }
+            });
+        }
+    });
 
     if (!langs.includes('ja')) {
         const hasJa = allResults.some(r => r.raw && r.raw.lang === 'ja');
@@ -6168,9 +6108,6 @@ async function downloadAndSaveWikisource(pageId, title, lang, silent) {
 }
 window.downloadAndSaveWikisource = downloadAndSaveWikisource;
 
-/* ============================================================
-   Standard Ebooks
-   ============================================================ */
 async function searchStandardEbooksViaOPDS(ctx) {
     const titleQ = (ctx.filters.title || '').trim();
     const authorQ = (ctx.filters.author || '').trim();
@@ -6182,7 +6119,7 @@ async function searchStandardEbooksViaOPDS(ctx) {
 
     try {
         const url = `${SE_OPDS_SEARCH}?query=${encodeURIComponent(q)}`;
-        const res = await smartFetch(url, {}, FETCH_TIMEOUT_API);
+        const res = await smartFetch(url, {}, FETCH_TIMEOUT_PROXY_SEARCH);
         if (!res.ok) return [];
         const xml = await res.text();
         const doc = new DOMParser().parseFromString(xml, 'application/xml');
@@ -6295,9 +6232,6 @@ async function searchStandardEbooksUnified(ctx) {
     }));
 }
 
-/* ============================================================
-   プロジェクト杉田玄白 カタログ
-   ============================================================ */
 async function fetchGenpakuCatalog() {
     if (genpaku_catalog_loading || genpaku_catalog_ready) return;
     genpaku_catalog_loading = true;
@@ -6449,6 +6383,9 @@ function makeGenpakuItem(book) {
 async function downloadAndSaveStandardEbooks(key, epubUrl, titleHint, authorHint, silent) {
     silent = !!silent;
     if (!epubUrl) throw new Error('EPUB URLがありません');
+    if (typeof JSZip === 'undefined') {
+        throw new Error('EPUB展開ライブラリが未ロードです。再読み込みしてください。');
+    }
     if (!silent) {
         setStatus('search-status', `「${titleHint}」をダウンロード中...`, 'info');
         showToast(`ダウンロード開始: ${titleHint}`, 'info');
@@ -6523,9 +6460,6 @@ async function downloadAndSaveStandardEbooks(key, epubUrl, titleHint, authorHint
 }
 window.downloadAndSaveStandardEbooks = downloadAndSaveStandardEbooks;
 
-/* ============================================================
-   Project Runeberg
-   ============================================================ */
 async function searchRunebergUnified(ctx) {
     const titleQ = (ctx.filters.title || '').trim();
     const authorQ = (ctx.filters.author || '').trim();
@@ -6545,7 +6479,7 @@ async function searchRunebergUnified(ctx) {
 
     try {
         const url = `${RUNEBERG_SEARCH}?query=${encodeURIComponent(q)}&submit=Search`;
-        const res = await smartFetch(url, {}, FETCH_TIMEOUT_API);
+        const res = await smartFetch(url, {}, FETCH_TIMEOUT_PROXY_SEARCH);
         if (!res.ok) return [];
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -6677,9 +6611,6 @@ async function downloadAndSaveRuneberg(href, titleHint, silent) {
 }
 window.downloadAndSaveRuneberg = downloadAndSaveRuneberg;
 
-/* ============================================================
-   NDL
-   ============================================================ */
 function detectNDLAccessLevel(record) {
     const desc = (record.description || '').toLowerCase();
     if (desc.includes('保護期間満了') ||
@@ -6700,7 +6631,10 @@ function detectNDLAccessLevel(record) {
 }
 
 function escapeCQL(s) {
-    return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    return String(s)
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/'/g, "\\'");
 }
 
 async function searchNDLAll(query) {
@@ -6721,7 +6655,7 @@ async function searchNDLAll(query) {
             recordSchema: 'info:srw/schema/1/dc-v1.1'
         });
         try {
-            const res = await smartFetch(`${NDL_SRU_ENDPOINT}?${params}`, {}, FETCH_TIMEOUT_API);
+            const res = await smartFetch(`${NDL_SRU_ENDPOINT}?${params}`, {}, FETCH_TIMEOUT_PROXY_SEARCH);
             if (!res.ok) break;
             const xml = await res.text();
             const doc = new DOMParser().parseFromString(xml, 'text/xml');
@@ -6889,9 +6823,6 @@ async function downloadAndSaveNDL(pid, titleHint, silent) {
 }
 window.downloadAndSaveNDL = downloadAndSaveNDL;
 
-/* ============================================================
-   Gutenberg ダウンロード
-   ============================================================ */
 async function downloadAndSaveGutenberg(bookId, silent) {
     silent = !!silent;
     if (!silent) {
@@ -7012,9 +6943,6 @@ async function downloadAndSaveGutenberg(bookId, silent) {
 }
 window.downloadAndSaveGutenberg = downloadAndSaveGutenberg;
 
-/* ============================================================
-   青空文庫 ダウンロード
-   ============================================================ */
 async function resolveAozoraZipName(workId, personId, initialZipName) {
     if (initialZipName) return { zipName: initialZipName, via: 'catalog' };
 
@@ -7048,7 +6976,7 @@ async function resolveAozoraZipName(workId, personId, initialZipName) {
 
     try {
         const cardUrl = `https://www.aozora.gr.jp/cards/${paddedPersonId}/card${workId}.html`;
-        const res = await smartFetch(cardUrl, {}, FETCH_TIMEOUT_API);
+        const res = await smartFetch(cardUrl, {}, FETCH_TIMEOUT_PROXY_HEAVY);
         if (res.ok) {
             const html = await res.text();
             const m = html.match(/files\/([^"'#?]+\.zip)/i);
@@ -7063,7 +6991,7 @@ async function checkAozoraSuspended(workId, personId) {
     try {
         const paddedPersonId = String(personId).padStart(6, '0');
         const cardUrl = `https://www.aozora.gr.jp/cards/${paddedPersonId}/card${workId}.html`;
-        const res = await smartFetch(cardUrl, {}, FETCH_TIMEOUT_API);
+        const res = await smartFetch(cardUrl, {}, FETCH_TIMEOUT_PROXY_HEAVY);
         if (!res.ok) {
             return {
                 suspended: true,
@@ -7215,9 +7143,6 @@ async function downloadAndSaveAozora(workId, personId, title, personName, zipNam
 }
 window.downloadAndSaveAozora = downloadAndSaveAozora;
 
-/* ============================================================
-   IA ダウンロード
-   ============================================================ */
 async function resolveIATextUrl(identifier) {
     const res = await smartFetch(`${IA_METADATA_ENDPOINT}/${identifier}`, {}, FETCH_TIMEOUT_API);
     if (!res.ok) throw new Error(`IA metadata HTTP ${res.status}`);
@@ -7356,9 +7281,6 @@ async function downloadAndSaveInternetArchive(identifier, titleHint, silent, ski
 }
 window.downloadAndSaveInternetArchive = downloadAndSaveInternetArchive;
 
-/* ============================================================
-   翻訳
-   ============================================================ */
 function splitTextRoughly(text, maxLen) {
     const chunks = [];
     let rest = text;
@@ -7477,9 +7399,6 @@ function buildTranslatedHtml(book) {
     return book.contentTranslated || book.content || '';
 }
 
-/* ============================================================
-   翻訳ジョブ
-   ============================================================ */
 async function startBackgroundTranslation(bookId) {
     if (active_translation_jobs[bookId]) return;
     active_translation_jobs[bookId] = true;
@@ -7507,7 +7426,12 @@ async function startBackgroundTranslation(bookId) {
         if (already >= total) {
             book.translationStatus = 'done';
             book.translationDone = total;
-            await saveBookToDB(book);
+            await saveTranslationProgress(bookId, {
+                translatedTexts: book.translatedTexts,
+                translationStatus: 'done',
+                translationDone: total,
+                translationTotal: total
+            });
             onTranslationTick(book);
             return;
         }
@@ -7545,7 +7469,12 @@ async function startBackgroundTranslation(bookId) {
                         onTranslationTick(book);
                         if (Date.now() - lastSave > 1500) {
                             lastSave = Date.now();
-                            saveBookToDB(book);
+                            saveTranslationProgress(bookId, {
+                                translatedTexts: book.translatedTexts,
+                                translationStatus: book.translationStatus,
+                                translationDone: book.translationDone,
+                                translationTotal: book.translationTotal
+                            });
                         }
                         ok = true;
                         break;
@@ -7585,7 +7514,13 @@ async function startBackgroundTranslation(bookId) {
             book.translationStatus = 'error';
             showToast(`「${bookTitleForToast}」一部の段落が未翻訳です (${book.translationDone}/${total})`, 'warn', 12000);
         }
-        await saveBookToDB(book);
+        await saveTranslationProgress(bookId, {
+            translatedTexts: book.translatedTexts,
+            translationStatus: book.translationStatus,
+            translationDone: book.translationDone,
+            translationTotal: book.translationTotal,
+            lastError: book.lastError
+        });
         onTranslationTick(book);
     } catch (err) {
         showToast('翻訳ジョブがクラッシュ: ' + err.message, 'error');
@@ -7595,7 +7530,10 @@ async function startBackgroundTranslation(bookId) {
                 if (b) {
                     b.translationStatus = 'error';
                     b.lastError = err.message;
-                    await saveBookToDB(b);
+                    await saveTranslationProgress(bookId, {
+                        translationStatus: 'error',
+                        lastError: err.message
+                    });
                     onTranslationTick(b);
                 }
             }
@@ -7630,10 +7568,10 @@ function applyTranslationToDom(book) {
     if (!is_showing_translation || !book.paragraphs) return;
     const flow = document.getElementById('reader-flow');
     const texts = book.translatedTexts || [];
-    const children = flow.children;
-    for (let i = 0; i < book.paragraphs.length && i < children.length; i++) {
-        const el = children[i];
-        if (texts[i] != null && el.classList.contains('untranslated')) {
+    for (let i = 0; i < book.paragraphs.length; i++) {
+        if (texts[i] == null) continue;
+        const el = flow.querySelector(`[data-pidx="${i}"]`);
+        if (el && el.classList.contains('untranslated')) {
             el.textContent = texts[i];
             el.classList.remove('untranslated');
         }
@@ -7677,18 +7615,15 @@ async function resumePendingTranslations() {
             return done < total;
         });
         if (pending.length > 0) {
-            showToast(`未完了の翻訳 ${pending.length}件 を再開します`, 'info');
-            pending.forEach(b => {
+            showToast(`未完了の翻訳 ${pending.length}件 を順に再開します`, 'info');
+            for (const b of pending) {
                 active_translation_jobs[b.id] = false;
-                startBackgroundTranslation(b.id);
-            });
+                await startBackgroundTranslation(b.id);
+            }
         }
     } catch (e) {}
 }
 
-/* ============================================================
-   ブックマーク
-   ============================================================ */
 function scheduleBookmarkSave() {
     if (!ima_yonderu_hon) return;
     clearTimeout(bookmark_save_timer);
@@ -7732,9 +7667,6 @@ async function closeReader() {
 }
 window.closeReader = closeReader;
 
-/* ============================================================
-   再取得
-   ============================================================ */
 async function redownloadOutdatedBooks() {
     let books;
     try {
@@ -7819,9 +7751,6 @@ async function redownloadOutdatedBooks() {
     loadBookshelf();
 }
 
-/* ============================================================
-   本棚
-   ============================================================ */
 function updateReprocessButton(count) {
     const btn = document.getElementById('reprocess-all-btn');
     if (!btn) return;
@@ -8141,6 +8070,10 @@ async function executeConfirmedDelete() {
     const modal = document.getElementById('confirm-modal');
     if (modal) modal.classList.remove('active');
 
+    // 翻訳ジョブを先に停止（削除後に復活するのを防ぐ）
+    translation_generation[id] = (translation_generation[id] || 0) + 1;
+    active_translation_jobs[id] = false;
+
     try {
         await ensureDB();
         await new Promise((resolve, reject) => {
@@ -8194,9 +8127,6 @@ function readSavedBook(bookId) {
     }).catch(() => {});
 }
 
-/* ============================================================
-   リーダー
-   ============================================================ */
 let ima_no_page = 0;
 let zenbu_page_su = 1;
 let is_showing_translation = false;
@@ -8426,9 +8356,6 @@ async function changeTargetLang(newLang) {
 }
 window.changeTargetLang = changeTargetLang;
 
-/* ============================================================
-   本モード
-   ============================================================ */
 function computePageLayout(keep) {
     if (!is_book_mode) return;
     const rb = document.getElementById('reader-body');
@@ -8453,7 +8380,7 @@ function computePageLayout(keep) {
 
     const measured = Math.max(flow.scrollWidth, flow.offsetWidth, contentW);
     const step = contentW + gata_gap_haba;
-    zenbu_page_su = Math.max(1, Math.round((measured + gata_gap_haba) / step));
+    zenbu_page_su = Math.max(1, Math.ceil((measured + gata_gap_haba) / step));
     const totalW = zenbu_page_su * contentW + (zenbu_page_su - 1) * gata_gap_haba;
     flow.style.columnWidth = `${contentW}px`;
     flow.style.columnCount = String(zenbu_page_su);
@@ -8610,9 +8537,6 @@ if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', handleViewportChange, { passive: true });
 }
 
-/* ============================================================
-   タブ切替・フォントサイズ
-   ============================================================ */
 function switchTab(tabName) {
     if (document.getElementById('reader-view').classList.contains('active')) {
         saveBookmarkNow().catch(() => {});
@@ -8637,9 +8561,17 @@ function changeFontSize(d) {
 }
 window.changeFontSize = changeFontSize;
 
-/* ============================================================
-   診断機能
-   ============================================================ */
+/* 本棚絞り込み debounce */
+let _bookshelfFilterTimer = null;
+document.addEventListener('DOMContentLoaded', () => {
+    const el = document.getElementById('bookshelf-search');
+    if (!el) return;
+    el.addEventListener('input', () => {
+        clearTimeout(_bookshelfFilterTimer);
+        _bookshelfFilterTimer = setTimeout(loadBookshelf, 250);
+    });
+});
+
 const DIAGNOSTICS = [
     {
         id: 'wiki-lookup',
@@ -9152,10 +9084,18 @@ async function runAllDiagnostics() {
     if (btn) { btn.disabled = true; btn.textContent = '診断中...'; }
     diagnosticsState = {};
     renderDiagnostics();
-    try {
-        for (const d of DIAGNOSTICS) {
+
+    const queue = DIAGNOSTICS.slice();
+    const PARALLEL = 3;
+    const worker = async () => {
+        while (queue.length) {
+            const d = queue.shift();
+            if (!d) break;
             await runDiagnostic(d.id);
         }
+    };
+    try {
+        await Promise.all(Array.from({ length: PARALLEL }, worker));
     } finally {
         _allDiagRunning = false;
         if (btn) { btn.disabled = false; btn.textContent = '全部'; }
@@ -9181,9 +9121,6 @@ window.closeDiagnostics = closeDiagnostics;
 window.runAllDiagnostics = runAllDiagnostics;
 window.runDiagnostic = runDiagnostic;
 
-/* ============================================================
-   このサイトについて
-   ============================================================ */
 function renderAboutContent() {
     const body = document.getElementById('about-modal-body');
     if (!body) return;
@@ -9348,9 +9285,6 @@ function closeAbout() {
 window.openAbout = openAbout;
 window.closeAbout = closeAbout;
 
-/* ============================================================
-   起動処理
-   ============================================================ */
 window.onload = async () => {
     loadSettings();
     applyTheme(appSettings.theme);
@@ -9393,7 +9327,7 @@ window.onload = async () => {
 
     setTimeout(() => {
         redownloadOutdatedBooks().catch(e => console.warn('[再DL] 失敗:', e));
-    }, 3000);
+    }, 15000);
 
     setTimeout(async () => {
         try {
@@ -9468,9 +9402,6 @@ window.addEventListener('unhandledrejection', (ev) => {
     } catch (e) {}
 });
 
-/* ============================================================
-   window 公開（集約）
-   ============================================================ */
 Object.assign(window, {
     openSettings, closeSettings, setViewMode, setBookFlipStyle, setTheme, setFontFamily,
     setTranslationMode,
