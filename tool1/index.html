@@ -2326,10 +2326,17 @@ const LIBRETRANSLATE_INSTANCES = [
     'https://translate.cutie.dating'
 ];
 
+/* ============================================================
+   CORSプロキシ
+   ------------------------------------------------------------
+   公開プロキシ（allorigins/corsproxy等）は、以下の理由で削除した:
+   - 全リクエストが中継業者に丸見え（検索語、URL、ヘッダ）
+   - 応答の改ざんリスク
+   - 予告なく死ぬ／乗っ取られる
+   自前Worker（aoi）のみを使う。priority が小さいほど優先。
+   ============================================================ */
 const CORS_PROXIES = [
-    { name: 'aoi',        build: (u) => 'https://aoi-box-lab.idosenpai.workers.dev/?url=' + encodeURIComponent(u) },
-    { name: 'allorigins', build: (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u) },
-    { name: 'corsproxy',  build: (u) => 'https://corsproxy.io/?' + encodeURIComponent(u) }
+    { name: 'aoi', priority: 1, build: (u) => 'https://aoi-box-lab.idosenpai.workers.dev/?url=' + encodeURIComponent(u) }
 ];
 
 const AOZORA_CATALOG_SOURCES = [
@@ -2727,9 +2734,12 @@ async function politeFetch(url, options, timeoutMs) {
     }
 }
 
+/* smartFetch: 自前プロキシを優先順位順に試し、最後に直接fetchへフォールバック */
 async function smartFetch(url, options, timeoutMs) {
     const errors = [];
-    const order = shuffled(CORS_PROXIES);
+    const order = CORS_PROXIES.slice().sort(
+        (a, b) => (a.priority || 999) - (b.priority || 999)
+    );
     for (const px of order) {
         try {
             const res = await politeFetch(px.build(url), options, timeoutMs);
