@@ -2000,6 +2000,38 @@ const NDL_SELF_BLOCK_PROVIDERS = new Set([
 /* お知らせ運用ルール */
 const ANNOUNCEMENTS = [
     {
+        id: 'ann_2026_09_22_01',
+        date: '2026-09-22',
+        title: 'Standard EbooksカタログをGist経由に変更しました',
+        showInBar: true,
+        body: [
+            '【今回の変更点】',
+            '',
+            '■ Standard Ebooksカタログの取得方法を変更',
+            'これまでStandard Ebooksのカタログは、OPDSフィードを100ページ以上にわたって',
+            '巡回して取得していました。この方法は時間がかかり、途中で通信が失敗すると',
+            '不完全なカタログになることがありました。',
+            '',
+            '今回、あらかじめ生成したカタログJSONをGistで配信する方式に変更しました。',
+            'これにより、',
+            '・カタログの読み込みが格段に速くなりました',
+            '・通信失敗でカタログが欠ける心配がなくなりました',
+            '・IndexedDBのキャッシュと合わせて、オフラインでも検索できます',
+            '',
+            '■ 取得件数',
+            '現在 1,521件 の作品が登録されています。',
+            '',
+            '■ 今後の更新',
+            'カタログは定期的に再生成してGistを更新します。',
+            'アプリ側は7日ごとに最新版を自動取得します。',
+            '',
+            '■ 詳細検索から一覧表示',
+            '詳細検索で「出典：Standard Ebooks」を選び、作品名・著者名を空欄のまま',
+            '検索すると、全作品（1000件まで）が一覧表示されます。'
+        ].join('\n'),
+        important: false
+    },
+    {
         id: 'ann_2026_09_19_01',
         date: '2026-09-19',
         title: '著作権チェックを強化し、「このサイトについて」を追加しました',
@@ -2433,6 +2465,7 @@ const SE_OPDS_SEARCH = 'https://standardebooks.org/feeds/opds/search';
 const SE_OPDS_ALL = 'https://standardebooks.org/feeds/opds/all';
 const SE_CATALOG_KEY = 'standardebooks_catalog_v1';
 const SE_CATALOG_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const SE_STATIC_CATALOG_URL = 'https://gist.githubusercontent.com/aoi-box-lab/c7d3e6cd0345e267497edf776c05cb19/raw/gistfile1.txt';
 
 const GENPAKU_OFFICIAL_URL = 'https://www.genpaku.org/sugitalist01.html';
 const GENPAKU_BASE_URL     = 'https://www.genpaku.org/';
@@ -3535,7 +3568,6 @@ function buildAozoraParagraphs(rawParas) {
 
         let html = escapeHtml(text);
 
-        // 傍点対象を先にプレースホルダ化（ルビ化で壊れないように）
         const emphPlaceholders = [];
         for (const tgt of emphTargets) {
             const escTgt = escapeHtml(tgt.text);
@@ -4993,6 +5025,7 @@ async function fetchStandardEbooksCatalog() {
     showHeaderSpinner();
 
     try {
+        // 1. IndexedDBキャッシュ（7日以内なら即返す）
         const cached = await getCacheFromDB(SE_CATALOG_KEY);
         if (cached && cached.value && cached.value.length > 100 && cached.savedAt) {
             const age = Date.now() - new Date(cached.savedAt).getTime();
@@ -5005,117 +5038,26 @@ async function fetchStandardEbooksCatalog() {
                 return;
             }
         }
-    } catch (e) {}
 
-    const catalog = [];
-    const seen = new Set();
-    let pageCount = 0;
-    let failStreak = 0;
-    let nextUrl = SE_OPDS_ALL;
-
-    try {
-        while (nextUrl && pageCount < 100) {
-            pageCount++;
-            let res = null;
-            try {
-                res = await smartFetch(nextUrl, {}, 20000);
-            } catch (e) {
-                failStreak++;
-                console.warn(`[se-catalog] page ${pageCount} error:`, e.message);
-                if (failStreak >= 3) throw new Error(`連続${failStreak}回失敗（page ${pageCount}）`);
-                await sleep(1000);
-                continue;
-            }
-            if (!res.ok) {
-                failStreak++;
-                console.warn(`[se-catalog] page ${pageCount} HTTP ${res.status}`);
-                if (failStreak >= 3) throw new Error(`HTTP ${res.status}（page ${pageCount}）`);
-                await sleep(1000);
-                continue;
-            }
-            failStreak = 0;
-
-            const xml = await res.text();
-            let doc;
-            try {
-                doc = new DOMParser().parseFromString(xml, 'application/atom+xml');
-            } catch (e) {
-                throw new Error('XMLパース失敗');
-            }
-            const entries = doc.querySelectorAll('entry');
-
-            entries.forEach(e => {
-                const titleEl = e.querySelector('title');
-                const authorEl = e.querySelector('author > name');
-                const idEl = e.querySelector('id');
-                const title = titleEl ? titleEl.textContent.trim() : '';
-                const author = authorEl ? authorEl.textContent.trim() : '';
-
-                let epubUrl = '';
-                e.querySelectorAll('link').forEach(l => {
-                    const rel = l.getAttribute('rel') || '';
-                    const type = l.getAttribute('type') || '';
-                    const href = l.getAttribute('href') || '';
-                    if (!epubUrl && type.includes('epub') && href) epubUrl = href;
-                    else if (!epubUrl && rel.includes('acquisition') && href.endsWith('.epub')) epubUrl = href;
-                });
-
-                if (!title || !epubUrl) return;
-
-                const slug = (idEl ? idEl.textContent : epubUrl)
-                    .replace(/^.*\/ebooks\//, '')
-                    .replace(/\/$/, '');
-
-                if (!slug || seen.has(slug)) return;
-                seen.add(slug);
-                catalog.push({ slug, title, author: author || '不明', epubUrl });
-            });
-
-            let next = null;
-            const feedEl = doc.documentElement;
-            if (feedEl) {
-                for (const child of feedEl.children) {
-                    if (child.tagName && child.tagName.toLowerCase() === 'link'
-                        && child.getAttribute('rel') === 'next') {
-                        const href = child.getAttribute('href');
-                        if (href) { next = href; break; }
-                    }
-                }
-            }
-            if (next) {
-                try {
-                    nextUrl = new URL(next, nextUrl).href;
-                } catch (e) {
-                    nextUrl = null;
-                }
-            } else {
-                nextUrl = null;
-            }
-
-            await sleep(150);
+        // 2. GistからJSONを取得
+        const res = await fetchWithTimeout(SE_STATIC_CATALOG_URL, {}, 20000);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!data || !Array.isArray(data.items) || !data.items.length) {
+            throw new Error('カタログが空');
         }
 
-        if (!catalog.length) throw new Error('カタログが空');
-
-        standardebooks_catalog = catalog;
+        standardebooks_catalog = data.items;
         standardebooks_catalog_ready = true;
         try {
-            await saveCacheToDB(SE_CATALOG_KEY, catalog);
+            await saveCacheToDB(SE_CATALOG_KEY, data.items);
         } catch (e) {}
-        showToast(`Standard Ebooksカタログ読み込み完了（${catalog.length}件）`, 'success', 5000);
-        console.log(`[se-catalog] loaded (${catalog.length}件, ${pageCount}ページ)`);
+        showToast(`Standard Ebooksカタログ読み込み完了（${data.items.length}件）`, 'success', 5000);
+        console.log(`[se-catalog] loaded from Gist (${data.items.length}件, generated ${data.generatedAt})`);
     } catch (e) {
         console.warn('[se-catalog] failed:', e);
-        if (catalog.length >= 50) {
-            standardebooks_catalog = catalog;
-            standardebooks_catalog_ready = true;
-            try {
-                await saveCacheToDB(SE_CATALOG_KEY, catalog);
-            } catch (_) {}
-            showToast(`Standard Ebooksカタログを部分的に読み込みました（${catalog.length}件）`, 'warn', 8000);
-        } else {
-            showToast('Standard Ebooksカタログの取得に失敗しました（検索APIに切り替えます）', 'warn', 8000);
-        }
+        pushErrorLog('se-catalog', 'SEカタログ取得失敗', String(e && e.message || e));
+        showToast(`SEカタログ取得失敗: ${e.message}（作品名検索で利用可）`, 'warn', 8000);
     } finally {
         standardebooks_catalog_loading = false;
         hideHeaderSpinner();
@@ -6298,7 +6240,6 @@ async function downloadAndSaveWikisource(pageId, title, lang, silent) {
             'sup.reference, .reference, .references, .reflist, ol.references, div.reflist'
         ).forEach(el => el.remove());
 
-        // table は中身を段落として残す
         doc.querySelectorAll('table').forEach(tbl => {
             const rows = [];
             tbl.querySelectorAll('tr').forEach(tr => {
@@ -6739,7 +6680,6 @@ async function downloadAndSaveStandardEbooks(key, epubUrl, titleHint, authorHint
         const buf = await res.arrayBuffer();
         const zip = await JSZip.loadAsync(buf);
 
-        // EPUB の spine 順を解決
         let opfPath = null;
         try {
             const containerFile = zip.file('META-INF/container.xml');
@@ -7531,7 +7471,6 @@ async function downloadAndSaveAozora(workId, personId, title, personName, zipNam
 
         if (!txt) throw new Error(`テキスト取得失敗: ${lastErr}`);
 
-        // CRLF/CR を LF に正規化
         txt = txt.replace(/\r\n?/g, '\n');
 
         const chunks = txt.split(/^-{5,}\s*$/m).map(s => s.trim()).filter(s => s.length > 0);
@@ -7680,7 +7619,6 @@ async function downloadAndSaveInternetArchive(identifier, titleHint, silent, ski
         const raw = await res.text();
         if (!raw || raw.length < 100) throw new Error('本文が短すぎます');
 
-        // DjVuTXT のページヘッダー除去
         let cleanedRaw = raw.replace(/\r\n?/g, '\n');
         const pages = cleanedRaw.split(/\f+/);
         const pageBlocks = pages.map(pg => {
@@ -8273,7 +8211,6 @@ async function redownloadOutdatedBooks() {
                 await downloadAndSaveNDL(si.pid, book.title, true);
                 ok++;
             } else {
-                // 未対応ソース：削除せず、featureVersionだけ更新して次回以降スキップ
                 try {
                     const b = await getBookFromDB(book.id);
                     if (b) {
@@ -9921,7 +9858,6 @@ window.onload = async () => {
     updateSettingsUI();
     updateSortDirectionButton();
 
-    // 保存されたフォントサイズを反映
     current_font_size = appSettings.fontSize;
     if (appSettings.fontSize !== 18) user_font_size_changed = true;
     updateReaderFontSize();
