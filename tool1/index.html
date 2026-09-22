@@ -57,7 +57,7 @@ html, body {
 body {
     background-color: var(--bg-color);
     color: var(--text-color);
-    font-family: var(--reader-font-family);
+    font-family: system-ui, -apple-system, 'Helvetica Neue', 'Yu Gothic', sans-serif;
     transition: background-color .3s, color .3s;
     position: fixed;
     top: 0; left: 0;
@@ -510,6 +510,7 @@ h1 {
     overflow: auto;
     line-height: 1.8;
     font-size: var(--reader-font);
+    font-family: var(--reader-font-family);
     max-width: var(--reader-max-w);
     margin: 0 auto;
     width: 100%;
@@ -891,6 +892,7 @@ h1 {
 .reader-content em { font-style: italic; }
 .reader-content sup { font-size: .7em; vertical-align: super; line-height: 0; }
 .reader-content sub { font-size: .7em; vertical-align: sub; line-height: 0; }
+.reader-content .untranslated { opacity: .5; }
 
 .reader-content .loading-msg {
     text-align: center;
@@ -1259,6 +1261,7 @@ h1 {
     overflow-y: auto;
     word-break: break-word;
     margin-bottom: 16px;
+    font-family: var(--reader-font-family);
 }
 .detail-synopsis.loading {
     opacity: .6;
@@ -2472,7 +2475,10 @@ const WIKI_JA_TITLE_CACHE_PREFIX = 'wiki_ja_title_v1:';
 const AUTHOR_YEAR_BATCH_SIZE = 50;
 const SEARCH_PAGE_SIZE = 500;
 
-const DATA_MODE_SKIP_SOURCES = ['aozora', 'genpaku', 'doaj', 'zenodo', 'arxiv'];
+const DATA_MODE_SKIP_SOURCES = [
+    'aozora', 'genpaku', 'doaj', 'zenodo', 'arxiv',
+    'runeberg', 'poetrydb', 'fadedpage'
+];
 
 const IA_SEARCH_ENDPOINT = 'https://archive.org/advancedsearch.php';
 const IA_METADATA_ENDPOINT = 'https://archive.org/metadata';
@@ -2487,7 +2493,26 @@ const IA_LANG_MAP = {
     spa: 'es', es: 'es',
     ita: 'it', it: 'it',
     por: 'pt', pt: 'pt',
-    rus: 'ru', ru: 'ru'
+    rus: 'ru', ru: 'ru',
+    dut: 'nl', nld: 'nl', nl: 'nl',
+    swe: 'sv', sv: 'sv',
+    pol: 'pl', pl: 'pl',
+    tur: 'tr', tr: 'tr',
+    vie: 'vi', vi: 'vi',
+    tha: 'th', th: 'th',
+    heb: 'he', he: 'he',
+    ara: 'ar', ar: 'ar',
+    gre: 'el', ell: 'el', el: 'el',
+    lat: 'la', la: 'la',
+    san: 'sa', sa: 'sa',
+    ces: 'cs', cze: 'cs', cs: 'cs',
+    hun: 'hu', hu: 'hu',
+    fin: 'fi', fi: 'fi',
+    dan: 'da', da: 'da',
+    nor: 'no', no: 'no',
+    ukr: 'uk', uk: 'uk',
+    cat: 'ca', ca: 'ca',
+    ron: 'ro', rum: 'ro', ro: 'ro'
 };
 
 function normalizeIALang(l) {
@@ -3107,6 +3132,55 @@ function normalizeForSearch(s) {
         .replace(/[・･=＝\-–—ー~〜_,.;:!?！？。、\s（）()「」『』【】\[\]&＋+"'`]+/g, '');
 }
 
+function lenientScoreNorm(normText, normQuery, tokens) {
+    if (!normText || !normQuery) return 0;
+    if (normText === normQuery) return 1000;
+    if (normText.startsWith(normQuery)) return 800;
+    if (normText.includes(normQuery)) return 600;
+    if (tokens && tokens.length > 1) {
+        let matches = 0;
+        for (const tn of tokens) if (tn && normText.includes(tn)) matches++;
+        if (matches > 0) return Math.round(200 + 200 * (matches / tokens.length));
+    }
+    if (normQuery.length >= 3) {
+        let hit = 0;
+        const total = normQuery.length - 2;
+        for (let i = 0; i < total; i++) {
+            if (normText.includes(normQuery.slice(i, i + 3))) hit++;
+        }
+        if (hit > 0) return Math.round(50 + 100 * (hit / total));
+    }
+    if (normQuery.length >= 2 && normQuery.length <= 8) {
+        let pos = 0;
+        for (const ch of normText) {
+            if (ch === normQuery[pos]) pos++;
+            if (pos >= normQuery.length) break;
+        }
+        if (pos === normQuery.length) return 100;
+    }
+    return 0;
+}
+
+function ensureAozoraCatalogNorm(catalog) {
+    if (!catalog) return catalog;
+    for (const it of catalog) {
+        if (it._normTitle == null) it._normTitle = normalizeForSearch(it.title || '');
+        if (it._normAuthor == null) it._normAuthor = normalizeForSearch(it.personName || '');
+    }
+    return catalog;
+}
+
+function ensureGutenbergCatalogNorm(catalog) {
+    if (!catalog) return catalog;
+    for (const it of catalog) {
+        if (it._normTitle == null) it._normTitle = normalizeForSearch(it.title || '');
+        if (it._normAuthors == null) {
+            it._normAuthors = (it.authors || []).map(a => normalizeForSearch(a));
+        }
+    }
+    return catalog;
+}
+
 function makeSearchTokens(query) {
     return String(query || '').toLowerCase().normalize('NFKC')
         .split(/[・･=＝\-–—ー~〜_,.;:!?！？。、\s（）()「」『』【】\[\]&＋+"'`]+/)
@@ -3259,28 +3333,53 @@ async function saveBookToDB(book) {
     }
 }
 
+async function updateBookFieldOnly(bookId, field, value) {
+    try {
+        return await safeDBOp(['books'], 'readwrite', (tx, resolve, reject) => {
+            const store = tx.objectStore('books');
+            const rq = store.get(bookId);
+            rq.onsuccess = () => {
+                const fresh = rq.result;
+                if (!fresh) { resolve(false); return; }
+                if (value === undefined) delete fresh[field];
+                else fresh[field] = value;
+                store.put(fresh);
+            };
+            rq.onerror = () => reject(rq.error);
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => reject(tx.error);
+        });
+    } catch (e) { return false; }
+}
+
 async function saveTranslationProgress(bookId, updates) {
     try {
-        const fresh = await getBookFromDB(bookId);
-        if (!fresh) return false;
-        if ('translatedTexts' in updates) {
-            fresh.translatedTexts = Array.isArray(updates.translatedTexts)
-                ? updates.translatedTexts.slice()
-                : updates.translatedTexts;
-        }
-        if ('translationStatus' in updates) fresh.translationStatus = updates.translationStatus;
-        if ('translationDone' in updates) fresh.translationDone = updates.translationDone;
-        if ('translationTotal' in updates) fresh.translationTotal = updates.translationTotal;
-        if ('properNounDict' in updates) fresh.properNounDict = updates.properNounDict;
-        if ('lastError' in updates) {
-            if (updates.lastError == null) delete fresh.lastError;
-            else fresh.lastError = updates.lastError;
-        }
-        await saveBookToDB(fresh);
-        return true;
-    } catch (e) {
-        return false;
-    }
+        return await safeDBOp(['books'], 'readwrite', (tx, resolve, reject) => {
+            const store = tx.objectStore('books');
+            const rq = store.get(bookId);
+            rq.onsuccess = () => {
+                const fresh = rq.result;
+                if (!fresh) { resolve(false); return; }
+                if ('translatedTexts' in updates) {
+                    fresh.translatedTexts = Array.isArray(updates.translatedTexts)
+                        ? updates.translatedTexts.slice()
+                        : updates.translatedTexts;
+                }
+                if ('translationStatus' in updates) fresh.translationStatus = updates.translationStatus;
+                if ('translationDone' in updates)   fresh.translationDone   = updates.translationDone;
+                if ('translationTotal' in updates)  fresh.translationTotal  = updates.translationTotal;
+                if ('properNounDict' in updates)    fresh.properNounDict    = updates.properNounDict;
+                if ('lastError' in updates) {
+                    if (updates.lastError == null) delete fresh.lastError;
+                    else fresh.lastError = updates.lastError;
+                }
+                store.put(fresh);
+            };
+            rq.onerror = () => reject(rq.error);
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => reject(tx.error);
+        });
+    } catch (e) { return false; }
 }
 
 function getCacheFromDB(key) {
@@ -3439,6 +3538,40 @@ async function lookupJapaneseTitle(enTitle) {
     return null;
 }
 
+/* ============================================================
+   クエリの言語判定と英語化
+   ============================================================ */
+function detectQueryLang(query) {
+    if (!query) return null;
+    if (/[\uac00-\ud7af]/.test(query)) return 'ko';
+    if (/[\u3040-\u309f\u30a0-\u30ff]/.test(query)) return 'ja';
+    if (/[\u0400-\u04ff]/.test(query)) return 'ru';
+    if (/[\u0600-\u06ff]/.test(query)) return 'ar';
+    if (/[\u0590-\u05ff]/.test(query)) return 'he';
+    if (/[\u4e00-\u9fff]/.test(query)) return 'zh';
+    return null;
+}
+
+async function toEnglishQuery(query) {
+    if (!query || !query.trim()) return query;
+    // ASCII のみは素通し（"subject:fiction" 等の構文も含む）
+    if (!/[^\x00-\x7F]/.test(query)) return query;
+
+    const srcLang = detectQueryLang(query) || 'ja';
+
+    // 日本語で漢字・かなを含む → Wikipedia の言語間リンクを優先
+    if (srcLang === 'ja' && /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/.test(query)) {
+        try {
+            const en = await lookupEnglishTitle(query);
+            if (en) return en;
+        } catch (e) {}
+    }
+    // フォールバック：機械翻訳
+    const translated = await translateText(query, srcLang, 'en');
+    if (translated && translated !== query) return translated;
+    return query;
+}
+
 async function fetchWikipediaSynopsis(title, lang) {
     if (!title || !title.trim()) return null;
     const cleanTitle = String(title).replace(/[\s\u3000]+/g, ' ').trim();
@@ -3477,24 +3610,30 @@ async function fetchWikipediaSynopsis(title, lang) {
 
 async function findWikipediaUrl(title, author, lang) {
     if (!title) return null;
-    try {
-        const host = (lang === 'ja') ? 'ja.wikipedia.org' : 'en.wikipedia.org';
-        const sUrl = `https://${host}/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(title)}&srlimit=1&format=json&origin=*`;
-        const res = await politeFetch(sUrl, {}, FETCH_TIMEOUT_API);
-        if (!res.ok) return null;
-        const data = await res.json();
-        const hits = (data.query && data.query.search) || [];
-        if (!hits.length) return null;
-        if (lenientScore(hits[0].title, title) < 200) return null;
-        return `https://${host}/wiki/${encodeURIComponent(hits[0].title.replace(/\s+/g, '_'))}`;
-    } catch (e) {
-        return null;
-    }
+    const host = (lang === 'ja') ? 'ja.wikipedia.org' : 'en.wikipedia.org';
+
+    const trySearch = async (q) => {
+        try {
+            const sUrl = `https://${host}/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&srlimit=1&format=json&origin=*`;
+            const res = await politeFetch(sUrl, {}, FETCH_TIMEOUT_API);
+            if (!res.ok) return null;
+            const data = await res.json();
+            const hits = (data.query && data.query.search) || [];
+            if (!hits.length) return null;
+            if (lenientScore(hits[0].title, title) < 200) return null;
+            return `https://${host}/wiki/${encodeURIComponent(hits[0].title.replace(/\s+/g, '_'))}`;
+        } catch (e) { return null; }
+    };
+
+    const byTitle = await trySearch(title);
+    if (byTitle) return byTitle;
+    if (author) return await trySearch(`${title} ${author}`);
+    return null;
 }
 
 async function fetchAozoraCardInfo(workId, personId) {
     if (!workId || !personId) return null;
-    const cacheKey = 'aozora_card_v1:' + workId;
+    const cacheKey = 'aozora_card_v2:' + workId;
     try {
         const c = await getCacheFromDB(cacheKey);
         if (c && c.value) return c.value;
@@ -3510,36 +3649,88 @@ async function fetchAozoraCardInfo(workId, personId) {
         const html = decodeJapaneseText(buf);
         const doc = new DOMParser().parseFromString(html, 'text/html');
 
+        let workTitle = '';
+        const h1 = doc.querySelector('h1');
+        if (h1) workTitle = (h1.textContent || '').replace(/\s+/g, ' ').trim();
+        let authorName = '';
+        const h2 = doc.querySelector('h2');
+        if (h2) authorName = (h2.textContent || '').replace(/\s+/g, ' ').trim();
+
+        const bodyText = (doc.body ? doc.body.textContent : '').replace(/\s+/g, ' ').trim();
+
+        // 「作品について」見出しの直後の兄弟要素を集める
         let workNote = '';
-        const mainTextEl = doc.querySelector('.main_text');
-        if (mainTextEl) {
-            const t = mainTextEl.textContent.replace(/\s+/g, ' ').trim();
-            const m = t.match(/作品について\s*(.+)/);
-            workNote = m ? m[1].trim() : t;
+        const headers = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
+        for (const h of headers) {
+            const t = (h.textContent || '').trim();
+            if (/^作品について/.test(t)) {
+                const parts = [];
+                let sib = h.nextElementSibling;
+                while (sib) {
+                    if (/^h[1-6]$/i.test(sib.tagName)) break;
+                    const st = (sib.textContent || '').replace(/\s+/g, ' ').trim();
+                    if (st) parts.push(st);
+                    sib = sib.nextElementSibling;
+                }
+                if (parts.length) {
+                    workNote = parts.join(' ');
+                    break;
+                }
+            }
+        }
+        // フォールバック：.main_text 全体から「作品について」語を除去
+        if (!workNote) {
+            const mainTextEl = doc.querySelector('.main_text');
+            if (mainTextEl) {
+                const t = (mainTextEl.textContent || '').replace(/\s+/g, ' ').trim();
+                const cleaned = t.replace(/作品について\s*/, '').trim();
+                if (cleaned && cleaned.length > 10 && cleaned.length < 3000) {
+                    workNote = cleaned;
+                }
+            }
         }
 
         let firstPublished = '';
+        const fpM = bodyText.match(/初出[：:]\s*([\s\S]{1,400})/);
+        if (fpM) {
+            let val = fpM[1];
+            const cut = val.search(/備考[：:]|文字遣い|底本[：:]|入力[：:]|校正[：:]|公開[：:]|作品について/);
+            if (cut > 0) val = val.slice(0, cut);
+            firstPublished = val.replace(/\s+/g, ' ').trim().slice(0, 200);
+        }
+
         let note = '';
-        const bodyText = doc.body ? doc.body.textContent.replace(/\s+/g, ' ') : '';
-        const fp = bodyText.match(/初出[：:]\s*([^。]+。?)/);
-        if (fp) firstPublished = fp[1].trim();
-        const nt = bodyText.match(/備考[：:]\s*([^。]+。?)/);
-        if (nt) note = nt[1].trim();
+        const ntM = bodyText.match(/備考[：:]\s*([\s\S]{1,400})/);
+        if (ntM) {
+            let val = ntM[1];
+            const cut = val.search(/文字遣い|底本[：:]|入力[：:]|校正[：:]|公開[：:]|作品について/);
+            if (cut > 0) val = val.slice(0, cut);
+            note = val.replace(/\s+/g, ' ').trim().slice(0, 200);
+        }
 
         let authorYears = '';
-        const ay = bodyText.match(/\((\d{4})[-–—](\d{4})\)/);
-        if (ay) authorYears = `${ay[1]}-${ay[2]}`;
+        const ayM = bodyText.match(/[（(]\s*(\d{4})\s*[-–—ー〜~]\s*(\d{4})\s*[)）]/);
+        if (ayM) authorYears = `${ayM[1]}-${ayM[2]}`;
 
         const result = {
             workNote: workNote || null,
             firstPublished: firstPublished || null,
             note: note || null,
             authorYears: authorYears || null,
+            workTitle: workTitle || null,
+            authorName: authorName || null,
             cardUrl
         };
+
+        const hasAny = workNote || firstPublished || note || authorYears;
+        if (!hasAny) {
+            return { ...result, empty: true };
+        }
+
         try { await saveCacheToDB(cacheKey, result); } catch (e) {}
         return result;
     } catch (e) {
+        console.warn('[aozora-card] failed:', e);
         return null;
     }
 }
@@ -3549,7 +3740,13 @@ async function fetchAozoraCardInfo(workId, personId) {
    ============================================================ */
 async function buildProperNounDict(paragraphs) {
     if (!paragraphs || !paragraphs.length) return {};
-    const allText = paragraphs.map(p => p.text || '').join(' ').slice(0, 80000);
+    // 全文を 1/N 間引きでサンプリング（長編でも後半の固有名詞を拾う）
+    const step = Math.max(1, Math.floor(paragraphs.length / 200));
+    const sampled = [];
+    for (let i = 0; i < paragraphs.length; i += step) {
+        sampled.push(paragraphs[i].text || '');
+    }
+    const allText = sampled.join(' ').slice(0, 150000);
 
     const candidates = new Set();
     const re = /\b([A-Z][a-z]{2,}(?:\s+[A-Z]\.?)?\s+[A-Z][a-z]{2,})\b/g;
@@ -3939,8 +4136,11 @@ async function handleReprocessAll() {
         const all = await getAllBooksFromDB();
         const filter = (document.getElementById('bookshelf-search').value || '').trim().toLowerCase();
         const favOnly = document.getElementById('bookshelf-fav-only').checked;
+        const finishFilter = (document.getElementById('bookshelf-finish-filter') || {}).value || '';
         let targets = all.filter(b => isBookOutdated(b));
         if (favOnly) targets = targets.filter(b => b.favorite);
+        if (finishFilter === 'unread') targets = targets.filter(b => !b.finishedAt);
+        if (finishFilter === 'read')   targets = targets.filter(b => !!b.finishedAt);
         if (filter) {
             targets = targets.filter(b => {
                 const tt = (b.title || '').toLowerCase();
@@ -4217,12 +4417,17 @@ function renderSearchResults() {
     });
 
     const showCount = Math.min(currentDisplayCount, sorted.length);
-    for (let i = 0; i < showCount; i++) {
-        renderUnifiedRow(sorted[i], tb);
+    const startIdx = tb.querySelectorAll('tr[data-row-idx]').length;
+    for (let i = startIdx; i < showCount; i++) {
+        renderUnifiedRow(sorted[i], tb, i);
     }
+
+    // 既存の「続きを読み込む」行を削除
+    tb.querySelectorAll('tr[data-load-more]').forEach(tr => tr.remove());
 
     if (sorted.length > currentDisplayCount) {
         const tr = document.createElement('tr');
+        tr.dataset.loadMore = '1';
         const td = document.createElement('td');
         td.colSpan = 5;
         td.style.textAlign = 'center';
@@ -4410,12 +4615,14 @@ async function loadSynopsisForDetail(r, el) {
         try {
             const card = await fetchAozoraCardInfo(r.raw.workId, r.raw.personId);
             if (!el.isConnected) return;
-            if (card && (card.workNote || card.note || card.firstPublished)) {
-                const parts = [];
+            const parts = [];
+            if (card) {
                 if (card.workNote) parts.push(card.workNote);
                 if (card.firstPublished) parts.push('【初出】' + card.firstPublished);
                 if (card.note) parts.push('【備考】' + card.note);
                 if (card.authorYears) parts.push('【著者】' + card.authorYears);
+            }
+            if (parts.length) {
                 el.classList.remove('loading');
                 el.textContent = parts.join('\n\n');
                 r.synopsis = el.textContent;
@@ -4733,7 +4940,7 @@ function renderBookDetail(book) {
     }
     body.appendChild(_detailRow('翻訳データ', transEl));
 
-    // 非同期で synBox を埋める
+    // 非同期であらすじを埋める
     (async () => {
         const cached = (book.sourceInfo && book.sourceInfo.synopsis) || book.synopsis;
         if (cached) {
@@ -4756,12 +4963,14 @@ function renderBookDetail(book) {
             try {
                 const card = await fetchAozoraCardInfo(book.sourceInfo.workId, book.sourceInfo.personId);
                 if (!synBox.isConnected) return;
-                if (card && (card.workNote || card.note || card.firstPublished)) {
-                    const parts = [];
+                const parts = [];
+                if (card) {
                     if (card.workNote) parts.push(card.workNote);
                     if (card.firstPublished) parts.push('【初出】' + card.firstPublished);
                     if (card.note) parts.push('【備考】' + card.note);
                     if (card.authorYears) parts.push('【著者】' + card.authorYears);
+                }
+                if (parts.length) {
                     synBox.classList.remove('loading');
                     synBox.textContent = parts.join('\n\n');
                     return;
@@ -4792,8 +5001,9 @@ function renderBookDetail(book) {
     })();
 }
 
-function renderUnifiedRow(r, tb) {
+function renderUnifiedRow(r, tb, idx) {
     const tr = document.createElement('tr');
+    if (idx != null) tr.dataset.rowIdx = String(idx);
 
     const tdS = document.createElement('td');
     const srcInner = document.createElement('div');
@@ -4889,7 +5099,11 @@ function renderUnifiedRow(r, tb) {
 
 function looksLikeDirectFile(url) {
     if (!url) return false;
-    return /\.(txt|html?|epub|xhtml)(\?|#|$)/i.test(url) || url.includes('/download/');
+    // 本当の直リンクファイルだけ true。HTMLランディングページは開く価値があるので false。
+    if (/\.(txt|epub|xhtml|zip)(\?|#|$)/i.test(url)) return true;
+    if (/\/download\//.test(url)) return true;
+    if (/\/cache\/epub\//.test(url)) return true;
+    return false;
 }
 
 async function tryDownloadWithFallback(r, downloadFn) {
@@ -5373,16 +5587,18 @@ async function fetchAozoraCatalog() {
     aozora_catalog_loading = true;
     showHeaderSpinner();
 
+    let staleCache = null;
     try {
         const cached = await getCacheFromDB(CATALOG_CACHE_KEY);
-        if (cached && cached.value && cached.value.length > 100
-            && typeof cached.value[0].zipName === 'string'
-            && cached.value[0].zipName.length > 0) {
-            aozora_catalog = cached.value;
-            aozora_catalog_ready = true;
-            aozora_catalog_loading = false;
-            hideHeaderSpinner();
-            return;
+        if (cached && cached.value && cached.value.length > 100) {
+            if (cached.value.some(it => it.zipName && it.zipName.length > 0)) {
+                aozora_catalog = ensureAozoraCatalogNorm(cached.value);
+                aozora_catalog_ready = true;
+                aozora_catalog_loading = false;
+                hideHeaderSpinner();
+                return;
+            }
+            staleCache = cached.value;
         }
     } catch (e) {}
 
@@ -5391,17 +5607,10 @@ async function fetchAozoraCatalog() {
     for (const src of AOZORA_CATALOG_SOURCES) {
         if (catalog) break;
         try {
-            const fetchUrl = src.url;
-            const res = await politeFetch(fetchUrl, { cache: 'no-store' }, FETCH_TIMEOUT_BOOK);
-            if (!res.ok) {
-                lastErr = `${src.name}: HTTP ${res.status}`;
-                continue;
-            }
+            const res = await politeFetch(src.url, { cache: 'no-store' }, FETCH_TIMEOUT_BOOK);
+            if (!res.ok) { lastErr = `${src.name}: HTTP ${res.status}`; continue; }
             const text = await res.text();
-            if (!text || text.length < 10000) {
-                lastErr = `${src.name}: 短すぎる`;
-                continue;
-            }
+            if (!text || text.length < 10000) { lastErr = `${src.name}: 短すぎる`; continue; }
             const json = JSON.parse(text);
             catalog = parseAozoraCardJson(json);
         } catch (e) {
@@ -5410,6 +5619,15 @@ async function fetchAozoraCatalog() {
     }
 
     if (!catalog || !catalog.length) {
+        // stale フォールバック
+        if (staleCache && staleCache.length) {
+            aozora_catalog = ensureAozoraCatalogNorm(staleCache);
+            aozora_catalog_ready = true;
+            aozora_catalog_loading = false;
+            hideHeaderSpinner();
+            showToast('青空文庫カタログは古いキャッシュで動作します', 'warn', 6000);
+            return;
+        }
         aozora_catalog_loading = false;
         hideHeaderSpinner();
         pushErrorLog('aozora-catalog', '青空文庫カタログの取得に失敗', lastErr);
@@ -5417,6 +5635,7 @@ async function fetchAozoraCatalog() {
         return;
     }
 
+    ensureAozoraCatalogNorm(catalog);
     aozora_catalog = catalog;
     aozora_catalog_ready = true;
     aozora_catalog_loading = false;
@@ -5473,9 +5692,15 @@ function parseAozoraCardJson(json) {
     for (const card of arr) {
         if (!card || typeof card !== 'object') continue;
         try {
-            const t = card.title || {};
+            const titleRaw = card.title;
+            const t = (typeof titleRaw === 'object' && titleRaw) ? titleRaw : {};
             const workId = String(t.work_id || card.work_id || '').trim();
-            const title = String(t.title || card.title_str || '').trim();
+            const title = String(
+                t.title ||
+                card.title_str ||
+                (typeof titleRaw === 'string' ? titleRaw : '') ||
+                ''
+            ).trim();
             const personId = String(t.person_id || t.author_num || card.person_id || card.author_id || '').trim();
             const personName = String(t.person_name || card.person_name || card.author || '').trim();
             if (!workId || !title) continue;
@@ -5508,18 +5733,19 @@ async function fetchGutenbergCatalog() {
         });
     } catch (e) {}
 
+    let staleCache = null;
     try {
         const cached = await getCacheFromDB(GUTENBERG_CATALOG_KEY);
         if (cached && cached.value && cached.value.length > 1000 && cached.savedAt) {
             const age = Date.now() - new Date(cached.savedAt).getTime();
             if (age < GUTENBERG_CATALOG_TTL_MS) {
-                gutenberg_catalog = cached.value;
+                gutenberg_catalog = ensureGutenbergCatalogNorm(cached.value);
                 gutenberg_catalog_ready = true;
                 gutenberg_catalog_loading = false;
                 hideHeaderSpinner();
-                console.log(`[gutenberg-catalog] loaded from cache (${cached.value.length}件, age ${Math.round(age/1000/60)}分)`);
                 return;
             }
+            staleCache = cached.value;
         }
     } catch (e) {}
 
@@ -5528,20 +5754,23 @@ async function fetchGutenbergCatalog() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const text = await res.text();
         if (!text || text.length < 10000) throw new Error('CSVが短すぎます');
-
         const catalog = parseGutenbergCsv(text);
         if (!catalog.length) throw new Error('カタログが空');
 
+        ensureGutenbergCatalogNorm(catalog);
         gutenberg_catalog = catalog;
         gutenberg_catalog_ready = true;
-        try {
-            await saveCacheToDB(GUTENBERG_CATALOG_KEY, catalog);
-        } catch (e) {}
+        try { await saveCacheToDB(GUTENBERG_CATALOG_KEY, catalog); } catch (e) {}
         showToast(`Gutenbergカタログ読み込み完了（${catalog.length}件）`, 'success', 5000);
-        console.log(`[gutenberg-catalog] loaded from network (${catalog.length}件)`);
     } catch (e) {
         console.warn('[gutenberg-catalog] failed:', e);
-        showToast('Gutenbergカタログの取得に失敗しました（OPDS検索に切り替えます）', 'warn', 8000);
+        if (staleCache && staleCache.length) {
+            gutenberg_catalog = ensureGutenbergCatalogNorm(staleCache);
+            gutenberg_catalog_ready = true;
+            showToast('Gutenbergカタログは古いキャッシュで動作します', 'warn', 8000);
+        } else {
+            showToast('Gutenbergカタログの取得に失敗しました（OPDS検索に切り替えます）', 'warn', 8000);
+        }
     } finally {
         gutenberg_catalog_loading = false;
         hideHeaderSpinner();
@@ -5562,7 +5791,6 @@ async function fetchStandardEbooksCatalog() {
                 standardebooks_catalog_ready = true;
                 standardebooks_catalog_loading = false;
                 hideHeaderSpinner();
-                console.log(`[se-catalog] loaded from cache (${cached.value.length}件)`);
                 return;
             }
         }
@@ -5580,9 +5808,18 @@ async function fetchStandardEbooksCatalog() {
             await saveCacheToDB(SE_CATALOG_KEY, data.items);
         } catch (e) {}
         showToast(`Standard Ebooksカタログ読み込み完了（${data.items.length}件）`, 'success', 5000);
-        console.log(`[se-catalog] loaded from Gist (${data.items.length}件, generated ${data.generatedAt})`);
     } catch (e) {
         console.warn('[se-catalog] failed:', e);
+        // stale キャッシュを再取得
+        try {
+            const cached2 = await getCacheFromDB(SE_CATALOG_KEY);
+            if (cached2 && cached2.value && cached2.value.length > 100) {
+                standardebooks_catalog = cached2.value;
+                standardebooks_catalog_ready = true;
+                showToast('SEカタログは古いキャッシュで動作します', 'warn', 6000);
+                return;
+            }
+        } catch (_) {}
         pushErrorLog('se-catalog', 'SEカタログ取得失敗', String(e && e.message || e));
         showToast(`SEカタログ取得失敗: ${e.message}（作品名検索で利用可）`, 'warn', 8000);
     } finally {
@@ -5797,28 +6034,35 @@ async function searchGutenbergUnified(ctx) {
         }
     }
 
+    ensureGutenbergCatalogNorm(gutenberg_catalog);
+
     const simpleSearchQ = simpleQ ? await toEnglishQuery(simpleQ) : '';
-    const titleSearchQ = titleQ ? await toEnglishQuery(titleQ) : '';
+    const titleSearchQ  = titleQ  ? await toEnglishQuery(titleQ)  : '';
     const authorSearchQ = authorQ ? await toEnglishQuery(authorQ) : '';
     const results = [];
 
+    const normSimple = simpleSearchQ ? normalizeForSearch(simpleSearchQ) : '';
+    const normTitleQ = titleSearchQ  ? normalizeForSearch(titleSearchQ)  : '';
+    const normAuthorQ= authorSearchQ ? normalizeForSearch(authorSearchQ) : '';
+    const tokensSimple = simpleSearchQ ? makeSearchTokens(simpleSearchQ).map(t => normalizeForSearch(t)).filter(Boolean) : [];
+    const tokensTitle  = titleSearchQ  ? makeSearchTokens(titleSearchQ).map(t => normalizeForSearch(t)).filter(Boolean)  : [];
+    const tokensAuthor = authorSearchQ ? makeSearchTokens(authorSearchQ).map(t => normalizeForSearch(t)).filter(Boolean) : [];
+
     for (const book of gutenberg_catalog) {
+        const nt = book._normTitle || '';
+        const nas = book._normAuthors || [];
         let score = 0;
         if (simpleQ) {
-            const ts = lenientScore(book.title, simpleSearchQ);
+            const ts = lenientScoreNorm(nt, normSimple, tokensSimple);
             let as = 0;
-            for (const a of book.authors) {
-                as = Math.max(as, lenientScore(a, simpleSearchQ));
-            }
+            for (const na of nas) as = Math.max(as, lenientScoreNorm(na, normSimple, tokensSimple));
             score = Math.max(ts, as);
         } else {
-            const ts = titleQ ? lenientScore(book.title, titleSearchQ) : null;
+            const ts = titleQ ? lenientScoreNorm(nt, normTitleQ, tokensTitle) : null;
             let as = null;
             if (authorQ) {
                 as = 0;
-                for (const a of book.authors) {
-                    as = Math.max(as, lenientScore(a, authorSearchQ));
-                }
+                for (const na of nas) as = Math.max(as, lenientScoreNorm(na, normAuthorQ, tokensAuthor));
             }
             if (ts !== null && ts === 0) continue;
             if (as !== null && as === 0) continue;
@@ -5870,16 +6114,30 @@ async function searchAozoraUnified(ctx) {
         if (!aozora_catalog_ready) return [];
     }
 
+    ensureAozoraCatalogNorm(aozora_catalog);
+
     const noQuery = !simpleQ && !titleQ && !authorQ;
     const results = [];
 
+    const normSimple = simpleQ ? normalizeForSearch(simpleQ) : '';
+    const normTitle  = titleQ  ? normalizeForSearch(titleQ)  : '';
+    const normAuthor = authorQ ? normalizeForSearch(authorQ) : '';
+    const tokensSimple = simpleQ ? makeSearchTokens(simpleQ).map(t => normalizeForSearch(t)).filter(Boolean) : [];
+    const tokensTitle  = titleQ  ? makeSearchTokens(titleQ).map(t => normalizeForSearch(t)).filter(Boolean)  : [];
+    const tokensAuthor = authorQ ? makeSearchTokens(authorQ).map(t => normalizeForSearch(t)).filter(Boolean) : [];
+
     for (const it of aozora_catalog) {
+        const nt = it._normTitle || '';
+        const na = it._normAuthor || '';
         let score = 0;
         if (simpleQ) {
-            score = Math.max(lenientScore(it.title, simpleQ), lenientScore(it.personName, simpleQ));
+            score = Math.max(
+                lenientScoreNorm(nt, normSimple, tokensSimple),
+                lenientScoreNorm(na, normSimple, tokensSimple)
+            );
         } else if (titleQ || authorQ) {
-            const ts = titleQ ? lenientScore(it.title, titleQ) : null;
-            const as = authorQ ? lenientScore(it.personName, authorQ) : null;
+            const ts = titleQ ? lenientScoreNorm(nt, normTitle, tokensTitle) : null;
+            const as = authorQ ? lenientScoreNorm(na, normAuthor, tokensAuthor) : null;
             if (ts !== null && ts === 0) continue;
             if (as !== null && as === 0) continue;
             score = Math.max(ts || 0, as || 0);
@@ -5903,11 +6161,16 @@ async function searchAozoraUnified(ctx) {
             year: null,
             category: null,
             safe: true,
-            available: available,
+            available,
             unavailableNote: available ? null : '本文未公開（図書カードのみ）',
             raw: it
         };
     });
+}
+
+function escapeSolr(s) {
+    // Solr の特殊文字をバックスラッシュエスケープ
+    return String(s).replace(/([+\-!(){}\[\]^"~*?:\\/]|&&|\|\|)/g, '\\$1');
 }
 
 async function searchInternetArchiveAll(query, yearRange) {
@@ -5927,7 +6190,7 @@ async function searchInternetArchiveAll(query, yearRange) {
         q += ` OR collection:(scholar)`;
         q += ` OR rights:(*public domain*)`;
         q += `)`;
-        if (query && query.trim()) q = `(${query}) AND ` + q;
+        if (query && query.trim()) q = `(${escapeSolr(query)}) AND ` + q;
 
         if (yearRange) {
             let from = '', to = '';
@@ -6634,12 +6897,21 @@ async function searchArxivUnified(ctx) {
 }
 
 function detectWikisourceLangs(query) {
-    if (/[\u3040-\u309f\u30a0-\u30ff]/.test(query)) return ['ja'];
-    if (/[\uac00-\ud7af]/.test(query)) return ['ko'];
-    if (/[\u0400-\u04ff]/.test(query)) return ['ru'];
-    if (/[\u0600-\u06ff]/.test(query)) return ['fa', 'ar'];
-    if (/[\u0590-\u05ff]/.test(query)) return ['he'];
-    if (/[\u4e00-\u9fff]/.test(query)) return ['zh'];
+    const hasKana     = /[\u3040-\u309f\u30a0-\u30ff]/.test(query);
+    const hasKanji    = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(query);
+    const hasHangul   = /[\uac00-\ud7af]/.test(query);
+    const hasCyrillic = /[\u0400-\u04ff]/.test(query);
+    const hasArabic   = /[\u0600-\u06ff]/.test(query);
+    const hasHebrew   = /[\u0590-\u05ff]/.test(query);
+
+    // かな → 日本語確定
+    if (hasKana)     return ['ja'];
+    if (hasHangul)   return ['ko'];
+    if (hasCyrillic) return ['ru'];
+    if (hasArabic)   return ['fa', 'ar'];
+    if (hasHebrew)   return ['he'];
+    // 漢字のみ → 日本語・中国語の両方を並列検索
+    if (hasKanji)    return ['ja', 'zh'];
     return ['en', 'fr', 'de'];
 }
 
@@ -6721,11 +6993,19 @@ async function searchWikisourceUnified(ctx) {
             seenIds.add(id);
             const isStub = (item.wordcount != null && item.wordcount < 30)
                         || (item.size != null && item.size < 300);
+            // タイトルから「作者名/作品名」形式を抜く（Wikisource 慣習）
+            let author = '';
+            let title = item.title;
+            const slashIdx = title.lastIndexOf('/');
+            if (slashIdx > 0 && slashIdx < title.length - 1) {
+                author = title.slice(0, slashIdx).trim();
+                title = title.slice(slashIdx + 1).trim();
+            }
             allResults.push({
                 source: 'wikisource',
                 id,
-                title: item.title,
-                author: '',
+                title,
+                author,
                 year: null,
                 category: null,
                 safe: true,
@@ -7096,7 +7376,6 @@ async function fetchGenpakuCatalog() {
                 genpaku_catalog_ready = true;
                 genpaku_catalog_loading = false;
                 hideHeaderSpinner();
-                console.log(`[genpaku-catalog] loaded from cache (${cached.value.length}件)`);
                 return;
             }
         }
@@ -7116,9 +7395,17 @@ async function fetchGenpakuCatalog() {
             await saveCacheToDB(GENPAKU_CATALOG_KEY, catalog);
         } catch (e) {}
         showToast(`杉田玄白カタログ読み込み完了（${catalog.length}件）`, 'success', 5000);
-        console.log(`[genpaku-catalog] loaded (${catalog.length}件)`);
     } catch (e) {
         console.warn('[genpaku-catalog] failed:', e);
+        try {
+            const cached2 = await getCacheFromDB(GENPAKU_CATALOG_KEY);
+            if (cached2 && cached2.value && cached2.value.length > 5) {
+                genpaku_catalog = cached2.value;
+                genpaku_catalog_ready = true;
+                showToast('杉田玄白カタログは古いキャッシュで動作します', 'warn', 6000);
+                return;
+            }
+        } catch (_) {}
         showToast('杉田玄白カタログの取得に失敗しました', 'warn', 8000);
     } finally {
         genpaku_catalog_loading = false;
@@ -7558,10 +7845,7 @@ function detectNDLAccessLevel(record) {
 }
 
 function escapeCQL(s) {
-    return String(s)
-        .replace(/\\/g, '\\\\')
-        .replace(/"/g, '\\"')
-        .replace(/'/g, "\\'");
+    return String(s).replace(/([\\"'()=<>*?^~{}\[\]])/g, '\\$1');
 }
 
 async function searchNDLAll(query) {
@@ -7617,8 +7901,7 @@ async function searchNDLAll(query) {
             });
 
             const withPid = records.filter(r => r.pid);
-            if (!withPid.length) break;
-            all.push(...withPid);
+            if (withPid.length) all.push(...withPid);
             if (records.length < recordsPerBatch) break;
         } catch (e) {
             break;
@@ -8641,9 +8924,11 @@ function applyTranslationToDom(book) {
     if (!is_showing_translation || !book.paragraphs) return;
     const flow = document.getElementById('reader-flow');
     const texts = book.translatedTexts || [];
+    const map = new Map();
+    flow.querySelectorAll('[data-pidx]').forEach(el => map.set(el.dataset.pidx, el));
     for (let i = 0; i < book.paragraphs.length; i++) {
         if (texts[i] == null) continue;
-        const el = flow.querySelector(`[data-pidx="${i}"]`);
+        const el = map.get(String(i));
         if (el && el.classList.contains('untranslated')) {
             el.textContent = texts[i];
             el.classList.remove('untranslated');
@@ -8662,6 +8947,9 @@ function updateBookshelfRowStatus(book) {
 }
 
 function formatTranslationStatus(book) {
+    // もともと日本語の作品は「翻訳対象外」
+    if (book.sourceLang === 'ja') return '—';
+
     if (book.translationStatus === 'translating') {
         const done = book.translationDone || 0;
         const total = book.translationTotal || (book.paragraphs ? book.paragraphs.length : 0);
@@ -8727,26 +9015,8 @@ async function saveBookmarkNow() {
     const bookmark = is_book_mode
         ? { isPageMode: true, pageIndex: ima_no_page, scrollTop: 0, scrollLeft: 0 }
         : { isPageMode: false, pageIndex: 0, scrollTop: rb.scrollTop, scrollLeft: rb.scrollLeft };
-
-    try {
-        await safeDBOp(['books'], 'readwrite', (tx, resolve, reject) => {
-            const store = tx.objectStore('books');
-            const rq = store.get(ima_yonderu_hon.id);
-            rq.onsuccess = () => {
-                const fresh = rq.result;
-                if (!fresh) { resolve(); return; }
-                fresh.bookmark = bookmark;
-                store.put(fresh);
-            };
-            rq.onerror = () => reject(rq.error);
-            tx.oncomplete = () => resolve();
-            tx.onerror = () => reject(tx.error);
-        });
-        ima_yonderu_hon.bookmark = bookmark;
-    } catch (e) {
-        console.warn('[bookmark] save failed:', e);
-        try { showToast('読書位置の保存に失敗しました', 'warn', 4000); } catch (_) {}
-    }
+    await updateBookFieldOnly(ima_yonderu_hon.id, 'bookmark', bookmark);
+    ima_yonderu_hon.bookmark = bookmark;
 }
 
 function restoreBookmark(bookObj) {
@@ -9060,16 +9330,13 @@ window.retryTranslation = retryTranslation;
 
 async function toggleFinished(bookId) {
     closeAllRowMenus();
-    try {
-        const b = await getBookFromDB(bookId);
-        if (!b) return;
-        if (b.finishedAt) delete b.finishedAt;
-        else b.finishedAt = new Date().toISOString();
-        await saveBookToDB(b);
-        loadBookshelf();
-    } catch (e) {
-        showToast('失敗: ' + e.message, 'error');
-    }
+    const b = await getBookFromDB(bookId);
+    if (!b) return;
+    await updateBookFieldOnly(
+        bookId, 'finishedAt',
+        b.finishedAt ? undefined : new Date().toISOString()
+    );
+    loadBookshelf();
 }
 window.toggleFinished = toggleFinished;
 
@@ -9173,17 +9440,11 @@ function toggleFavorite(bookId) {
         const rq = st.get(bookId);
         rq.onsuccess = () => {
             const b = rq.result;
-            if (!b) {
-                resolve();
-                return;
-            }
+            if (!b) { resolve(); return; }
             b.favorite = !b.favorite;
             st.put(b);
         };
-        tx.oncomplete = () => {
-            loadBookshelf();
-            resolve();
-        };
+        tx.oncomplete = () => { loadBookshelf(); resolve(); };
     }).catch(() => {});
 }
 window.toggleFavorite = toggleFavorite;
@@ -9365,8 +9626,8 @@ function openReader(bookObj) {
 
     if (is_book_mode) {
         requestAnimationFrame(() => {
-            computePageLayout(0);
-            restoreBookmark(bookObj);
+            pending_page_restore = (bookObj.bookmark && bookObj.bookmark.pageIndex) || 0;
+            computePageLayout(pending_page_restore);
         });
     } else {
         restoreBookmark(bookObj);
@@ -9376,7 +9637,7 @@ function openReader(bookObj) {
         const total = bookObj.translationTotal || bookObj.paragraphs.length;
         const done = bookObj.translationDone || 0;
         if (done < total && bookObj.sourceLang !== 'ja') {
-            active_translation_jobs[bookObj.id] = false;
+            // startBackgroundTranslation 側で二重起動チェック済み
             startBackgroundTranslation(bookObj.id);
         }
     }
@@ -9570,7 +9831,7 @@ function computePageLayout(keep) {
     zenbu_page_su = Math.max(1, Math.ceil((measured + gata_gap_haba) / step));
     const totalW = zenbu_page_su * contentW + (zenbu_page_su - 1) * gata_gap_haba;
     flow.style.columnWidth = `${contentW}px`;
-    flow.style.columnCount = String(zenbu_page_su);
+    flow.style.columnCount = '';
     flow.style.width = `${totalW}px`;
 
     let target = (typeof keep === 'number') ? keep : ima_no_page;
@@ -9770,18 +10031,12 @@ function maybeSuggestFinish() {
 }
 
 async function markAsFinished(bookId) {
-    try {
-        const b = await getBookFromDB(bookId);
-        if (!b) return;
-        b.finishedAt = new Date().toISOString();
-        await saveBookToDB(b);
-        if (ima_yonderu_hon && ima_yonderu_hon.id === bookId) {
-            ima_yonderu_hon.finishedAt = b.finishedAt;
-        }
-        showToast('読了にしました', 'success', 3000);
-    } catch (e) {
-        showToast('保存失敗: ' + e.message, 'error');
+    const now = new Date().toISOString();
+    await updateBookFieldOnly(bookId, 'finishedAt', now);
+    if (ima_yonderu_hon && ima_yonderu_hon.id === bookId) {
+        ima_yonderu_hon.finishedAt = now;
     }
+    showToast('読了にしました', 'success', 3000);
 }
 
 let _resizeTimer = null;
