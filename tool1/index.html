@@ -361,6 +361,22 @@ h1 {
     white-space: nowrap;
 }
 
+.source-cell-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.unavailable-mark {
+    color: #d9534f;
+    font-weight: bold;
+    font-size: 1.15em;
+    line-height: 1;
+    cursor: help;
+    user-select: none;
+}
+
 .id-cell { white-space: nowrap; }
 
 .id-cell-inner {
@@ -612,7 +628,7 @@ h1 {
 .bookshelf-filters {
     display: flex;
     gap: 12px;
-    max-width: 700px;
+    max-width: 900px;
     margin: 0 auto 16px auto;
     align-items: center;
     flex-wrap: wrap;
@@ -1232,6 +1248,26 @@ h1 {
 .detail-info-value a:hover { text-decoration: underline; }
 .detail-info-value .muted { opacity: .55; font-style: italic; }
 
+.detail-synopsis {
+    font-size: .88rem;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    background: rgba(0,0,0,.03);
+    padding: 10px 12px;
+    border-radius: 4px;
+    max-height: 400px;
+    overflow-y: auto;
+    word-break: break-word;
+    margin-bottom: 16px;
+}
+.detail-synopsis.loading {
+    opacity: .6;
+    font-style: italic;
+    text-align: center;
+    padding: 14px;
+}
+body.dark-mode .detail-synopsis { background: rgba(255,255,255,.05); }
+
 #about-modal {
     display: none;
     position: fixed;
@@ -1243,6 +1279,17 @@ h1 {
     padding: 16px;
 }
 #about-modal.active { display: flex; }
+#storage-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 9450;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+#storage-modal.active { display: flex; }
 .about-modal-box {
     background: var(--card-bg);
     color: var(--text-color);
@@ -1718,6 +1765,13 @@ h1 {
             <label>
                 <input type="checkbox" id="bookshelf-fav-only" onchange="loadBookshelf()"> お気に入りのみ
             </label>
+            <label>
+                <select id="bookshelf-finish-filter" class="detail-select" style="min-height:36px;min-width:120px;flex:0 0 auto;" onchange="loadBookshelf()">
+                    <option value="">すべて</option>
+                    <option value="unread">未読</option>
+                    <option value="read">読了</option>
+                </select>
+            </label>
             <button id="reprocess-all-btn" class="reprocess-all-btn" style="display:none;" onclick="handleReprocessAll()">要更新 0件</button>
         </div>
         <div id="bookshelf-status" class="status-msg"></div>
@@ -1770,6 +1824,10 @@ h1 {
         <button class="settings-announce-btn" onclick="openDiagnostics()">
             <span>接続・動作診断</span>
             <span style="opacity:.5;font-size:.85rem;">診断</span>
+        </button>
+        <button class="settings-announce-btn" onclick="openStorageInfo()">
+            <span>ストレージ使用量</span>
+            <span style="opacity:.5;font-size:.85rem;">確認</span>
         </button>
         <button class="settings-announce-btn" onclick="openAbout()">
             <span>このサイトについて</span>
@@ -1845,7 +1903,7 @@ h1 {
                 ・Project Runeberg: パブリックドメイン（北欧）<br>
                 ・PoetryDB / Faded Page: 著者没年チェック済み<br>
                 ・DOAJ / Zenodo / arXiv: オープンアクセス（URLを開く）<br>
-                ・NDL: 保護期間満了のみ<span id="ndl-status-suffix"></span><br>
+                ・NDL: 保護期間満了のみ（国会会議録は無条件PD）<span id="ndl-status-suffix"></span><br>
                 詳しくは「このサイトについて」をご確認ください。
             </div>
         </div>
@@ -1900,6 +1958,16 @@ h1 {
             <button class="about-modal-close" onclick="closeAbout()" aria-label="閉じる">×</button>
         </div>
         <div class="about-modal-body" id="about-modal-body"></div>
+    </div>
+</div>
+
+<div id="storage-modal" onclick="if(event.target===this) closeStorageInfo()">
+    <div class="about-modal-box">
+        <div class="about-modal-header">
+            <h3>ストレージ使用量</h3>
+            <button class="about-modal-close" onclick="closeStorageInfo()" aria-label="閉じる">×</button>
+        </div>
+        <div class="about-modal-body" id="storage-modal-body"></div>
     </div>
 </div>
 
@@ -1993,8 +2061,16 @@ const NDL_SELF_BLOCK_PUBLISHERS = new Set([
 const NDL_SELF_BLOCK_PROVIDERS = new Set([
     'カレントアウェアネス',
     '国立国会図書館リサーチ・ナビ',
-    'NDL-OPAC',
+    'NDL-OPAC'
+]);
+
+/* 無条件PD扱い（カテゴリ確認方式） */
+const NDL_UNCONDITIONAL_PD_PROVIDERS = new Set([
     '国会会議録'
+]);
+const NDL_UNCONDITIONAL_PD_DPIDS = new Set([
+    'kokkai',
+    'ndl-dl-open'
 ]);
 
 /* お知らせ運用ルール */
@@ -2057,6 +2133,7 @@ const ANNOUNCEMENTS = [
             'NDLの書誌データを、一括ダウンロードとSRU APIの2経路で利用できるようにしました。',
             '書誌メタデータのみを取り扱い、本文・画像は「保護期間満了」のもののみを対象とします。',
             '「許諾」「裁定」による公開や、NDL自身が発行した資料は取り扱いません。',
+            '※ 国会会議録は無条件PDとして通すようにしました。',
             '',
             '■ 通信の安定化',
             'CORSプロキシを複数化し、1つが落ちても別の経路で自動的に再試行します。',
@@ -2342,7 +2419,7 @@ const LIBRETRANSLATE_INSTANCES = [
     'https://translate.cutie.dating'
 ];
 
-/* CORSプロキシ（自前Workerのみ。priority小さいほど優先） */
+/* CORSプロキシ */
 const CORS_PROXIES = [
     { name: 'aoi', priority: 1, build: (u) => 'https://aoi-box-lab.idosenpai.workers.dev/?url=' + encodeURIComponent(u) }
 ];
@@ -2529,6 +2606,7 @@ let pending_page_restore = null;
 let readerHtmlCache = { bookId: null, original: null, translated: null };
 let is_book_mode = false;
 let readingDirection = 'ltr';
+let _finishSuggestedFor = null;
 
 let currentSearchResults = [];
 let currentSortField = 'relevance';
@@ -2872,6 +2950,10 @@ function escapeHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
+function escapeRegex(s) {
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /* ============================================================
    お知らせロジック
    ============================================================ */
@@ -3189,6 +3271,7 @@ async function saveTranslationProgress(bookId, updates) {
         if ('translationStatus' in updates) fresh.translationStatus = updates.translationStatus;
         if ('translationDone' in updates) fresh.translationDone = updates.translationDone;
         if ('translationTotal' in updates) fresh.translationTotal = updates.translationTotal;
+        if ('properNounDict' in updates) fresh.properNounDict = updates.properNounDict;
         if ('lastError' in updates) {
             if (updates.lastError == null) delete fresh.lastError;
             else fresh.lastError = updates.lastError;
@@ -3267,7 +3350,7 @@ function isBookOutdated(book) {
 }
 
 /* ============================================================
-   Wikipedia 経由の英題ルックアップ（ja→en）
+   Wikipedia 経由のタイトルルックアップ・あらすじ
    ============================================================ */
 async function lookupEnglishTitle(query) {
     const cacheKey = WIKI_TITLE_CACHE_PREFIX + query;
@@ -3356,29 +3439,179 @@ async function lookupJapaneseTitle(enTitle) {
     return null;
 }
 
-function detectQueryLang(query) {
-    if (/[\uac00-\ud7af]/.test(query)) return 'ko';
-    if (/[\u3040-\u309f\u30a0-\u30ff]/.test(query)) return 'ja';
-    if (/[\u0400-\u04ff]/.test(query)) return 'ru';
-    if (/[\u0600-\u06ff]/.test(query)) return 'ar';
-    if (/[\u0590-\u05ff]/.test(query)) return 'he';
-    if (/[\u4e00-\u9fff]/.test(query)) return 'zh';
+async function fetchWikipediaSynopsis(title, lang) {
+    if (!title || !title.trim()) return null;
+    const cleanTitle = String(title).replace(/[\s\u3000]+/g, ' ').trim();
+    if (!cleanTitle) return null;
+
+    const cacheKey = 'wiki_synopsis_v2:' + (lang || 'ja') + ':' + cleanTitle;
+    try {
+        const cached = await getCacheFromDB(cacheKey);
+        if (cached && cached.value) {
+            if (cached.value.disambig) return null;
+            return cached.value.text || null;
+        }
+    } catch (e) {}
+
+    try {
+        const host = (lang === 'ja') ? 'ja.wikipedia.org' : 'en.wikipedia.org';
+        const url = `https://${host}/w/api.php?action=query&titles=${encodeURIComponent(cleanTitle)}&prop=extracts|pageprops&exintro=1&explaintext=1&redirects=1&format=json&origin=*`;
+        const res = await politeFetch(url, {}, FETCH_TIMEOUT_API);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const pages = (data.query && data.query.pages) || {};
+        for (const p of Object.values(pages)) {
+            if (p.pageprops && 'disambiguation' in p.pageprops) {
+                try { await saveCacheToDB(cacheKey, { text: null, disambig: true }); } catch (e) {}
+                return null;
+            }
+            if (p.extract && p.extract.trim()) {
+                const text = p.extract.trim();
+                try { await saveCacheToDB(cacheKey, { text }); } catch (e) {}
+                return text;
+            }
+        }
+    } catch (e) {}
     return null;
 }
 
-async function toEnglishQuery(query) {
-    if (!query || !query.trim()) return query;
-    if (!/[^\x00-\x7F]/.test(query)) return query;
-
-    const srcLang = detectQueryLang(query) || 'ja';
-
-    if (srcLang === 'ja' && /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/.test(query)) {
-        const en = await lookupEnglishTitle(query);
-        if (en) return en;
+async function findWikipediaUrl(title, author, lang) {
+    if (!title) return null;
+    try {
+        const host = (lang === 'ja') ? 'ja.wikipedia.org' : 'en.wikipedia.org';
+        const sUrl = `https://${host}/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(title)}&srlimit=1&format=json&origin=*`;
+        const res = await politeFetch(sUrl, {}, FETCH_TIMEOUT_API);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const hits = (data.query && data.query.search) || [];
+        if (!hits.length) return null;
+        if (lenientScore(hits[0].title, title) < 200) return null;
+        return `https://${host}/wiki/${encodeURIComponent(hits[0].title.replace(/\s+/g, '_'))}`;
+    } catch (e) {
+        return null;
     }
-    const translated = await translateText(query, srcLang, 'en');
-    if (translated && translated !== query) return translated;
-    return query;
+}
+
+async function fetchAozoraCardInfo(workId, personId) {
+    if (!workId || !personId) return null;
+    const cacheKey = 'aozora_card_v1:' + workId;
+    try {
+        const c = await getCacheFromDB(cacheKey);
+        if (c && c.value) return c.value;
+    } catch (e) {}
+
+    const paddedPersonId = String(personId).padStart(6, '0');
+    const cardUrl = `https://www.aozora.gr.jp/cards/${paddedPersonId}/card${workId}.html`;
+
+    try {
+        const res = await smartFetch(cardUrl, {}, FETCH_TIMEOUT_PROXY_HEAVY);
+        if (!res.ok) return null;
+        const buf = await res.arrayBuffer();
+        const html = decodeJapaneseText(buf);
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+
+        let workNote = '';
+        const mainTextEl = doc.querySelector('.main_text');
+        if (mainTextEl) {
+            const t = mainTextEl.textContent.replace(/\s+/g, ' ').trim();
+            const m = t.match(/作品について\s*(.+)/);
+            workNote = m ? m[1].trim() : t;
+        }
+
+        let firstPublished = '';
+        let note = '';
+        const bodyText = doc.body ? doc.body.textContent.replace(/\s+/g, ' ') : '';
+        const fp = bodyText.match(/初出[：:]\s*([^。]+。?)/);
+        if (fp) firstPublished = fp[1].trim();
+        const nt = bodyText.match(/備考[：:]\s*([^。]+。?)/);
+        if (nt) note = nt[1].trim();
+
+        let authorYears = '';
+        const ay = bodyText.match(/\((\d{4})[-–—](\d{4})\)/);
+        if (ay) authorYears = `${ay[1]}-${ay[2]}`;
+
+        const result = {
+            workNote: workNote || null,
+            firstPublished: firstPublished || null,
+            note: note || null,
+            authorYears: authorYears || null,
+            cardUrl
+        };
+        try { await saveCacheToDB(cacheKey, result); } catch (e) {}
+        return result;
+    } catch (e) {
+        return null;
+    }
+}
+
+/* ============================================================
+   固有名詞辞書（Wikipedia言語間リンク）
+   ============================================================ */
+async function buildProperNounDict(paragraphs) {
+    if (!paragraphs || !paragraphs.length) return {};
+    const allText = paragraphs.map(p => p.text || '').join(' ').slice(0, 80000);
+
+    const candidates = new Set();
+    const re = /\b([A-Z][a-z]{2,}(?:\s+[A-Z]\.?)?\s+[A-Z][a-z]{2,})\b/g;
+    let m;
+    while ((m = re.exec(allText)) !== null) {
+        candidates.add(m[1].replace(/\s+/g, ' ').trim());
+    }
+
+    const freq = {};
+    for (const c of candidates) {
+        const n = (allText.match(new RegExp(`\\b${escapeRegex(c)}\\b`, 'g')) || []).length;
+        if (n >= 2) freq[c] = n;
+    }
+    const top = Object.entries(freq)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 30)
+        .map(([name]) => name);
+
+    const dict = {};
+    const queue = top.slice();
+    const worker = async () => {
+        while (queue.length) {
+            const name = queue.shift();
+            try {
+                const ja = await lookupJapaneseTitle(name);
+                if (ja && ja !== name && /[\u3040-\u30ff\u4e00-\u9fff]/.test(ja)) {
+                    dict[name] = ja;
+                }
+            } catch (e) {}
+        }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    return dict;
+}
+
+function protectProperNouns(text, dict) {
+    const placeholders = [];
+    let out = text;
+    const keys = Object.keys(dict).sort((a, b) => b.length - a.length);
+    for (const name of keys) {
+        const re = new RegExp(`\\b${escapeRegex(name)}\\b`, 'g');
+        out = out.replace(re, () => {
+            const idx = placeholders.length;
+            placeholders.push(dict[name]);
+            return `«PN${idx}»`;
+        });
+    }
+    return { text: out, placeholders };
+}
+
+function restoreProperNouns(text, placeholders) {
+    if (!placeholders.length) return text;
+    let out = text;
+    placeholders.forEach((ja, idx) => {
+        const patterns = [
+            new RegExp(`«\\s*PN${idx}\\s*»`, 'g'),
+            new RegExp(`«PN${idx}»`, 'g'),
+            new RegExp(`PN${idx}`, 'g')
+        ];
+        for (const re of patterns) out = out.replace(re, ja);
+    });
+    return out;
 }
 
 /* ============================================================
@@ -3843,7 +4076,8 @@ async function unifiedSearch({ query, filters, defaultSort }) {
         startedAt: Date.now(),
         perSource: {},
         totalRaw: 0,
-        finalCount: 0
+        finalCount: 0,
+        unavailableHits: 0
     };
     let completed = 0;
     let hits = 0;
@@ -3868,6 +4102,9 @@ async function unifiedSearch({ query, filters, defaultSort }) {
                 if (filters.year && !matchYear(r.year, filters.year)) continue;
                 if (filters.category && !matchCategory(r.category, filters.category)) continue;
                 seen.add(r.id);
+                if (r.available === false && lastSearchDebug) {
+                    lastSearchDebug.unavailableHits++;
+                }
                 currentSearchResults.push({
                     ...r,
                     relevance: computeRelevance(r, relevanceQuery)
@@ -4107,9 +4344,9 @@ function getSourceUrl(book) {
         case 'poetrydb': {
             const p = si.poem;
             if (p && p.author && p.title) {
-                return `https://poetrydb.org/title/${encodeURIComponent(p.title)}`;
+                return `https://poetrydb.org/author/${encodeURIComponent(p.author)}`;
             }
-            return '';
+            return 'https://poetrydb.org/';
         }
         case 'fadedpage': {
             if (si.bookid) return `https://www.fadedpage.com/showbook.php?pid=${si.bookid}`;
@@ -4149,6 +4386,51 @@ function _detailRow(label, value, cls) {
     return wrap;
 }
 
+async function loadSynopsisForDetail(r, el) {
+    if (r.synopsis) {
+        el.classList.remove('loading');
+        el.textContent = r.synopsis;
+        return;
+    }
+
+    const lang = /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9fff]/.test(r.title || '') ? 'ja' : 'en';
+
+    let text = null;
+    try {
+        text = await fetchWikipediaSynopsis(r.title, lang);
+    } catch (e) {}
+
+    if (!el.isConnected) return;
+    if (text) {
+        el.classList.remove('loading');
+        el.textContent = text;
+    }
+
+    if (r.source === 'aozora' && r.raw && r.raw.workId && r.raw.personId) {
+        try {
+            const card = await fetchAozoraCardInfo(r.raw.workId, r.raw.personId);
+            if (!el.isConnected) return;
+            if (card && (card.workNote || card.note || card.firstPublished)) {
+                const parts = [];
+                if (card.workNote) parts.push(card.workNote);
+                if (card.firstPublished) parts.push('【初出】' + card.firstPublished);
+                if (card.note) parts.push('【備考】' + card.note);
+                if (card.authorYears) parts.push('【著者】' + card.authorYears);
+                el.classList.remove('loading');
+                el.textContent = parts.join('\n\n');
+                r.synopsis = el.textContent;
+                return;
+            }
+        } catch (e) {}
+    }
+
+    if (!el.isConnected) return;
+    if (!text) {
+        el.classList.remove('loading');
+        el.textContent = '（あらすじはありません）';
+    }
+}
+
 function openSearchResultDetail(r) {
     const body = document.getElementById('detail-modal-body');
     if (!body) return;
@@ -4165,7 +4447,10 @@ function openSearchResultDetail(r) {
     body.appendChild(_detailRow('出典', source));
 
     const safetyEl = document.createElement('span');
-    if (r.safe) {
+    if (r.available === false) {
+        safetyEl.style.color = '#d9534f';
+        safetyEl.textContent = r.unavailableNote || '本文未公開';
+    } else if (r.safe) {
         safetyEl.style.color = '#4caf50';
         safetyEl.textContent = r.safetyNote || '保護期間内';
     } else {
@@ -4173,6 +4458,52 @@ function openSearchResultDetail(r) {
         safetyEl.textContent = r.safetyNote || '保護中';
     }
     body.appendChild(_detailRow('状態', safetyEl));
+
+    // 言語
+    let langCode = null;
+    if (r.raw) {
+        langCode = r.raw.lang
+                || (Array.isArray(r.raw.languages) && r.raw.languages[0])
+                || null;
+    }
+    if (langCode) {
+        body.appendChild(_detailRow('言語', LANGUAGE_NAMES[langCode] || langCode));
+    }
+
+    // 主題（Gutenberg）
+    if (Array.isArray(r.subjects) && r.subjects.length) {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;';
+        r.subjects.forEach(s => {
+            const chip = document.createElement('span');
+            chip.className = 'source-badge';
+            chip.style.fontSize = '.7rem';
+            chip.textContent = s;
+            wrap.appendChild(chip);
+        });
+        body.appendChild(_detailRow('主題', wrap));
+    }
+
+    // 冒頭プレビュー（PoetryDB）
+    if (r.source === 'poetrydb' && r.raw && Array.isArray(r.raw.lines)) {
+        const pre = document.createElement('div');
+        pre.className = 'detail-synopsis';
+        pre.style.fontStyle = 'italic';
+        pre.textContent = r.raw.lines.slice(0, 10).join('\n') +
+            (r.raw.lines.length > 10 ? '\n…' : '');
+        body.appendChild(_detailRow('冒頭', pre));
+    }
+
+    // あらすじ欄
+    const synLabel = document.createElement('div');
+    synLabel.className = 'detail-info-label';
+    synLabel.textContent = 'あらすじ';
+    const synBox = document.createElement('div');
+    synBox.className = 'detail-synopsis loading';
+    synBox.textContent = 'あらすじを取得中...';
+    body.appendChild(synLabel);
+    body.appendChild(synBox);
+
     body.appendChild(_detailRow('ID', r.id || '', 'is-mono'));
 
     const urlWrap = document.createElement('div');
@@ -4185,7 +4516,11 @@ function openSearchResultDetail(r) {
         urlWrap.appendChild(a);
         const note = document.createElement('div');
         note.style.cssText = 'font-size:.72rem;opacity:.7;margin-top:6px;color:#d9534f;line-height:1.5;';
-        note.textContent = '※ リンク先のサイトは不安定な場合があり、接続できないことがあります。';
+        if (r.available === false) {
+            note.textContent = '※ 本文は未公開です。図書カード／出典サイトでご確認ください。';
+        } else {
+            note.textContent = '※ リンク先のサイトは不安定な場合があり、接続できないことがあります。';
+        }
         urlWrap.appendChild(note);
     } else {
         const muted = document.createElement('span');
@@ -4196,6 +4531,23 @@ function openSearchResultDetail(r) {
     body.appendChild(_detailRow('対応URL', urlWrap));
 
     document.getElementById('detail-modal').classList.add('active');
+
+    loadSynopsisForDetail(r, synBox);
+
+    // Wikipedia リンク
+    (async () => {
+        const lang = /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9fff]/.test(title) ? 'ja' : 'en';
+        const wikiUrl = await findWikipediaUrl(title, r.author, lang);
+        if (!wikiUrl) return;
+        if (!body.isConnected) return;
+        const a = document.createElement('a');
+        a.href = wikiUrl;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.className = 'about-link';
+        a.textContent = wikiUrl;
+        body.appendChild(_detailRow('Wikipedia', a));
+    })();
 }
 window.openSearchResultDetail = openSearchResultDetail;
 
@@ -4248,15 +4600,26 @@ function getSearchResultUrl(r) {
             return '';
         }
         case 'poetrydb': {
-            if (raw.author && raw.title) {
-                return `https://poetrydb.org/title/${encodeURIComponent(raw.title)}`;
+            if (raw.author) {
+                return `https://poetrydb.org/author/${encodeURIComponent(raw.author)}`;
             }
-            return '';
+            return 'https://poetrydb.org/';
         }
         case 'fadedpage': {
             if (raw.bookid) return `https://www.fadedpage.com/showbook.php?pid=${raw.bookid}`;
             const m = String(r.id).match(/^fadedpage_([A-Za-z0-9]+)$/);
             return m ? `https://www.fadedpage.com/showbook.php?pid=${m[1]}` : '';
+        }
+        case 'genpaku': {
+            if (raw.workUrl) return raw.workUrl;
+            return '';
+        }
+        case 'doaj':
+        case 'zenodo':
+        case 'arxiv': {
+            if (raw.url) return raw.url;
+            if (raw.doi) return `https://doi.org/${raw.doi}`;
+            return '';
         }
     }
     return '';
@@ -4278,6 +4641,12 @@ function renderBookDetail(book) {
     body.appendChild(_detailRow('著者', author));
     body.appendChild(_detailRow('出典', source));
     body.appendChild(_detailRow('状態', st));
+    if (book.finishedAt) {
+        const fin = document.createElement('span');
+        fin.style.color = '#4caf50';
+        fin.textContent = '読了（' + new Date(book.finishedAt).toLocaleDateString('ja-JP') + '）';
+        body.appendChild(_detailRow('読了日', fin));
+    }
     body.appendChild(_detailRow('ID', book.id || '', 'is-mono'));
 
     const urlWrap = document.createElement('div');
@@ -4299,6 +4668,16 @@ function renderBookDetail(book) {
         urlWrap.appendChild(muted);
     }
     body.appendChild(_detailRow('対応URL', urlWrap));
+
+    // あらすじ欄
+    const synLabel = document.createElement('div');
+    synLabel.className = 'detail-info-label';
+    synLabel.textContent = 'あらすじ';
+    const synBox = document.createElement('div');
+    synBox.className = 'detail-synopsis loading';
+    synBox.textContent = 'あらすじを取得中...';
+    body.appendChild(synLabel);
+    body.appendChild(synBox);
 
     const paragraphs = book.paragraphs || [];
     const texts = book.translatedTexts || [];
@@ -4353,16 +4732,84 @@ function renderBookDetail(book) {
         transEl.textContent = '（翻訳データがありません）';
     }
     body.appendChild(_detailRow('翻訳データ', transEl));
+
+    // 非同期で synBox を埋める
+    (async () => {
+        const cached = (book.sourceInfo && book.sourceInfo.synopsis) || book.synopsis;
+        if (cached) {
+            synBox.classList.remove('loading');
+            synBox.textContent = cached;
+            return;
+        }
+        const lang = /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9fff]/.test(book.title || '') ? 'ja' : 'en';
+        let text = null;
+        try { text = await fetchWikipediaSynopsis(book.title, lang); } catch (e) {}
+
+        if (!synBox.isConnected) return;
+        if (text) {
+            synBox.classList.remove('loading');
+            synBox.textContent = text;
+        }
+
+        if (book.source === 'aozora' && book.sourceInfo &&
+            book.sourceInfo.workId && book.sourceInfo.personId) {
+            try {
+                const card = await fetchAozoraCardInfo(book.sourceInfo.workId, book.sourceInfo.personId);
+                if (!synBox.isConnected) return;
+                if (card && (card.workNote || card.note || card.firstPublished)) {
+                    const parts = [];
+                    if (card.workNote) parts.push(card.workNote);
+                    if (card.firstPublished) parts.push('【初出】' + card.firstPublished);
+                    if (card.note) parts.push('【備考】' + card.note);
+                    if (card.authorYears) parts.push('【著者】' + card.authorYears);
+                    synBox.classList.remove('loading');
+                    synBox.textContent = parts.join('\n\n');
+                    return;
+                }
+            } catch (e) {}
+        }
+
+        if (!synBox.isConnected) return;
+        if (!text) {
+            synBox.classList.remove('loading');
+            synBox.textContent = '（あらすじはありません）';
+        }
+    })();
+
+    // Wikipedia リンク
+    (async () => {
+        const lang = /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9fff]/.test(book.title || '') ? 'ja' : 'en';
+        const wikiUrl = await findWikipediaUrl(book.title, book.author, lang);
+        if (!wikiUrl) return;
+        if (!body.isConnected) return;
+        const a = document.createElement('a');
+        a.href = wikiUrl;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.className = 'about-link';
+        a.textContent = wikiUrl;
+        body.appendChild(_detailRow('Wikipedia', a));
+    })();
 }
 
 function renderUnifiedRow(r, tb) {
     const tr = document.createElement('tr');
 
     const tdS = document.createElement('td');
+    const srcInner = document.createElement('div');
+    srcInner.className = 'source-cell-inner';
     const badge = document.createElement('span');
     badge.className = 'source-badge';
     badge.textContent = sourceNameOf(r.source);
-    tdS.appendChild(badge);
+    srcInner.appendChild(badge);
+    if (r.available === false) {
+        const x = document.createElement('span');
+        x.className = 'unavailable-mark';
+        x.textContent = '×';
+        x.title = r.unavailableNote || '本文未公開';
+        srcInner.appendChild(x);
+    }
+    tdS.appendChild(srcInner);
 
     const tdT = document.createElement('td');
     tdT.textContent = r.title;
@@ -4383,7 +4830,37 @@ function renderUnifiedRow(r, tb) {
     tdM.appendChild(dotsBtn);
 
     const tdO = document.createElement('td');
-    if (r.safe) {
+    if (r.available === false) {
+        const btn = document.createElement('button');
+        btn.textContent = r.source === 'aozora' ? '図書カード'
+                        : r.source === 'internetarchive' ? 'アーカイブ'
+                        : r.source === 'wikisource' ? 'ページ'
+                        : 'サイト';
+        btn.style.cssText = 'color:#d9534f;border-color:#d9534f;background:none;';
+        btn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            const label = btn.textContent;
+            confirmExternalOpen(
+                r.title,
+                getSearchResultUrl(r),
+                `本文は未公開のため、${label}を開きますか？`
+            );
+        });
+        tdO.appendChild(btn);
+    } else if (r.source === 'genpaku') {
+        const btn = document.createElement('button');
+        btn.textContent = '開く';
+        btn.style.cssText = 'color:var(--accent-color);border-color:var(--accent-color);background:none;';
+        btn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            confirmExternalOpen(
+                r.title,
+                r.sourceUrl || (r.raw && r.raw.workUrl),
+                'この作品は外部サイトで公開されています。開きますか？'
+            );
+        });
+        tdO.appendChild(btn);
+    } else if (r.safe) {
         const btn = document.createElement('button');
         btn.textContent = '読む';
         btn.addEventListener('click', () => downloadFromUnified(r));
@@ -4410,33 +4887,65 @@ function renderUnifiedRow(r, tb) {
     tb.appendChild(tr);
 }
 
+function looksLikeDirectFile(url) {
+    if (!url) return false;
+    return /\.(txt|html?|epub|xhtml)(\?|#|$)/i.test(url) || url.includes('/download/');
+}
+
+async function tryDownloadWithFallback(r, downloadFn) {
+    try {
+        return await downloadFn();
+    } catch (e) {
+        const url = getSearchResultUrl(r);
+        const label = sourceNameOf(r.source);
+        const msg = (e && e.message) ? e.message : 'ダウンロード失敗';
+
+        if (!url || looksLikeDirectFile(url)) {
+            showToast(`${label}で開いてください：${msg}`, 'warn', 12000);
+            return null;
+        }
+        confirmExternalOpen(
+            r.title,
+            url,
+            `ダウンロードできませんでした（${msg.slice(0, 60)}）。${label}を開きますか？`
+        );
+        return null;
+    }
+}
+
 async function downloadFromUnified(r) {
+    if (r.available === false) {
+        const label = r.source === 'aozora' ? '図書カード'
+                    : r.source === 'internetarchive' ? 'Internet Archive'
+                    : r.source === 'wikisource' ? 'Wikisource'
+                    : '出典サイト';
+        confirmExternalOpen(
+            r.title,
+            getSearchResultUrl(r),
+            `本文は未公開のため、${label}を開きますか？`
+        );
+        return;
+    }
+
     if (appSettings.translationMode === 'data' && !DATA_MODE_SKIP_SOURCES.includes(r.source)) {
         try {
             showToast('既存の日本語訳を探しています...', 'info', 3000);
             const existing = await resolveExistingJapaneseTranslation(r);
             if (existing) {
                 if (existing.type === 'aozora') {
-                    showToast(
-                        `既存の日本語訳「${existing.item.title}」を使用します`,
-                        'info', 5000
-                    );
-                    return downloadAndSaveAozora(
-                        existing.item.workId,
-                        existing.item.personId,
-                        existing.item.title,
-                        existing.item.personName,
-                        existing.item.zipName || '',
-                        false
+                    showToast(`既存の日本語訳「${existing.item.title}」を使用します`, 'info', 5000);
+                    return tryDownloadWithFallback(r, () =>
+                        downloadAndSaveAozora(
+                            existing.item.workId, existing.item.personId,
+                            existing.item.title, existing.item.personName,
+                            existing.item.zipName || '', false
+                        )
                     );
                 }
                 if (existing.type === 'wikisource') {
-                    showToast(
-                        `Wikisource日本語版「${existing.title}」を使用します`,
-                        'info', 5000
-                    );
-                    return downloadAndSaveWikisource(
-                        existing.pageid, existing.title, 'ja', false
+                    showToast(`Wikisource日本語版「${existing.title}」を使用します`, 'info', 5000);
+                    return tryDownloadWithFallback(r, () =>
+                        downloadAndSaveWikisource(existing.pageid, existing.title, 'ja', false)
                     );
                 }
             }
@@ -4445,25 +4954,45 @@ async function downloadFromUnified(r) {
         }
     }
 
-    try {
-        switch (r.source) {
-            case 'gutenberg':       return downloadAndSaveGutenberg(r.raw.id);
-            case 'aozora':          return downloadAndSaveAozora(r.raw.workId, r.raw.personId, r.raw.title, r.raw.personName, r.raw.zipName || '');
-            case 'internetarchive': return downloadAndSaveInternetArchive(r.raw.identifier, r.raw.title, false);
-            case 'openlibrary':     return downloadAndSaveOpenLibrary(r.raw, false);
-            case 'ndl':             return downloadAndSaveNDL(r.raw.pid, r.raw.title, false);
-            case 'wikisource':      return downloadAndSaveWikisource(r.raw.pageid, r.raw.title, r.raw.lang, false);
-            case 'standardebooks':  return downloadAndSaveStandardEbooks(r.id, r.raw.epubUrl, r.title, r.author, false);
-            case 'runeberg':        return downloadAndSaveRuneberg(r.raw.href, r.title, false);
-            case 'poetrydb':        return downloadAndSavePoetryDB(r.raw, false);
-            case 'fadedpage':       return downloadAndSaveFadedPage(r.raw.bookid, r.title, r.author, false);
-            case 'genpaku':         return confirmExternalOpen(r.title, r.sourceUrl);
-            case 'doaj':            return confirmExternalOpen(r.title, r.raw.url);
-            case 'zenodo':          return confirmExternalOpen(r.title, r.raw.url);
-            case 'arxiv':           return confirmExternalOpen(r.title, r.raw.url);
-        }
-    } catch (e) {
-        showToast('ダウンロード開始失敗: ' + e.message, 'error');
+    switch (r.source) {
+        case 'gutenberg':
+            return tryDownloadWithFallback(r, () => downloadAndSaveGutenberg(r.raw.id));
+        case 'aozora':
+            return tryDownloadWithFallback(r, () =>
+                downloadAndSaveAozora(r.raw.workId, r.raw.personId, r.raw.title, r.raw.personName, r.raw.zipName || '')
+            );
+        case 'internetarchive':
+            return tryDownloadWithFallback(r, () =>
+                downloadAndSaveInternetArchive(r.raw.identifier, r.raw.title, false)
+            );
+        case 'openlibrary':
+            return tryDownloadWithFallback(r, () => downloadAndSaveOpenLibrary(r.raw, false));
+        case 'ndl':
+            return tryDownloadWithFallback(r, () => downloadAndSaveNDL(r.raw.pid, r.raw.title, false));
+        case 'wikisource':
+            return tryDownloadWithFallback(r, () =>
+                downloadAndSaveWikisource(r.raw.pageid, r.raw.title, r.raw.lang, false)
+            );
+        case 'standardebooks':
+            return tryDownloadWithFallback(r, () =>
+                downloadAndSaveStandardEbooks(r.id, r.raw.epubUrl, r.title, r.author, false)
+            );
+        case 'runeberg':
+            return tryDownloadWithFallback(r, () => downloadAndSaveRuneberg(r.raw.href, r.title, false));
+        case 'poetrydb':
+            return tryDownloadWithFallback(r, () => downloadAndSavePoetryDB(r.raw, false));
+        case 'fadedpage':
+            return tryDownloadWithFallback(r, () =>
+                downloadAndSaveFadedPage(r.raw.bookid, r.title, r.author, false)
+            );
+        case 'genpaku':
+            return confirmExternalOpen(
+                r.title, r.sourceUrl || (r.raw && r.raw.workUrl),
+                'この作品は外部サイトで公開されています。開きますか？'
+            );
+        case 'doaj':   return confirmExternalOpen(r.title, r.raw.url, 'この論文を外部サイトで開きますか？');
+        case 'zenodo': return confirmExternalOpen(r.title, r.raw.url, 'このレコードを外部サイトで開きますか？');
+        case 'arxiv':  return confirmExternalOpen(r.title, r.raw.url, 'この論文をarXivで開きますか？');
     }
 }
 
@@ -5025,7 +5554,6 @@ async function fetchStandardEbooksCatalog() {
     showHeaderSpinner();
 
     try {
-        // 1. IndexedDBキャッシュ（7日以内なら即返す）
         const cached = await getCacheFromDB(SE_CATALOG_KEY);
         if (cached && cached.value && cached.value.length > 100 && cached.savedAt) {
             const age = Date.now() - new Date(cached.savedAt).getTime();
@@ -5039,7 +5567,6 @@ async function fetchStandardEbooksCatalog() {
             }
         }
 
-        // 2. GistからJSONを取得
         const res = await fetchWithTimeout(SE_STATIC_CATALOG_URL, {}, 20000);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -5245,6 +5772,7 @@ async function searchGutenbergUnified(ctx) {
                 category: guessGutenbergCategory(book.subjects, null),
                 safe: true,
                 safetyNote: '保護期間内',
+                subjects: Array.isArray(book.subjects) ? book.subjects.slice(0, 8) : [],
                 raw: {
                     id: book.bookId,
                     authors: book.authors,
@@ -5314,6 +5842,7 @@ async function searchGutenbergUnified(ctx) {
             category: guessGutenbergCategory(book.subjects, null),
             safe: true,
             safetyNote: '保護期間内',
+            subjects: Array.isArray(book.subjects) ? book.subjects.slice(0, 8) : [],
             raw: {
                 id: book.bookId,
                 authors: book.authors,
@@ -5361,16 +5890,24 @@ async function searchAozoraUnified(ctx) {
     }
 
     results.sort((a, b) => b.score - a.score);
-    return results.slice(0, 1000).map(({ it }) => ({
-        source: 'aozora',
-        id: 'aozora_' + it.workId,
-        title: it.title,
-        author: it.personName,
-        year: null,
-        category: null,
-        safe: true,
-        raw: it
-    }));
+
+    const hasZipInfo = aozora_catalog.some(it => it.zipName && it.zipName.length > 0);
+
+    return results.slice(0, 1000).map(({ it }) => {
+        const available = hasZipInfo ? !!it.zipName : true;
+        return {
+            source: 'aozora',
+            id: 'aozora_' + it.workId,
+            title: it.title,
+            author: it.personName,
+            year: null,
+            category: null,
+            safe: true,
+            available: available,
+            unavailableNote: available ? null : '本文未公開（図書カードのみ）',
+            raw: it
+        };
+    });
 }
 
 async function searchInternetArchiveAll(query, yearRange) {
@@ -5407,7 +5944,7 @@ async function searchInternetArchiveAll(query, yearRange) {
         }
 
         p.append('q', q);
-        ['identifier', 'title', 'creator', 'date', 'language', 'downloads', 'licenseurl', 'collection', 'rights']
+        ['identifier', 'title', 'creator', 'date', 'language', 'downloads', 'licenseurl', 'collection', 'rights', 'access-restricted-item']
             .forEach(f => p.append('fl[]', f));
         p.append('rows', String(rowsPerPage));
         p.append('page', String(page));
@@ -5526,6 +6063,15 @@ async function searchIAUnified(ctx) {
                     : '著者不明のため判定不可';
             }
 
+            const collections = Array.isArray(item.collection)
+                ? item.collection
+                : (item.collection ? [item.collection] : []);
+            const isLendingOnly =
+                item['access-restricted-item'] === 'true'
+                || item['access-restricted-item'] === true
+                || collections.includes('inlibrary')
+                || collections.includes('printdisabled');
+
             return {
                 source: 'internetarchive',
                 id: 'ia_' + item.identifier,
@@ -5535,6 +6081,9 @@ async function searchIAUnified(ctx) {
                 category: null,
                 safe,
                 safetyNote,
+                available: !isLendingOnly,
+                unavailableNote: isLendingOnly ? '貸出限定（要Internet Archiveアカウント）' : null,
+                synopsis: (item.description || '').replace(/<[^>]+>/g, '').trim() || null,
                 raw: item
             };
         });
@@ -5905,7 +6454,7 @@ async function downloadAndSaveFadedPage(bookid, title, authorName, silent) {
             });
         }
 
-        if (!paras.length) throw new Error('本文抽出失敗');
+        if (!paras.length) throw new Error('本文HTMLが公開されていません（Faded Pageの作品ページでご確認ください）');
 
         const ch = paras.map(p => `<${p.tag}>${p.html}</${p.tag}>`).join('');
         const bd = {
@@ -5973,7 +6522,12 @@ async function searchDoajUnified(ctx) {
                 category: 'essay',
                 safe: true,
                 safetyNote: license ? `OA（${license}）` : 'OA',
-                raw: { doi: bj.doi, url: (bj.link && bj.link[0] && bj.link[0].url) || '' }
+                synopsis: bj.abstract || null,
+                raw: {
+                    doi: bj.doi,
+                    url: (bj.link && bj.link[0] && bj.link[0].url) || '',
+                    abstract: bj.abstract || ''
+                }
             });
         }
         return out;
@@ -6012,7 +6566,12 @@ async function searchZenodoUnified(ctx) {
                 category: 'essay',
                 safe: true,
                 safetyNote: license ? `OA（${license}）` : 'OA',
-                raw: { doi: md.doi, url: (h.links && h.links.self_html) || '' }
+                synopsis: (md.description || '').replace(/<[^>]+>/g, '').trim() || null,
+                raw: {
+                    doi: md.doi,
+                    url: (h.links && h.links.self_html) || '',
+                    description: md.description || ''
+                }
             });
         }
         return out;
@@ -6042,9 +6601,11 @@ async function searchArxivUnified(ctx) {
             const idEl = e.querySelector('id');
             const titleEl = e.querySelector('title');
             const pubEl = e.querySelector('published');
+            const sumEl = e.querySelector('summary');
             const id = (idEl ? idEl.textContent : '').trim();
             const title = (titleEl ? titleEl.textContent : '').trim().replace(/\s+/g, ' ');
             const published = (pubEl ? pubEl.textContent : '').trim();
+            const summary = (sumEl ? sumEl.textContent : '').trim().replace(/\s+/g, ' ');
             const authors = [...e.querySelectorAll('author > name')]
                 .map(n => (n.textContent || '').trim())
                 .filter(Boolean);
@@ -6061,7 +6622,8 @@ async function searchArxivUnified(ctx) {
                 category: 'essay',
                 safe: true,
                 safetyNote: 'arXiv（サイトで開く）',
-                raw: { url: abstractUrl }
+                synopsis: summary || null,
+                raw: { url: abstractUrl, summary }
             });
         });
         return out;
@@ -6157,6 +6719,8 @@ async function searchWikisourceUnified(ctx) {
             const id = 'wikisource_' + lang + '_' + item.pageid;
             if (seenIds.has(id)) continue;
             seenIds.add(id);
+            const isStub = (item.wordcount != null && item.wordcount < 30)
+                        || (item.size != null && item.size < 300);
             allResults.push({
                 source: 'wikisource',
                 id,
@@ -6165,6 +6729,8 @@ async function searchWikisourceUnified(ctx) {
                 year: null,
                 category: null,
                 safe: true,
+                available: !isStub,
+                unavailableNote: isStub ? '本文がほぼ空のページ（スタブ／曖昧さ回避）' : null,
                 raw: { ...item, lang }
             });
         }
@@ -7071,7 +7637,13 @@ async function searchNDLUnified(ctx) {
     try {
         const records = await searchNDLAll(q);
         return records
-            .filter(r => r.accessLevel === NDL_ACCESS_PUBLIC)
+            .filter(r => {
+                const prov = (r.provider || '').trim();
+                const dpid = (r.dpid || '').trim();
+                if (NDL_UNCONDITIONAL_PD_PROVIDERS.has(prov)) return true;
+                if (NDL_UNCONDITIONAL_PD_DPIDS.has(dpid)) return true;
+                return r.accessLevel === NDL_ACCESS_PUBLIC;
+            })
             .filter(r => {
                 const pub = (r.publisher || '').trim();
                 if (!pub) return true;
@@ -7080,13 +7652,14 @@ async function searchNDLUnified(ctx) {
             .filter(r => {
                 const prov = (r.provider || '').trim();
                 if (!prov) return true;
+                if (NDL_UNCONDITIONAL_PD_PROVIDERS.has(prov)) return true;
                 return !NDL_SELF_BLOCK_PROVIDERS.has(prov);
             })
             .filter(r => {
                 if (!NDL_COMMERCIAL_MODE) return true;
                 const dpid = (r.dpid || '').trim();
                 if (!dpid) return false;
-                return NDL_COMMERCIAL_OK_DPIDS.has(dpid);
+                return NDL_COMMERCIAL_OK_DPIDS.has(dpid) || NDL_UNCONDITIONAL_PD_DPIDS.has(dpid);
             })
             .map(r => ({
                 source: 'ndl',
@@ -7096,6 +7669,8 @@ async function searchNDLUnified(ctx) {
                 year: parseYear(r.date),
                 category: null,
                 safe: true,
+                available: true,
+                synopsis: r.description || null,
                 raw: r
             }));
     } catch (e) {
@@ -7570,6 +8145,20 @@ async function downloadAndSaveInternetArchive(identifier, titleHint, silent, ski
     try {
         const { url, meta } = await resolveIATextUrl(identifier);
         const md = meta.metadata || {};
+
+        // 貸出限定アイテムは本文DLしない
+        const collections = Array.isArray(md.collection)
+            ? md.collection
+            : (md.collection ? [md.collection] : []);
+        const isLendingOnly =
+            md['access-restricted-item'] === 'true'
+            || md['access-restricted-item'] === true
+            || collections.includes('inlibrary')
+            || collections.includes('printdisabled');
+        if (isLendingOnly && !skipPDCheck) {
+            throw new Error('貸出限定のため本文を保存できません（Internet Archiveで借りて読んでください）');
+        }
+
         const licenseSafe = isIAPublicDomain(md);
 
         const creators = Array.isArray(md.creator)
@@ -7603,7 +8192,6 @@ async function downloadAndSaveInternetArchive(identifier, titleHint, silent, ski
             };
         });
 
-        const anyKnownCopyrighted = judgments.some(a => a.deathYear && !a.safe);
         const allKnownPD = judgments.length > 0 && judgments.every(a => a.safe);
 
         if (!skipPDCheck && !allKnownPD) {
@@ -7680,6 +8268,7 @@ async function downloadAndSaveInternetArchive(identifier, titleHint, silent, ski
             sourceInfo: {
                 identifier,
                 licenseurl: md.licenseurl || null,
+                synopsis: (md.description || '').replace(/<[^>]+>/g, '').trim() || null,
                 authors: judgments.map(a => ({
                     name: a.name,
                     deathYear: a.deathYear,
@@ -7779,17 +8368,34 @@ async function translateChunk(text, source, target) {
     return { ok: false, error: '全翻訳APIが失敗しました' };
 }
 
-async function translateParagraph(text, source, target) {
+async function translateParagraph(text, source, target, dict) {
     if (!text || !text.trim()) return { ok: true, text };
-    if (text.length <= CHUNK_MAX_LEN) return await translateChunk(text, source, target);
-    const chunks = splitTextRoughly(text, CHUNK_MAX_LEN);
-    let combined = '';
-    for (const c of chunks) {
-        const r = await translateChunk(c, source, target);
-        if (!r.ok) return r;
-        combined += r.text;
+    let protectedData = null;
+    if (dict && Object.keys(dict).length && source !== 'ja') {
+        protectedData = protectProperNouns(text, dict);
     }
-    return { ok: true, text: combined, endpoint: 'chunked' };
+    const inputText = protectedData ? protectedData.text : text;
+
+    let result;
+    if (inputText.length <= CHUNK_MAX_LEN) {
+        result = await translateChunk(inputText, source, target);
+    } else {
+        const chunks = splitTextRoughly(inputText, CHUNK_MAX_LEN);
+        let combined = '';
+        let failed = null;
+        for (const c of chunks) {
+            const r = await translateChunk(c, source, target);
+            if (!r.ok) { failed = r; break; }
+            combined += r.text;
+        }
+        if (failed) result = failed;
+        else result = { ok: true, text: combined, endpoint: 'chunked' };
+    }
+
+    if (result.ok && protectedData) {
+        result.text = restoreProperNouns(result.text, protectedData.placeholders);
+    }
+    return result;
 }
 
 function buildBidirectionalQueue(total) {
@@ -7886,6 +8492,22 @@ async function startBackgroundTranslation(bookId) {
             return;
         }
 
+        // 固有名詞辞書（未構築時のみ）
+        if (book.sourceLang && book.sourceLang !== 'ja' && !book.properNounDict) {
+            try {
+                const dictPromise = buildProperNounDict(book.paragraphs);
+                const dict = await Promise.race([
+                    dictPromise,
+                    sleep(10000).then(() => null)
+                ]);
+                if (dict && Object.keys(dict).length) {
+                    book.properNounDict = dict;
+                    await saveTranslationProgress(bookId, { properNounDict: dict });
+                }
+            } catch (e) {}
+        }
+        const dict = book.properNounDict || null;
+
         const srcLang = book.sourceLang || 'en';
         const tgtLang = book.targetLang || 'ja';
         book.translationStatus = 'translating';
@@ -7912,7 +8534,7 @@ async function startBackgroundTranslation(bookId) {
                 let lastErr = '';
                 for (let attempt = 0; attempt < MAX_RETRY_PER_PARAGRAPH; attempt++) {
                     if (translation_generation[bookId] !== myGen) return;
-                    const r = await translateParagraph(book.paragraphs[idx].text, srcLang, tgtLang);
+                    const r = await translateParagraph(book.paragraphs[idx].text, srcLang, tgtLang, dict);
                     if (translation_generation[bookId] !== myGen) return;
                     if (r.ok) {
                         book.translatedTexts[idx] = r.text;
@@ -8261,6 +8883,7 @@ function loadBookshelf() {
 
     const filter = (document.getElementById('bookshelf-search').value || '').trim().toLowerCase();
     const favOnly = document.getElementById('bookshelf-fav-only').checked;
+    const finishFilter = (document.getElementById('bookshelf-finish-filter') || {}).value || '';
 
     safeDBOp(['books'], 'readonly', (tx, resolve, reject) => {
         const rq = tx.objectStore('books').getAll();
@@ -8276,6 +8899,8 @@ function loadBookshelf() {
 
             let filtered = bks;
             if (favOnly) filtered = filtered.filter(b => b.favorite);
+            if (finishFilter === 'unread') filtered = filtered.filter(b => !b.finishedAt);
+            if (finishFilter === 'read')   filtered = filtered.filter(b => !!b.finishedAt);
             if (filter) {
                 filtered = filtered.filter(b => {
                     const tt = (b.title || '').toLowerCase();
@@ -8350,6 +8975,15 @@ function loadBookshelf() {
                     ub.textContent = '要更新';
                     tdStatus.appendChild(ub);
                 }
+                if (b.finishedAt) {
+                    const fb = document.createElement('span');
+                    fb.className = 'source-badge';
+                    fb.style.background = 'rgba(76,175,80,.15)';
+                    fb.style.color = '#4caf50';
+                    fb.textContent = '読了';
+                    fb.style.marginRight = '6px';
+                    tdStatus.appendChild(fb);
+                }
                 const stBadge = document.createElement('span');
                 stBadge.className = 'trans-badge ' + stCls;
                 stBadge.setAttribute('data-status-for', b.id);
@@ -8381,6 +9015,10 @@ function loadBookshelf() {
                 };
 
                 menuEl.appendChild(mkItem('詳細', () => openBookDetail(b.id)));
+                menuEl.appendChild(mkItem(
+                    b.finishedAt ? '未読に戻す' : '読了にする',
+                    () => toggleFinished(b.id)
+                ));
                 if (outdated) menuEl.appendChild(mkItem('新形式で再処理', () => handleReprocessOne(b.id)));
                 if (incomplete) menuEl.appendChild(mkItem('翻訳を再開', () => retryTranslation(b.id)));
                 menuEl.appendChild(mkItem(b.favorite ? 'お気に入り解除' : 'お気に入りに追加', () => toggleFavorite(b.id)));
@@ -8419,6 +9057,21 @@ async function retryTranslation(bookId) {
     loadBookshelf();
 }
 window.retryTranslation = retryTranslation;
+
+async function toggleFinished(bookId) {
+    closeAllRowMenus();
+    try {
+        const b = await getBookFromDB(bookId);
+        if (!b) return;
+        if (b.finishedAt) delete b.finishedAt;
+        else b.finishedAt = new Date().toISOString();
+        await saveBookToDB(b);
+        loadBookshelf();
+    } catch (e) {
+        showToast('失敗: ' + e.message, 'error');
+    }
+}
+window.toggleFinished = toggleFinished;
 
 function handleDragStart(ev, bookId) {
     drag_zaku_id = bookId;
@@ -8507,6 +9160,7 @@ document.addEventListener('click', (ev) => {
     if (ev.target && ev.target.closest && ev.target.closest('#external-open-modal')) return;
     if (ev.target && ev.target.closest && ev.target.closest('#diagnostics-modal')) return;
     if (ev.target && ev.target.closest && ev.target.closest('#about-modal')) return;
+    if (ev.target && ev.target.closest && ev.target.closest('#storage-modal')) return;
     closeAllRowMenus();
 });
 document.addEventListener('scroll', () => closeAllRowMenus(), true);
@@ -8693,6 +9347,7 @@ function openReader(bookObj) {
     ima_no_page = 0;
     pending_page_restore = null;
     is_showing_translation = false;
+    _finishSuggestedFor = null;
     document.getElementById('reading-title').textContent = bookObj.title;
     readingDirection = detectReadingDirection(bookObj);
     is_book_mode = (appSettings.viewMode === 'book');
@@ -8990,6 +9645,10 @@ function goToPage(i) {
     updatePageIndicator();
     scheduleBookmarkSave();
     playPageTurnEffect(direction);
+
+    if (ima_no_page >= zenbu_page_su - 1 && ima_yonderu_hon && !ima_yonderu_hon.finishedAt) {
+        maybeSuggestFinish();
+    }
 }
 
 document.getElementById('reader-body').addEventListener('click', (ev) => {
@@ -9055,6 +9714,10 @@ document.getElementById('reader-body').addEventListener('touchend', (e) => {
 document.getElementById('reader-body').addEventListener('scroll', () => {
     if (is_book_mode) return;
     scheduleBookmarkSave();
+    const rb = document.getElementById('reader-body');
+    if (rb.scrollHeight - rb.scrollTop - rb.clientHeight < 80) {
+        if (ima_yonderu_hon && !ima_yonderu_hon.finishedAt) maybeSuggestFinish();
+    }
 });
 
 document.addEventListener('keydown', (ev) => {
@@ -9075,6 +9738,51 @@ document.addEventListener('keydown', (ev) => {
         if (isLeft) turnPage(-1);
     }
 });
+
+function maybeSuggestFinish() {
+    if (!ima_yonderu_hon) return;
+    if (_finishSuggestedFor === ima_yonderu_hon.id) return;
+    _finishSuggestedFor = ima_yonderu_hon.id;
+
+    const c = document.getElementById('toast-container');
+    if (!c) return;
+    const el = document.createElement('div');
+    el.className = 'toast success';
+    el.style.pointerEvents = 'auto';
+    const span = document.createElement('span');
+    span.textContent = '読了にしますか？';
+    el.appendChild(span);
+    const yes = document.createElement('button');
+    yes.textContent = '読了';
+    yes.style.cssText = 'margin-left:10px;padding:4px 12px;border:1px solid var(--accent-color);background:var(--accent-color);color:#fff;border-radius:4px;cursor:pointer;font-size:.8rem;';
+    yes.addEventListener('click', async () => {
+        await markAsFinished(ima_yonderu_hon.id);
+        el.remove();
+    });
+    const no = document.createElement('button');
+    no.textContent = '×';
+    no.style.cssText = 'margin-left:6px;padding:4px 8px;border:none;background:none;color:inherit;cursor:pointer;';
+    no.addEventListener('click', () => el.remove());
+    el.appendChild(yes);
+    el.appendChild(no);
+    c.appendChild(el);
+    setTimeout(() => { if (el.isConnected) el.remove(); }, 15000);
+}
+
+async function markAsFinished(bookId) {
+    try {
+        const b = await getBookFromDB(bookId);
+        if (!b) return;
+        b.finishedAt = new Date().toISOString();
+        await saveBookToDB(b);
+        if (ima_yonderu_hon && ima_yonderu_hon.id === bookId) {
+            ima_yonderu_hon.finishedAt = b.finishedAt;
+        }
+        showToast('読了にしました', 'success', 3000);
+    } catch (e) {
+        showToast('保存失敗: ' + e.message, 'error');
+    }
+}
 
 let _resizeTimer = null;
 
@@ -9131,6 +9839,143 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+/* ============================================================
+   ストレージ情報
+   ============================================================ */
+async function openStorageInfo() {
+    closeSettings();
+    const m = document.getElementById('storage-modal');
+    const body = document.getElementById('storage-modal-body');
+    if (!m || !body) return;
+    m.classList.add('active');
+    body.innerHTML = '<div class="detail-synopsis loading">計測中...</div>';
+
+    let est = null;
+    try {
+        if (navigator.storage && navigator.storage.estimate) {
+            est = await navigator.storage.estimate();
+        }
+    } catch (e) {}
+
+    let bookCount = 0, cacheCount = 0;
+    let bookBytes = 0, cacheBytes = 0;
+    try {
+        const books = await getAllBooksFromDB();
+        bookCount = books.length;
+        for (const b of books) {
+            try { bookBytes += new Blob([JSON.stringify(b)]).size; } catch (e) {}
+        }
+    } catch (e) {}
+    try {
+        await safeDBOp(['cache'], 'readonly', (tx, resolve) => {
+            const st = tx.objectStore('cache');
+            const rq = st.openCursor();
+            rq.onsuccess = (e) => {
+                const cur = e.target.result;
+                if (!cur) return;
+                cacheCount++;
+                try { cacheBytes += new Blob([JSON.stringify(cur.value)]).size; } catch (_) {}
+                cur.continue();
+            };
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => resolve();
+        });
+    } catch (e) {}
+
+    const fmt = (n) => {
+        if (n < 1024) return n + ' B';
+        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+        if (n < 1024 * 1024 * 1024) return (n / 1024 / 1024).toFixed(2) + ' MB';
+        return (n / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+    };
+
+    const usage = est ? est.usage : null;
+    const quota = est ? est.quota : null;
+    const pct = (usage && quota) ? ((usage / quota) * 100).toFixed(1) : null;
+
+    body.innerHTML = `
+        <div class="about-section">
+            <h4>ブラウザ全体</h4>
+            <table class="about-table">
+                <tr><th>使用量</th><td>${usage != null ? fmt(usage) : '取得不可'}</td></tr>
+                <tr><th>上限</th><td>${quota != null ? fmt(quota) : '取得不可'}</td></tr>
+                <tr><th>使用率</th><td>${pct != null ? pct + ' %' : '—'}</td></tr>
+            </table>
+            ${usage == null ? '<div class="about-note warn">このブラウザは Storage API に対応していません。</div>' : ''}
+        </div>
+        <div class="about-section">
+            <h4>ヤマビコ内訳（概算）</h4>
+            <table class="about-table">
+                <tr><th>本棚</th><td>${bookCount}件 / ${fmt(bookBytes)}</td></tr>
+                <tr><th>キャッシュ</th><td>${cacheCount}件 / ${fmt(cacheBytes)}</td></tr>
+            </table>
+            <div class="about-note">
+                本棚の作品は消したくない場合はそのまま。キャッシュを消すと、次回検索時に再取得します。
+            </div>
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="reprocess-all-btn" style="background:#d9534f;border-color:#d9534f;" onclick="clearAllCache()">キャッシュを全消去</button>
+                <button class="reprocess-all-btn" style="background:var(--card-bg);color:var(--text-color);border-color:var(--border-color);" onclick="clearOldCache()">古いキャッシュのみ削除</button>
+            </div>
+        </div>
+    `;
+}
+
+async function clearAllCache() {
+    if (!confirm('キャッシュを全消去しますか？（本棚は残ります）')) return;
+    try {
+        await safeDBOp(['cache'], 'readwrite', (tx, resolve, reject) => {
+            tx.objectStore('cache').clear();
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
+        showToast('キャッシュを全消去しました', 'success');
+        openStorageInfo();
+    } catch (e) {
+        showToast('失敗: ' + e.message, 'error');
+    }
+}
+
+async function clearOldCache() {
+    try {
+        const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+        let deleted = 0;
+        await safeDBOp(['cache'], 'readwrite', (tx, resolve) => {
+            const st = tx.objectStore('cache');
+            const rq = st.openCursor();
+            rq.onsuccess = (e) => {
+                const cur = e.target.result;
+                if (!cur) return;
+                const v = cur.value;
+                const isCatalog = [CATALOG_CACHE_KEY, GUTENBERG_CATALOG_KEY, SE_CATALOG_KEY, GENPAKU_CATALOG_KEY].includes(v.key);
+                if (!isCatalog && v.savedAt && new Date(v.savedAt).getTime() < cutoff) {
+                    cur.delete();
+                    deleted++;
+                }
+                cur.continue();
+            };
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => resolve();
+        });
+        showToast(`古いキャッシュ ${deleted}件を削除しました`, 'success');
+        openStorageInfo();
+    } catch (e) {
+        showToast('失敗: ' + e.message, 'error');
+    }
+}
+
+function closeStorageInfo() {
+    const m = document.getElementById('storage-modal');
+    if (m) m.classList.remove('active');
+}
+
+window.openStorageInfo = openStorageInfo;
+window.closeStorageInfo = closeStorageInfo;
+window.clearAllCache = clearAllCache;
+window.clearOldCache = clearOldCache;
+
+/* ============================================================
+   診断
+   ============================================================ */
 const DIAGNOSTICS = [
     {
         id: 'wiki-lookup',
@@ -9238,6 +10083,9 @@ const DIAGNOSTICS = [
             lines.push('');
             lines.push('生の合計: ' + d.totalRaw + '件');
             lines.push('重複除外後: ' + d.finalCount + '件');
+            if (d.unavailableHits) {
+                lines.push('未公開（×付き）: ' + d.unavailableHits + '件');
+            }
 
             const status = d.finalCount > 0 ? 'ok' : 'warn';
             const msg = '生' + d.totalRaw + '件 → 最終' + d.finalCount + '件';
@@ -9335,7 +10183,13 @@ const DIAGNOSTICS = [
             if (aozora_catalog_loading) return { status: 'warn', msg: '読み込み中' };
             if (!aozora_catalog_ready) return { status: 'fail', msg: '未読み込み' };
             if (!aozora_catalog) return { status: 'fail', msg: 'null' };
-            return { status: 'ok', msg: aozora_catalog.length.toLocaleString() + '件' };
+            const withZip = aozora_catalog.filter(it => it.zipName && it.zipName.length).length;
+            return {
+                status: 'ok',
+                msg: aozora_catalog.length.toLocaleString() + '件',
+                detail: 'zipName あり: ' + withZip + '件\n'
+                      + '図書カードのみ（未公開）: ' + (aozora_catalog.length - withZip) + '件'
+            };
         }
     },
     {
@@ -9687,6 +10541,9 @@ window.closeDiagnostics = closeDiagnostics;
 window.runAllDiagnostics = runAllDiagnostics;
 window.runDiagnostic = runDiagnostic;
 
+/* ============================================================
+   About
+   ============================================================ */
 function renderAboutContent() {
     const body = document.getElementById('about-modal-body');
     if (!body) return;
@@ -9730,7 +10587,7 @@ function renderAboutContent() {
                 </tr>
                 <tr>
                     <td><a class="about-link" href="https://archive.org/" target="_blank" rel="noopener noreferrer">Internet Archive</a></td>
-                    <td>著者没年＋ライセンスを確認</td>
+                    <td>著者没年＋ライセンスを確認。貸出限定は保存しない</td>
                 </tr>
                 <tr>
                     <td><a class="about-link" href="https://openlibrary.org/" target="_blank" rel="noopener noreferrer">Open Library</a></td>
@@ -9770,7 +10627,7 @@ function renderAboutContent() {
                 </tr>
                 <tr>
                     <td><a class="about-link" href="https://ndlsearch.ndl.go.jp/" target="_blank" rel="noopener noreferrer">NDL（国立国会図書館）</a></td>
-                    <td>保護期間満了のみ（下記参照）</td>
+                    <td>保護期間満了のみ。国会会議録は無条件PD</td>
                 </tr>
             </table>
         </div>
@@ -9784,9 +10641,10 @@ function renderAboutContent() {
                 <tr><td>書誌データ（SRU API）</td><td>非営利は申請不要。営利はデータ提供機関ごとに条件が異なる</td></tr>
                 <tr><td>本文・画像（保護期間満了）</td><td>自由に利用可能</td></tr>
                 <tr><td>本文・画像（許諾・裁定）</td><td>NDLへの申請が必要。ヤマビコは対象外</td></tr>
+                <tr><td>国会会議録</td><td>無条件にPDとして扱う（カテゴリ確認方式）</td></tr>
             </table>
             <div class="about-note warn">
-                ヤマビコは、NDLの本文・画像のうち「保護期間満了」のもののみを対象としています。「許諾」「裁定」による公開は取り扱いません。
+                ヤマビコは、NDLの本文・画像のうち「保護期間満了」および「国会会議録」のみを対象としています。「許諾」「裁定」による公開は取り扱いません。
             </div>
             <div class="about-note warn">
                 NDLサーチAPIは、広告等で収益が発生する場合は営利目的と見なされ、利用申請が必要です。ヤマビコでは、広告収益が発生した時点でNDL機能を停止する設定になっています。
@@ -9794,9 +10652,16 @@ function renderAboutContent() {
         </div>
 
         <div class="about-section">
+            <h4>あらすじについて</h4>
+            <p>作品の詳細モーダルでは、Wikipedia の冒頭部から作品のあらすじを取得して表示します。青空文庫の作品については、図書カード（作品紹介）に記載された情報を優先します。</p>
+            <p>あらすじが取得できない場合は「あらすじはありません」と表示します。あらすじの正確性は保証されません。</p>
+        </div>
+
+        <div class="about-section">
             <h4>翻訳について</h4>
             <p>外国語作品の翻訳には、Lingva / LibreTranslate の公開インスタンスを利用しています。翻訳結果は機械翻訳であり、正確性は保証されません。</p>
             <p>「翻訳データ優先」モードでは、保存しようとしている作品に既存の日本語訳（青空文庫・Wikisource日本語版）がある場合、そちらを優先して保存します。</p>
+            <p>翻訳時、Wikipedia の言語間リンクを利用して固有名詞（人名・地名）を日本語に置換します。これにより、機械翻訳で人名が崩れるのを抑えます。</p>
         </div>
 
         <div class="about-section">
@@ -9805,7 +10670,7 @@ function renderAboutContent() {
             <table class="about-table">
                 <tr><th>項目</th><th>取り扱い</th></tr>
                 <tr><td>本棚のデータ</td><td>端末内（IndexedDB）にのみ保存。外部送信しません</td></tr>
-                <tr><td>読書位置・お気に入り</td><td>端末内にのみ保存。外部送信しません</td></tr>
+                <tr><td>読書位置・お気に入り・読了</td><td>端末内にのみ保存。外部送信しません</td></tr>
                 <tr><td>設定内容</td><td>端末内（localStorage）にのみ保存。外部送信しません</td></tr>
                 <tr><td>外部送信が発生する操作</td><td>作品の検索・ダウンロード・翻訳のみ</td></tr>
                 <tr><td>翻訳時の送信内容</td><td>翻訳対象の本文テキスト</td></tr>
@@ -9814,6 +10679,10 @@ function renderAboutContent() {
             </table>
             <div class="about-note">
                 検索時は、入力した検索語が各データソース（青空文庫、Gutenberg等）に送信されます。これは通常のWeb検索と同じ動作です。
+            </div>
+            <div class="about-note warn">
+                <strong>プライベートブラウジング（シークレットモード）では本棚機能を利用できません。</strong><br>
+                シークレットモードでは IndexedDB への保存が禁止されている、または終了時に自動削除されるため、保存した作品・読書位置・翻訳結果は失われます。検索・閲覧のみご利用ください。
             </div>
         </div>
 
@@ -9851,6 +10720,9 @@ function closeAbout() {
 window.openAbout = openAbout;
 window.closeAbout = closeAbout;
 
+/* ============================================================
+   起動
+   ============================================================ */
 window.onload = async () => {
     loadSettings();
     applyTheme(appSettings.theme);
@@ -9994,7 +10866,9 @@ Object.assign(window, {
     openSearchResultDetail,
     getSearchResultUrl,
     openDiagnostics, closeDiagnostics, runAllDiagnostics, runDiagnostic,
-    openAbout, closeAbout
+    openAbout, closeAbout,
+    openStorageInfo, closeStorageInfo, clearAllCache, clearOldCache,
+    toggleFinished
 });
 </script>
 </body>
