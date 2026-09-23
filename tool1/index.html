@@ -2232,6 +2232,28 @@ const NDL_UNCONDITIONAL_PD_DPIDS = new Set([
 /* お知らせ運用ルール */
 const ANNOUNCEMENTS = [
     {
+        id: 'ann_2026_09_23_01',
+        date: '2026-09-23',
+        title: '青空文庫のダウンロード不具合を修正しました',
+        showInBar: true,
+        body: [
+            '【今回の変更点】',
+            '',
+            '■ 青空文庫のダウンロード不具合',
+            '青空文庫カタログのZIPファイル名が正しく読み取れず、',
+            '「ファイルが公開されていません」というエラーで',
+            'ダウンロードに失敗する不具合を修正しました。',
+            '',
+            '・ZIPファイル名の抽出処理を全面的に見直しました',
+            '・カタログの階層が深い場合でも正しく取得します',
+            '',
+            '■ 反映方法',
+            '設定 →「ストレージ使用量」→「キャッシュを全消去」→ 再読み込み',
+            'でカタログが再取得され、ダウンロードできるようになります。'
+        ].join('\n'),
+        important: false
+    },
+    {
         id: 'ann_2026_09_22_02',
         date: '2026-09-22',
         title: '読書統計を追加しました',
@@ -2672,7 +2694,7 @@ const FETCH_TIMEOUT_API = 8000;
 const FETCH_TIMEOUT_BOOK = 90000;
 const FETCH_TIMEOUT_PROXY_HEAVY = 20000;
 const FETCH_TIMEOUT_PROXY_SEARCH = 15000;
-const CATALOG_CACHE_KEY = 'aozora_catalog_v3';
+const CATALOG_CACHE_KEY = 'aozora_catalog_v4';
 const AOZORA_TEXT_MIRROR = 'https://raw.githubusercontent.com/aozorahack/aozorabunko_text/master/cards';
 const BOOK_FORMAT_VERSION = 3;
 const SETTINGS_KEY = 'yamabiko_settings_v1';
@@ -5870,41 +5892,112 @@ async function fetchAozoraCatalog() {
         await saveCacheToDB(CATALOG_CACHE_KEY, catalog);
     } catch (e) {}
     hideHeaderSpinner();
-    showToast(`青空文庫カタログ読み込み完了（${catalog.length}件）`, 'success', 5000);
+    const withZip = catalog.filter(it => it.zipName).length;
+    showToast(`青空文庫カタログ読み込み完了（${catalog.length}件 / ZIP有 ${withZip}件）`, 'success', 5000);
+}
+
+/* ============================================================
+   ZIPファイル名抽出（全面的に書き直し）
+   ============================================================ */
+function pickZipFromString(s) {
+    if (typeof s !== 'string' || !s) return '';
+    if (s.includes('/files/')) {
+        const m = s.match(/\/([^\/"'?#]+\.zip)(?:[?#].*)?/i);
+        if (m) return m[1];
+    }
+    if (/\.zip(?:\?|#|$)/i.test(s)) {
+        const m = s.match(/([^\/"'?#\\\s]+\.zip)/i);
+        if (m) return m[1];
+    }
+    return '';
+}
+
+function pickZipFromAny(v, depth) {
+    if (!v) return '';
+    if (depth == null) depth = 0;
+    if (depth > 5) return '';
+    if (typeof v === 'string') return pickZipFromString(v);
+    if (Array.isArray(v)) {
+        for (const item of v) {
+            const r = pickZipFromAny(item, depth + 1);
+            if (r) return r;
+        }
+        return '';
+    }
+    if (typeof v === 'object') {
+        const subKeys = [
+            'filename', 'file_name', 'fileName', 'name',
+            'url', 'href', 'download_url', 'downloadUrl',
+            'zip', 'file', 'path'
+        ];
+        for (const k of subKeys) {
+            const sv = v[k];
+            if (typeof sv === 'string') {
+                const r = pickZipFromString(sv);
+                if (r) return r;
+            }
+        }
+        for (const k of Object.keys(v)) {
+            const sv = v[k];
+            if (sv && typeof sv === 'object') {
+                const r = pickZipFromAny(sv, depth + 1);
+                if (r) return r;
+            }
+        }
+    }
+    return '';
+}
+
+function deepFindZip(obj, depth) {
+    if (depth > 5 || !obj || typeof obj !== 'object') return '';
+    if (Array.isArray(obj)) {
+        for (const item of obj) {
+            const r = deepFindZip(item, depth + 1);
+            if (r) return r;
+        }
+        return '';
+    }
+    for (const k of Object.keys(obj)) {
+        const v = obj[k];
+        if (typeof v === 'string') {
+            const r = pickZipFromString(v);
+            if (r) return r;
+        }
+    }
+    for (const k of Object.keys(obj)) {
+        const v = obj[k];
+        if (v && typeof v === 'object') {
+            const r = deepFindZip(v, depth + 1);
+            if (r) return r;
+        }
+    }
+    return '';
 }
 
 function extractZipFilename(card) {
-    const checks = [
-        () => card.download && typeof card.download === 'string' ? card.download : null,
-        () => card.download && card.download.filename,
-        () => card.download && card.download.file,
-        () => card.download && card.download.zip,
-        () => card.zip && card.zip.filename,
-        () => card.zip_file,
-        () => card.filename,
-        () => card.file && card.file.filename,
-        () => card.title && card.title.download && card.title.download.filename,
-        () => card.title && card.title.zip_file,
-        () => card.title && card.title.file,
-        () => card.title && card.title.zip,
-        () => card.files && Array.isArray(card.files) && card.files[0] && (card.files[0].filename || card.files[0].name),
-        () => card.text_url,
-        () => card.url && typeof card.url === 'string' && card.url.includes('/files/') ? card.url : null
+    if (!card || typeof card !== 'object') return '';
+
+    const directKeys = [
+        'download_url', 'downloadUrl', 'zip_url', 'zipUrl',
+        'zip_file', 'zipFile', 'zipname', 'zipName',
+        'filename', 'file_name', 'fileName', 'file', 'url'
     ];
-    for (const c of checks) {
-        try {
-            const v = c();
-            if (typeof v === 'string' && v.trim()) {
-                const s = v.trim();
-                if (s.includes('/files/')) {
-                    const m = s.match(/\/([^\/]+\.zip)(?:[?#].*)?$/i);
-                    if (m) return m[1];
-                }
-                if (/\.zip$/i.test(s)) return s;
-            }
-        } catch (e) {}
+    for (const k of directKeys) {
+        const v = card[k];
+        if (typeof v === 'string' && v.trim()) {
+            const r = pickZipFromString(v);
+            if (r) return r;
+        }
     }
-    return '';
+
+    const nestedKeys = ['download', 'zip', 'file', 'files', 'archive', 'data', 'title'];
+    for (const k of nestedKeys) {
+        const v = card[k];
+        const r = pickZipFromAny(v, 0);
+        if (r) return r;
+    }
+
+    return deepFindZip(card, 0) || '';
 }
 
 function parseAozoraCardJson(json) {
@@ -10912,8 +11005,9 @@ const DIAGNOSTICS = [
             if (!aozora_catalog_ready) return { status: 'fail', msg: '未読み込み' };
             if (!aozora_catalog) return { status: 'fail', msg: 'null' };
             const withZip = aozora_catalog.filter(it => it.zipName && it.zipName.length).length;
+            const status = withZip > 0 ? 'ok' : 'warn';
             return {
-                status: 'ok',
+                status,
                 msg: aozora_catalog.length.toLocaleString() + '件',
                 detail: 'zipName あり: ' + withZip + '件\n'
                       + '図書カードのみ（未公開）: ' + (aozora_catalog.length - withZip) + '件'
@@ -11278,7 +11372,7 @@ function renderAboutContent() {
 
     body.innerHTML = `
         <div class="about-note summary">
-            <strong>ヤマビコの著作権判定は「わからないものは保存しない」を基本方針としています。</strong>
+            <strong>ヤマビコの著作権判定は<br>「わからないものは保存しない」</strong>
         </div>
 
         <div class="about-section">
@@ -11504,8 +11598,7 @@ window.onload = async () => {
         try {
             const cached = await getCacheFromDB(CATALOG_CACHE_KEY);
             if (cached && cached.value && cached.value.length > 100
-                && typeof cached.value[0].zipName === 'string'
-                && cached.value[0].zipName.length > 0) {
+                && cached.value.some(it => it.zipName && it.zipName.length > 0)) {
                 return;
             }
             await fetchAozoraCatalog();
