@@ -91,10 +91,9 @@
     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
       <span style="color:#888;">モデル:</span>
       <select id="modelSelect">
-        <option value="onnx-community/whisper-base" selected>whisper-base（速い・軽い）</option>
-        <option value="onnx-community/whisper-small">whisper-small</option>
-        <option value="onnx-community/kotoba-whisper-v2.2-ONNX">kotoba-whisper-v2.2（日本語特化）</option>
-        <option value="onnx-community/whisper-large-v3-turbo">whisper-large-v3-turbo（高精度・重い）</option>
+        <option value="onnx-community/whisper-large-v3-turbo_timestamped" selected>whisper-large-v3-turbo_timestamped（最高精度・タイムスタンプ対応）</option>
+        <option value="onnx-community/whisper-small_timestamped">whisper-small_timestamped（軽量・タイムスタンプ対応）</option>
+        <option value="onnx-community/whisper-base_timestamped">whisper-base_timestamped（最軽量・タイムスタンプ対応）</option>
       </select>
       <span style="color:#888;">デバイス:</span>
       <select id="deviceSelect">
@@ -188,7 +187,7 @@ const freqCache = new Map();
 let db = null;
 let modelReady = false;
 
-// ★ メインスレッドで動かす（Worker無し）
+// ★ メインスレッドで動かす（Worker不使用 / iPad Safari対応）
 let transformersMod = null;
 let transcriber = null;
 let currentDevice = null;
@@ -379,7 +378,7 @@ function getResultDiv(ri, ei) {
 }
 
 // ============================================================
-// モデルロード（メインスレッド）
+// モデルロード（メインスレッド / timestampedモデル使用）
 // ============================================================
 $('initModel').onclick = async () => {
   const modelId = $('modelSelect').value;
@@ -450,7 +449,7 @@ $('initModel').onclick = async () => {
 };
 
 // ============================================================
-// 文字起こし（メインスレッド）
+// 文字起こし（メインスレッド / chunk_length_s=29 でタイムスタンプバグ回避）
 // ============================================================
 async function decodeToMono(arrayBuffer) {
   const actx = new AudioContext({ sampleRate: 16000 });
@@ -469,7 +468,7 @@ async function transcribeOne(arrayBuffer) {
     language: 'japanese',
     task: 'transcribe',
     return_timestamps: 'word',
-    chunk_length_s: 30,
+    chunk_length_s: 29,       // ★ 30 だとタイムスタンプが壊れる既知バグを回避
     stride_length_s: 5,
   });
   const dt = performance.now() - t0;
