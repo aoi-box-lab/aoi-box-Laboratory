@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>音声切り出し + 文字起こし + モーラ抽出 + F0分析</title>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js"></script>
+<style>
+  body { margin:0; font-family:-apple-system,system-ui,sans-serif; background:#1a1a1a; color:#e8e8e8; font-size:13px; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  h1 { font-size:16px; margin:0 0 12px; font-weight:600; }
+  h2 { font-size:13px; margin:0 0 8px; font-weight:600; color:#ccc; }
+  h3 { font-size:12px; margin:12px 0 4px; color:#888; }
+  .panel { background:#252525; border:1px solid #3a3a3a; border-radius:8px; padding:12px; margin-bottom:12px; }
+  #drop { border:2px dashed #3a3a3a; border-radius:8px; padding:28px; text-align:center; color:#888; cursor:pointer; transition:0.15s; }
+  #drop.hover { border-color:#5b9bd5; background:rgba(91,155,213,0.08); color:#e8e8e8; }
+  #drop strong { color:#e8e8e8; }
+  button { background:#333; color:#e8e8e8; border:1px solid #3a3a3a; border-radius:4px; padding:6px 10px; cursor:pointer; font-size:12px; }
+  button:hover { background:#3d3d3d; }
+  button.primary { background:#5b9bd5; border-color:#5b9bd5; color:#fff; }
+  button.danger { background:#5a2a2a; border-color:#7a3a3a; }
+  button:disabled { opacity:0.4; cursor:not-allowed; }
+  .small { font-size:11px; color:#888; }
+  .zipBlock { border:1px solid #3a3a3a; border-radius:6px; margin-bottom:10px; overflow:hidden; }
+  .zipHeader { background:#1f1f1f; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; }
+  .zipHeader .name { font-weight:600; }
+  .zipHeader .meta { color:#888; font-size:11px; }
+  .entry { padding:8px 12px 8px 24px; border-top:1px solid #2e2e2e; font-size:12px; }
+  .entry:hover { background:#2a2a2a; }
+  .entry .top { display:flex; justify-content:space-between; align-items:center; }
+  .entry .path { word-break:break-all; color:#ccc; }
+  .entry .size { color:#888; font-size:11px; margin-left:12px; white-space:nowrap; }
+  .entry .actions { margin-top:6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .entry .result { margin-top:8px; padding:8px 10px; background:#1a1a1a; border:1px solid #2e2e2e; border-radius:4px; color:#ddd; font-size:12px; line-height:1.6; display:none; }
+  .entry .result.show { display:block; }
+  .entry .result .label { color:#888; font-size:10px; display:block; margin-bottom:4px; }
+  .entry .result .hira { color:#7fd8a0; margin-top:4px; display:block; white-space:pre-wrap; }
+  .tsList { margin-top:6px; max-height:180px; overflow:auto; background:#111; border-radius:4px; padding:6px 8px; }
+  .tsRow { display:flex; gap:10px; padding:2px 0; font-size:11px; border-bottom:1px solid #222; }
+  .tsRow:last-child { border-bottom:none; }
+  .tsRow .t { color:#5b9bd5; font-variant-numeric:tabular-nums; white-space:nowrap; min-width:60px; }
+  .tsRow .w { color:#ddd; word-break:break-all; }
+  .spin { display:inline-block; width:11px; height:11px; border:2px solid #555; border-top-color:#5b9bd5; border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:-1px; margin-right:5px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .progressBar { height:4px; background:#333; border-radius:2px; overflow:hidden; margin-top:6px; }
+  .progressBar > div { height:100%; background:#5b9bd5; width:0; transition:width 0.2s; }
+  select { background:#1a1a1a; color:#e8e8e8; border:1px solid #3a3a3a; border-radius:4px; padding:5px 8px; font-size:12px; }
+  table { width:100%; border-collapse: collapse; font-size:12px; }
+  th, td { padding:5px 8px; text-align:left; border-bottom:1px solid #2e2e2e; }
+  th { background:#1f1f1f; color:#888; font-weight:500; position:sticky; top:0; z-index:1; }
+  td.num { color:#bbb; font-variant-numeric: tabular-nums; }
+  .moraPicker { display:grid; grid-template-columns: repeat(auto-fill, 44px); gap:4px; }
+  .moraItem { display:flex; align-items:center; justify-content:center; background:#1a1a1a; border:1px solid #333; border-radius:4px; padding:4px 0; cursor:pointer; user-select:none; font-size:13px; color:#bbb; }
+  .moraItem.checked { background:#2a4a6a; border-color:#5b9bd5; color:#fff; }
+  .moraItem:hover { border-color:#5b9bd5; }
+  .moraGroup { margin-bottom:10px; }
+  .moraGroup h3 { font-size:11px; margin:0 0 4px; color:#888; font-weight:500; }
+  .moraResult { border:1px solid #3a3a3a; border-radius:6px; margin-bottom:8px; overflow:hidden; }
+  .moraResultHeader { background:#1f1f1f; padding:6px 12px; display:flex; justify-content:space-between; align-items:center; }
+  .moraResultHeader .m { font-size:16px; font-weight:600; color:#7fd8a0; }
+  .moraResultHeader .n { color:#888; font-size:11px; }
+  .moraInstance { display:flex; align-items:center; gap:10px; padding:6px 12px; border-top:1px solid #2e2e2e; font-size:11px; }
+  .moraInstance:hover { background:#2a2a2a; }
+  .moraInstance .src { color:#888; flex:1; word-break:break-all; }
+  .moraInstance .time { color:#5b9bd5; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .moraInstance audio { height:24px; max-width:180px; }
+  textarea.copyArea { width:100%; min-height:80px; max-height:240px; background:#111; color:#ddd; border:1px solid #3a3a3a; border-radius:4px; padding:8px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px; line-height:1.5; resize:vertical; }
+  .copyBtn { position:relative; }
+  .copyBtn.copied::after { content:'コピーしました'; position:absolute; top:-24px; left:50%; transform:translateX(-50%); background:#5b9bd5; color:#fff; padding:2px 8px; border-radius:3px; font-size:10px; white-space:nowrap; animation:fadeout 1.2s forwards; }
+  @keyframes fadeout { 0%,60%{opacity:1;} 100%{opacity:0;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>音声切り出し + 文字起こし + モーラ抽出 + F0分析</h1>
+
+  <div class="panel">
+    <div id="drop">
+      <div><strong>ZIPファイル</strong> をここにドロップ（複数可）</div>
+      <div class="small" style="margin-top:6px">またはクリックして選択</div>
+      <input type="file" id="file" accept=".zip,application/zip" multiple style="display:none">
+    </div>
+    <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <button id="downloadAll" class="primary">全ファイル一括DL（ZIP）</button>
+      <button id="clearDb" class="danger">IndexedDB全削除</button>
+      <span class="small" id="status"></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
+      <span style="color:#888;">モデル:</span>
+      <select id="modelSelect">
+        <option value="onnx-community/whisper-base" selected>whisper-base（速い・軽い）</option>
+        <option value="onnx-community/whisper-small">whisper-small</option>
+        <option value="onnx-community/kotoba-whisper-v2.2-ONNX">kotoba-whisper-v2.2（日本語特化）</option>
+        <option value="onnx-community/whisper-large-v3-turbo">whisper-large-v3-turbo（高精度・重い）</option>
+      </select>
+      <span style="color:#888;">デバイス:</span>
+      <select id="deviceSelect">
+        <option value="auto" selected>自動（WebGPU優先）</option>
+        <option value="webgpu">WebGPU</option>
+        <option value="wasm">WASM</option>
+      </select>
+      <button id="initModel" class="primary">モデルをロード</button>
+      <button id="transcribeAll">全ファイル一括文字起こし</button>
+      <span class="small" id="modelStatus"></span>
+    </div>
+    <div class="progressBar" id="modelProgressWrap" style="display:none;"><div id="modelProgress"></div></div>
+  </div>
+
+  <div class="panel">
+    <h2>モーラ抽出（文字起こし済みファイルが対象）</h2>
+    <div class="moraGroup"><h3>清音</h3><div class="moraPicker" data-group="clear"></div></div>
+    <div class="moraGroup"><h3>濁音・半濁音</h3><div class="moraPicker" data-group="daku"></div></div>
+    <div class="moraGroup"><h3>拗音</h3><div class="moraPicker" data-group="youon"></div></div>
+    <div class="moraGroup"><h3>その他</h3><div class="moraPicker" data-group="other"></div></div>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px;">
+      <button id="moraSelectAll">全選択</button>
+      <button id="moraSelectNone">全解除</button>
+      <button id="moraExtract" class="primary">モーラを抽出</button>
+      <button id="moraDownloadZip" class="primary">モーラ別に一括ZIP</button>
+      <button id="moraExportWebAudio" class="primary">Web Audio APIパッケージ書き出し</button>
+      <span class="small" id="moraStatus"></span>
+    </div>
+  </div>
+
+  <div id="result"></div>
+
+  <div class="panel" id="moraResultPanel" style="display:none;">
+    <h2>モーラ別結果</h2>
+    <div id="moraResult"></div>
+  </div>
+
+  <div class="panel" id="freqPanel" style="display:none;">
+    <h2>周波数分析（F0 / ピッチ）</h2>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+      <button id="freqAnalyze" class="primary">分析開始</button>
+      <button id="freqExportCsv">CSV書き出し</button>
+      <button id="freqCopyTable" class="copyBtn">テーブルをコピー</button>
+      <button id="freqCopyAll" class="copyBtn">全データをコピー</button>
+      <label>表示モーラ <select id="freqMoraSelect"></select></label>
+      <span class="small" id="freqStatus"></span>
+    </div>
+    <div style="max-height:300px; overflow:auto; border:1px solid #3a3a3a; border-radius:6px; margin-bottom:12px;">
+      <table id="freqTable">
+        <thead><tr>
+          <th>モーラ</th><th>n</th><th>平均 (Hz)</th><th>中央値</th>
+          <th>最頻値</th><th>最小</th><th>最大</th><th>範囲</th><th>標準偏差</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <h3>コピー用テキスト</h3>
+    <textarea id="freqCopyArea" class="copyArea" readonly></textarea>
+    <h3>F0分布（ヒストグラム）</h3>
+    <canvas id="freqHist" width="1000" height="220" style="width:100%; background:#111; border-radius:6px;"></canvas>
+    <h3>モーラ別 ボックスプロット</h3>
+    <canvas id="freqBox" width="1000" height="320" style="width:100%; background:#111; border-radius:6px;"></canvas>
+    <h3>サンプル別 F0散布</h3>
+    <canvas id="freqScatter" width="1000" height="280" style="width:100%; background:#111; border-radius:6px;"></canvas>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const $ = id => document.getElementById(id);
+const drop = $('drop');
+const fileInput = $('file');
+
+drop.onclick = () => fileInput.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('hover'); };
+drop.ondragleave = () => drop.classList.remove('hover');
+drop.ondrop = e => {
+  e.preventDefault();
+  drop.classList.remove('hover');
+  processFiles(e.dataTransfer.files);
+};
+fileInput.onchange = e => {
+  processFiles(e.target.files);
+  fileInput.value = '';
+};
+
+const results = [];
+const moraIndex = new Map();
+const freqCache = new Map();
+let db = null;
+let modelReady = false;
+
+// ★ メインスレッドで動かす（Worker無し）
+let transformersMod = null;
+let transcriber = null;
+let currentDevice = null;
+
+const DB_NAME = 'audio-transcriber';
+const DB_VERSION = 1;
+const STORE_ZIPS = 'zips';
+const STORE_ENTRIES = 'entries';
+
+try {
+  const req = indexedDB.open(DB_NAME, DB_VERSION);
+  req.onupgradeneeded = e => {
+    const d = e.target.result;
+    if (!d.objectStoreNames.contains(STORE_ZIPS)) d.createObjectStore(STORE_ZIPS, { keyPath: 'id' });
+    if (!d.objectStoreNames.contains(STORE_ENTRIES)) {
+      const s = d.createObjectStore(STORE_ENTRIES, { keyPath: 'id' });
+      s.createIndex('zipId', 'zipId', { unique: false });
+    }
+  };
+  req.onsuccess = e => { db = e.target.result; };
+  req.onerror = e => { console.warn('IndexedDB 使用不可:', e.target.error); };
+} catch (e) { console.warn('IndexedDB 例外:', e); }
+
+function idbPut(store, val) {
+  if (!db) return;
+  try {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(val);
+  } catch (e) {}
+}
+function idbClear(store) {
+  if (!db) return Promise.resolve();
+  return new Promise(res => {
+    try {
+      const tx = db.transaction(store, 'readwrite');
+      tx.objectStore(store).clear();
+      tx.oncomplete = () => res();
+      tx.onerror = () => res();
+    } catch (e) { res(); }
+  });
+}
+
+function decodeZipFileName(bytes) {
+  if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF)
+    return new TextDecoder('utf-8').decode(bytes.subarray(3));
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch (e) {}
+  try { return new TextDecoder('shift_jis', { fatal: true }).decode(bytes); } catch (e) {}
+  return new TextDecoder('utf-8').decode(bytes);
+}
+const MIME_MAP = { mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg', m4a:'audio/mp4', flac:'audio/flac', aac:'audio/aac', opus:'audio/opus', webm:'audio/webm' };
+const guessMime = n => MIME_MAP[n.split('.').pop().toLowerCase()] || 'application/octet-stream';
+const AUDIO_EXT = /\.(mp3|wav|ogg|m4a|flac|aac|opus|webm)$/i;
+function formatSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1024 / 1024).toFixed(2) + ' MB';
+}
+
+async function processFiles(fileList) {
+  const zips = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith('.zip'));
+  if (!zips.length) { alert('ZIPを選んでください'); return; }
+
+  results.length = 0;
+  $('result').innerHTML = '';
+  resetDerived();
+  $('status').innerHTML = '<span class="spin"></span>解凍中… 0 / ' + zips.length;
+
+  for (let i = 0; i < zips.length; i++) {
+    const f = zips[i];
+    $('status').innerHTML = '<span class="spin"></span>解凍中… ' + (i + 1) + ' / ' + zips.length + ' : ' + f.name;
+    await new Promise(r => setTimeout(r, 0));
+    try {
+      const t0 = performance.now();
+      const zip = await JSZip.loadAsync(f, { decodeFileName: decodeZipFileName });
+      const paths = [];
+      zip.forEach((path, entry) => {
+        if (entry.dir) return;
+        if (path.startsWith('__MACOSX/')) return;
+        if (path.split('/').some(p => p.startsWith('.'))) return;
+        paths.push({ path, entry });
+      });
+      const entries = [];
+      for (const { path, entry } of paths) {
+        const blob = await entry.async('blob');
+        const name = path.split('/').pop();
+        const arrayBuffer = await blob.arrayBuffer();
+        entries.push({
+          path, name, mime: guessMime(name), arrayBuffer,
+          size: arrayBuffer.byteLength,
+          transcript: null, chunks: null, hiragana: null,
+        });
+      }
+      entries.sort((a, b) => a.path.localeCompare(b.path, 'ja'));
+      const zipId = 'zip_' + Date.now() + '_' + i;
+      results.push({ zipId, zipName: f.name, entries, elapsed: performance.now() - t0 });
+
+      idbPut(STORE_ZIPS, { id: zipId, name: f.name, createdAt: Date.now(), entryCount: entries.length });
+      for (const e of entries) {
+        idbPut(STORE_ENTRIES, {
+          id: zipId + '::' + e.path, zipId, path: e.path, name: e.name, mime: e.mime,
+          data: e.arrayBuffer, size: e.size, transcript: null, chunks: null, hiragana: null,
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      results.push({ zipName: f.name, entries: [], error: err.message });
+    }
+  }
+  renderResults();
+  const total = results.reduce((n, r) => n + r.entries.length, 0);
+  $('status').textContent = '完了 — ' + results.length + ' ZIP / 合計 ' + total + ' ファイル';
+}
+
+function resetDerived() {
+  for (const arr of moraIndex.values()) {
+    for (const it of arr) { try { URL.revokeObjectURL(it.blobUrl); } catch (e) {} }
+  }
+  moraIndex.clear();
+  freqCache.clear();
+  const mr = $('moraResult'); if (mr) mr.innerHTML = '';
+  const mrp = $('moraResultPanel'); if (mrp) mrp.style.display = 'none';
+  const fp = $('freqPanel'); if (fp) fp.style.display = 'none';
+}
+
+function renderResults() {
+  const box = $('result'); box.innerHTML = '';
+  results.forEach((r, ri) => {
+    const block = document.createElement('div');
+    block.className = 'zipBlock';
+    const header = document.createElement('div');
+    header.className = 'zipHeader';
+    const nameEl = document.createElement('div'); nameEl.className = 'name'; nameEl.textContent = r.zipName;
+    const metaEl = document.createElement('div'); metaEl.className = 'meta';
+    if (r.error) metaEl.textContent = 'エラー: ' + r.error;
+    else {
+      const ts = r.entries.reduce((n, e) => n + e.size, 0);
+      metaEl.textContent = r.entries.length + ' ファイル / ' + formatSize(ts) + ' / ' + r.elapsed.toFixed(0) + 'ms';
+    }
+    header.appendChild(nameEl); header.appendChild(metaEl); block.appendChild(header);
+
+    r.entries.forEach((e, ei) => {
+      const row = document.createElement('div'); row.className = 'entry';
+      const top = document.createElement('div'); top.className = 'top';
+      const p = document.createElement('div'); p.className = 'path'; p.textContent = e.path;
+      const s = document.createElement('div'); s.className = 'size'; s.textContent = formatSize(e.size);
+      top.appendChild(p); top.appendChild(s); row.appendChild(top);
+
+      if (AUDIO_EXT.test(e.name)) {
+        const actions = document.createElement('div'); actions.className = 'actions';
+        const b = document.createElement('button');
+        b.textContent = '文字起こし';
+        b.disabled = true;
+        b.dataset.role = 'transcribe'; b.dataset.zip = ri; b.dataset.entry = ei;
+        b.onclick = () => transcribeEntry(ri, ei, b);
+        actions.appendChild(b);
+
+        const hb = document.createElement('button');
+        hb.textContent = 'ひらがな化';
+        hb.disabled = true;
+        hb.dataset.role = 'hiragana'; hb.dataset.zip = ri; hb.dataset.entry = ei;
+        hb.onclick = () => convertHiragana(ri, ei, hb);
+        actions.appendChild(hb);
+
+        row.appendChild(actions);
+        const rd = document.createElement('div');
+        rd.className = 'result'; rd.dataset.role = 'result';
+        row.appendChild(rd);
+      }
+      block.appendChild(row);
+    });
+    box.appendChild(block);
+  });
+  updateButtons();
+}
+function updateButtons() {
+  document.querySelectorAll('button[data-role="transcribe"]').forEach(b => { b.disabled = !modelReady; });
+  document.querySelectorAll('button[data-role="hiragana"]').forEach(b => {
+    const ri = +b.dataset.zip, ei = +b.dataset.entry;
+    b.disabled = !(results[ri] && results[ri].entries[ei] && results[ri].entries[ei].transcript);
+  });
+}
+function getButton(ri, ei, role) {
+  return document.querySelector('button[data-role="' + role + '"][data-zip="' + ri + '"][data-entry="' + ei + '"]');
+}
+function getResultDiv(ri, ei) {
+  const b = getButton(ri, ei, 'transcribe');
+  return b ? b.closest('.entry').querySelector('[data-role="result"]') : null;
+}
+
+// ============================================================
+// モデルロード（メインスレッド）
+// ============================================================
+$('initModel').onclick = async () => {
+  const modelId = $('modelSelect').value;
+  const device = $('deviceSelect').value;
+  modelReady = false;
+  updateButtons();
+  $('initModel').disabled = true;
+  $('modelSelect').disabled = true;
+  $('deviceSelect').disabled = true;
+  $('modelProgressWrap').style.display = 'block';
+  $('modelProgress').style.width = '0%';
+  $('modelStatus').innerHTML = '<span class="spin"></span>ライブラリ読込中…';
+  await new Promise(r => setTimeout(r, 50));
+
+  try {
+    if (!transformersMod) {
+      transformersMod = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.5');
+    }
+    const { pipeline, env } = transformersMod;
+    env.allowLocalModels = false;
+
+    const tryDevices = device === 'auto' ? ['webgpu', 'wasm'] : [device];
+    let lastErr = null;
+    let ok = false;
+    for (const dev of tryDevices) {
+      try {
+        $('modelStatus').innerHTML = '<span class="spin"></span>' + dev + ': 初期化中…';
+        await new Promise(r => setTimeout(r, 50));
+        transcriber = await pipeline('automatic-speech-recognition', modelId, {
+          device: dev,
+          dtype: dev === 'webgpu'
+            ? { encoder_model: 'fp16', decoder_model_merged: 'q4f16' }
+            : 'q8',
+          progress_callback: (p) => {
+            const pct = typeof p.progress === 'number' ? p.progress : 0;
+            const loaded = p.loaded ? (p.loaded / 1024 / 1024).toFixed(1) + 'MB' : '';
+            const total = p.total ? (p.total / 1024 / 1024).toFixed(1) + 'MB' : '';
+            $('modelProgress').style.width = pct + '%';
+            $('modelStatus').innerHTML = '<span class="spin"></span>' + dev + ': ' +
+              (p.file || p.status || '') + ' ' + pct.toFixed(0) + '% ' +
+              (loaded && total ? '(' + loaded + '/' + total + ')' : '');
+          },
+        });
+        currentDevice = dev;
+        ok = true;
+        break;
+      } catch (err) {
+        console.warn('device fail:', dev, err);
+        lastErr = err;
+        $('modelStatus').innerHTML = '<span class="spin"></span>' + dev + ' 失敗 → フォールバック中…';
+        await new Promise(r => setTimeout(r, 100));
+      }
+    }
+    if (!ok) throw lastErr || new Error('モデルのロードに失敗');
+
+    modelReady = true;
+    $('modelProgress').style.width = '100%';
+    $('modelStatus').textContent = 'ロード完了 (' + (currentDevice === 'webgpu' ? 'WebGPU' : 'WASM') + ')';
+    setTimeout(() => { $('modelProgressWrap').style.display = 'none'; }, 600);
+    updateButtons();
+  } catch (err) {
+    console.error(err);
+    $('modelStatus').textContent = 'エラー: ' + (err.message || err);
+    $('initModel').disabled = false;
+    $('modelSelect').disabled = false;
+    $('deviceSelect').disabled = false;
+  }
+};
+
+// ============================================================
+// 文字起こし（メインスレッド）
+// ============================================================
+async function decodeToMono(arrayBuffer) {
+  const actx = new AudioContext({ sampleRate: 16000 });
+  try {
+    const buf = await actx.decodeAudioData(arrayBuffer);
+    return new Float32Array(buf.getChannelData(0));
+  } finally {
+    try { await actx.close(); } catch (e) {}
+  }
+}
+
+async function transcribeOne(arrayBuffer) {
+  const audio = await decodeToMono(arrayBuffer);
+  const t0 = performance.now();
+  const out = await transcriber(audio, {
+    language: 'japanese',
+    task: 'transcribe',
+    return_timestamps: 'word',
+    chunk_length_s: 30,
+    stride_length_s: 5,
+  });
+  const dt = performance.now() - t0;
+  const chunks = (out.chunks || []).map(c => ({
+    text: c.text,
+    start: c.timestamp ? c.timestamp[0] : null,
+    end: c.timestamp ? c.timestamp[1] : null,
+  }));
+  return { text: (out.text || '').trim(), chunks, elapsedMs: dt, device: currentDevice };
+}
+
+async function transcribeEntry(ri, ei, btn) {
+  const e = results[ri].entries[ei];
+  if (!e || !modelReady) return;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>処理中…';
+  const rd = getResultDiv(ri, ei);
+  if (rd) { rd.classList.add('show'); rd.textContent = 'デコード中…'; }
+  await new Promise(r => setTimeout(r, 50));
+  try {
+    if (rd) rd.textContent = '推論中…（UIが固まる場合があります）';
+    await new Promise(r => setTimeout(r, 50));
+    const res = await transcribeOne(e.arrayBuffer.slice(0));
+    e.transcript = res.text;
+    e.chunks = res.chunks;
+    e.elapsedMs = res.elapsedMs;
+    e.device = res.device;
+    const zipId = results[ri].zipId;
+    if (zipId) {
+      idbPut(STORE_ENTRIES, {
+        id: zipId + '::' + e.path, zipId, path: e.path, name: e.name, mime: e.mime,
+        data: e.arrayBuffer, size: e.size,
+        transcript: res.text, chunks: res.chunks,
+      });
+    }
+    renderEntryResult(ri, ei);
+  } catch (err) {
+    console.error(err);
+    if (rd) rd.textContent = 'エラー: ' + (err.message || err);
+  }
+  btn.disabled = false;
+  btn.textContent = '文字起こし';
+  updateButtons();
+}
+
+$('transcribeAll').onclick = async () => {
+  if (!modelReady) { alert('先にモデルをロードしてください'); return; }
+  const targets = [];
+  results.forEach((r, ri) => r.entries.forEach((e, ei) => {
+    if (AUDIO_EXT.test(e.name) && !e.transcript) targets.push({ ri, ei });
+  }));
+  if (!targets.length) { alert('対象がありません'); return; }
+  if (!confirm(targets.length + ' ファイルを文字起こしします。よろしいですか？')) return;
+  $('transcribeAll').disabled = true;
+  try {
+    for (const t of targets) {
+      const e = results[t.ri].entries[t.ei];
+      if (!e || e.transcript) continue;
+      const rd = getResultDiv(t.ri, t.ei);
+      if (rd) { rd.classList.add('show'); rd.textContent = 'デコード中…'; }
+      await new Promise(r => setTimeout(r, 50));
+      try {
+        if (rd) rd.textContent = '推論中…';
+        await new Promise(r => setTimeout(r, 50));
+        const res = await transcribeOne(e.arrayBuffer.slice(0));
+        e.transcript = res.text;
+        e.chunks = res.chunks;
+        e.elapsedMs = res.elapsedMs;
+        e.device = res.device;
+        const zipId = results[t.ri].zipId;
+        if (zipId) {
+          idbPut(STORE_ENTRIES, {
+            id: zipId + '::' + e.path, zipId, path: e.path, name: e.name, mime: e.mime,
+            data: e.arrayBuffer, size: e.size,
+            transcript: res.text, chunks: res.chunks,
+          });
+        }
+        renderEntryResult(t.ri, t.ei);
+      } catch (err) {
+        console.error(err);
+        if (rd) rd.textContent = 'エラー: ' + (err.message || err);
+      }
+    }
+  } finally {
+    $('transcribeAll').disabled = false;
+    updateButtons();
+  }
+};
+
+function renderEntryResult(ri, ei) {
+  const e = results[ri].entries[ei];
+  const rd = getResultDiv(ri, ei);
+  if (!rd || !e) return;
+  rd.innerHTML = '';
+  rd.classList.add('show');
+  const lbl = document.createElement('span');
+  lbl.className = 'label';
+  const info = [];
+  if (e.device) info.push(e.device);
+  if (e.elapsedMs != null) info.push((e.elapsedMs / 1000).toFixed(2) + 's');
+  info.push((e.chunks ? e.chunks.length : 0) + ' chunks');
+  lbl.textContent = info.join(' / ');
+  rd.appendChild(lbl);
+  const txt = document.createElement('div');
+  txt.textContent = e.transcript || '(空)';
+  rd.appendChild(txt);
+  if (e.hiragana) {
+    const h = document.createElement('span');
+    h.className = 'hira';
+    h.textContent = '▼ ひらがな\n' + e.hiragana;
+    rd.appendChild(h);
+  }
+  if (e.chunks && e.chunks.length) {
+    const list = document.createElement('div');
+    list.className = 'tsList';
+    for (const c of e.chunks) {
+      const row = document.createElement('div');
+      row.className = 'tsRow';
+      const t = document.createElement('span'); t.className = 't';
+      t.textContent = (c.start != null ? c.start.toFixed(2) : '?') + '–' + (c.end != null ? c.end.toFixed(2) : '?');
+      const w = document.createElement('span'); w.className = 'w'; w.textContent = c.text;
+      row.appendChild(t); row.appendChild(w); list.appendChild(row);
+    }
+    rd.appendChild(list);
+  }
+}
+
+// ============================================================
+// ひらがな化
+// ============================================================
+let kuromojiTokenizer = null;
+let kuromojiLoading = null;
+function loadKuromoji() {
+  if (kuromojiTokenizer) return Promise.resolve(kuromojiTokenizer);
+  if (kuromojiLoading) return kuromojiLoading;
+  kuromojiLoading = new Promise((res, rej) => {
+    kuromoji.builder({ dicPath: 'https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict' })
+      .build((err, tk) => err ? rej(err) : (kuromojiTokenizer = tk, res(tk)));
+  });
+  return kuromojiLoading;
+}
+const katakanaToHiragana = s => s.replace(/[\u30A1-\u30F6]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+function toHiragana(text) {
+  const src = String(text || '');
+  if (!kuromojiTokenizer) return katakanaToHiragana(src);
+  try {
+    return kuromojiTokenizer.tokenize(src).map(t => katakanaToHiragana(t.reading || t.surface_form)).join('');
+  } catch (e) { return katakanaToHiragana(src); }
+}
+async function convertHiragana(ri, ei, btn) {
+  const e = results[ri].entries[ei];
+  if (!e || !e.transcript) return;
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>変換中…';
+  try {
+    await loadKuromoji();
+    e.hiragana = toHiragana(e.transcript);
+    const zipId = results[ri].zipId;
+    if (zipId) {
+      idbPut(STORE_ENTRIES, {
+        id: zipId + '::' + e.path, zipId, path: e.path, name: e.name, mime: e.mime,
+        data: e.arrayBuffer, size: e.size,
+        transcript: e.transcript, chunks: e.chunks, hiragana: e.hiragana,
+      });
+    }
+    renderEntryResult(ri, ei);
+  } catch (err) { alert('ひらがな変換失敗: ' + err.message); }
+  finally { btn.disabled = false; btn.textContent = 'ひらがな化'; }
+}
+
+// ============================================================
+// モーラ定義
+// ============================================================
+const MORA_GROUPS = {
+  clear: ['あ','い','う','え','お','か','き','く','け','こ','さ','し','す','せ','そ','た','ち','つ','て','と','な','に','ぬ','ね','の','は','ひ','ふ','へ','ほ','ま','み','む','め','も','や','ゆ','よ','ら','り','る','れ','ろ','わ','を','ん'],
+  daku: ['が','ぎ','ぐ','げ','ご','ざ','じ','ず','ぜ','ぞ','だ','ぢ','づ','で','ど','ば','び','ぶ','べ','ぼ','ぱ','ぴ','ぷ','ぺ','ぽ'],
+  youon: ['きゃ','きゅ','きょ','しゃ','しゅ','しょ','ちゃ','ちゅ','ちょ','にゃ','にゅ','にょ','ひゃ','ひゅ','ひょ','みゃ','みゅ','みょ','りゃ','りゅ','りょ','ぎゃ','ぎゅ','ぎょ','じゃ','じゅ','じょ','びゃ','びゅ','びょ','ぴゃ','ぴゅ','ぴょ'],
+  other: ['っ','ー','ゔ','ふぁ','ふぃ','ふぇ','ふぉ','てぃ','でぃ','うぇ','うぃ'],
+};
+const ALL_MORA = Object.values(MORA_GROUPS).flat();
+const selectedMora = new Set();
+function buildMoraPicker() {
+  for (const [group, list] of Object.entries(MORA_GROUPS)) {
+    const box = document.querySelector('.moraPicker[data-group="' + group + '"]');
+    if (!box) continue;
+    box.innerHTML = '';
+    for (const m of list) {
+      const el = document.createElement('div');
+      el.className = 'moraItem';
+      el.textContent = m;
+      el.dataset.mora = m;
+      el.onclick = () => {
+        if (selectedMora.has(m)) { selectedMora.delete(m); el.classList.remove('checked'); }
+        else { selectedMora.add(m); el.classList.add('checked'); }
+        updateMoraStatus();
+      };
+      box.appendChild(el);
+    }
+  }
+}
+function updateMoraStatus() { $('moraStatus').textContent = selectedMora.size + ' モーラ選択中'; }
+buildMoraPicker();
+updateMoraStatus();
+$('moraSelectAll').onclick = () => {
+  selectedMora.clear();
+  ALL_MORA.forEach(m => selectedMora.add(m));
+  document.querySelectorAll('.moraItem').forEach(el => el.classList.add('checked'));
+  updateMoraStatus();
+};
+$('moraSelectNone').onclick = () => {
+  selectedMora.clear();
+  document.querySelectorAll('.moraItem').forEach(el => el.classList.remove('checked'));
+  updateMoraStatus();
+};
+
+// ============================================================
+// モーラ分割
+// ============================================================
+const KANA_RE = /[\u3041-\u309F]/;
+const SMALL_ALL = new Set(['ゃ','ゅ','ょ','ぁ','ぃ','ぅ','ぇ','ぉ','ゎ']);
+const CHOONPU = '\u30FC';
+function splitMora(hira) {
+  const chars = [...hira];
+  const moras = [];
+  let i = 0;
+  while (i < chars.length) {
+    const c = chars[i];
+    if (c === CHOONPU) { moras.push({ text: c, charCount: 1 }); i++; continue; }
+    if (!KANA_RE.test(c)) { i++; continue; }
+    if (i + 1 < chars.length && SMALL_ALL.has(chars[i + 1])) {
+      moras.push({ text: c + chars[i + 1], charCount: 2 }); i += 2; continue;
+    }
+    moras.push({ text: c, charCount: 1 });
+    i++;
+  }
+  return moras;
+}
+
+// ============================================================
+// モーラ抽出
+// ============================================================
+async function extractMora() {
+  if (!selectedMora.size) { alert('モーラを選択してください'); return; }
+  const targets = [];
+  results.forEach((r, ri) => r.entries.forEach((e, ei) => {
+    if (AUDIO_EXT.test(e.name) && e.chunks && e.chunks.length) targets.push({ ri, ei });
+  }));
+  if (!targets.length) { alert('文字起こし済みの音声ファイルがありません'); return; }
+
+  $('moraStatus').innerHTML = '<span class="spin"></span>抽出中… 0 / ' + targets.length + ' ファイル';
+  await new Promise(r => setTimeout(r, 0));
+
+  for (const arr of moraIndex.values()) {
+    for (const it of arr) { try { URL.revokeObjectURL(it.blobUrl); } catch (e) {} }
+  }
+  moraIndex.clear();
+  freqCache.clear();
+  $('freqPanel').style.display = 'none';
+
+  try { await loadKuromoji(); } catch (e) { console.warn('kuromoji load failed', e); }
+
+  const actx = new AudioContext();
+  const decodedCache = new Map();
+
+  try {
+    for (let ti = 0; ti < targets.length; ti++) {
+      const { ri, ei } = targets[ti];
+      const e = results[ri].entries[ei];
+      $('moraStatus').innerHTML = '<span class="spin"></span>抽出中… ' + (ti + 1) + ' / ' + targets.length + ' : ' + e.name;
+      await new Promise(r => setTimeout(r, 0));
+
+      const cacheKey = ri + '::' + ei;
+      let audioBuffer = decodedCache.get(cacheKey);
+      if (!audioBuffer) {
+        try { audioBuffer = await actx.decodeAudioData(e.arrayBuffer.slice(0)); }
+        catch (err) { console.error('decode failed', e.name, err); continue; }
+        decodedCache.set(cacheKey, audioBuffer);
+      }
+      if (!e.hiragana) e.hiragana = toHiragana(e.transcript || e.chunks.map(c => c.text).join(''));
+
+      for (const c of e.chunks) {
+        if (c.start == null || c.end == null) continue;
+        const chunkHira = toHiragana(c.text);
+        const moras = splitMora(chunkHira);
+        if (!moras.length) continue;
+        const dur = c.end - c.start;
+        const totalChar = moras.reduce((n, m) => n + m.charCount, 0) || 1;
+        let cursor = c.start;
+        for (const m of moras) {
+          const segDur = dur * (m.charCount / totalChar);
+          const segStart = cursor;
+          const segEnd = cursor + segDur;
+          cursor = segEnd;
+          if (!selectedMora.has(m.text)) continue;
+          const sliced = sliceAudioF32(audioBuffer, segStart, segEnd);
+          if (!sliced) continue;
+          const wav = encodeWAV(sliced, audioBuffer.sampleRate);
+          const blobUrl = URL.createObjectURL(wav);
+          if (!moraIndex.has(m.text)) moraIndex.set(m.text, []);
+          moraIndex.get(m.text).push({
+            ri, ei, sourcePath: e.path, sourceName: e.name,
+            start: segStart, end: segEnd,
+            blobUrl, blob: wav, sampleRate: audioBuffer.sampleRate,
+          });
+        }
+      }
+    }
+  } finally {
+    try { await actx.close(); } catch (e) {}
+  }
+  renderMoraResults();
+  const total = [...moraIndex.values()].reduce((n, a) => n + a.length, 0);
+  $('moraStatus').textContent = '完了 — ' + moraIndex.size + ' モーラ / 合計 ' + total + ' インスタンス';
+}
+function sliceAudioF32(buffer, startSec, endSec) {
+  const sr = buffer.sampleRate;
+  const s = Math.max(0, Math.floor(startSec * sr));
+  const e = Math.min(buffer.length, Math.ceil(endSec * sr));
+  const len = e - s;
+  if (len <= 0) return null;
+  const src = buffer.getChannelData(0);
+  const out = new Float32Array(len);
+  for (let i = 0; i < len; i++) out[i] = src[s + i];
+  return out;
+}
+function encodeWAV(samples, sampleRate, numChannels) {
+  numChannels = numChannels || 1;
+  const bytesPerSample = 2;
+  const blockAlign = numChannels * bytesPerSample;
+  const dataSize = samples.length * bytesPerSample;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+  const writeStr = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * blockAlign, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, 'data');
+  view.setUint32(40, dataSize, true);
+  let off = 44;
+  for (let i = 0; i < samples.length; i++) {
+    let s = samples[i];
+    if (s > 1) s = 1; else if (s < -1) s = -1;
+    view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    off += 2;
+  }
+  return new Blob([buffer], { type: 'audio/wav' });
+}
+function renderMoraResults() {
+  const box = $('moraResult');
+  box.innerHTML = '';
+  $('moraResultPanel').style.display = 'block';
+  const sortedMora = ALL_MORA.filter(m => moraIndex.has(m));
+  for (const m of moraIndex.keys()) if (!sortedMora.includes(m)) sortedMora.push(m);
+  for (const m of sortedMora) {
+    const items = moraIndex.get(m);
+    const block = document.createElement('div');
+    block.className = 'moraResult';
+    const header = document.createElement('div');
+    header.className = 'moraResultHeader';
+    const mEl = document.createElement('div'); mEl.className = 'm'; mEl.textContent = m;
+    const nEl = document.createElement('div'); nEl.className = 'n'; nEl.textContent = items.length + ' 件';
+    header.appendChild(mEl); header.appendChild(nEl);
+    block.appendChild(header);
+    for (const it of items) {
+      const row = document.createElement('div');
+      row.className = 'moraInstance';
+      const src = document.createElement('div'); src.className = 'src'; src.textContent = it.sourcePath;
+      const time = document.createElement('div'); time.className = 'time';
+      time.textContent = it.start.toFixed(2) + '–' + it.end.toFixed(2);
+      const audio = document.createElement('audio');
+      audio.controls = true; audio.src = it.blobUrl; audio.preload = 'none';
+      const dl = document.createElement('button');
+      dl.textContent = 'DL';
+      dl.onclick = () => {
+        const a = document.createElement('a');
+        a.href = it.blobUrl;
+        a.download = m + '_' + it.sourceName.replace(/\.[^.]+$/, '') + '_' + it.start.toFixed(2) + '.wav';
+        a.click();
+      };
+      row.appendChild(src); row.appendChild(time); row.appendChild(audio); row.appendChild(dl);
+      block.appendChild(row);
+    }
+    box.appendChild(block);
+  }
+}
+$('moraExtract').onclick = extractMora;
+
+$('moraDownloadZip').onclick = async () => {
+  if (!moraIndex.size) { alert('先に「モーラを抽出」してください'); return; }
+  const total = [...moraIndex.values()].reduce((n, a) => n + a.length, 0);
+  if (!total) { alert('抽出されたモーラがありません'); return; }
+  if (!confirm('モーラ ' + moraIndex.size + ' 種 / 合計 ' + total + ' 個をZIP化します。')) return;
+  const btn = $('moraDownloadZip');
+  btn.disabled = true;
+  const setStatus = html => { $('moraStatus').innerHTML = html; };
+  setStatus('<span class="spin"></span>準備中…');
+  await new Promise(r => setTimeout(r, 0));
+  const out = new JSZip();
+  const indexLines = ['mora\tsource\tstart\tend\tfile'];
+  const orderedMora = ALL_MORA.filter(m => moraIndex.has(m));
+  for (const m of moraIndex.keys()) if (!orderedMora.includes(m)) orderedMora.push(m);
+  let done = 0;
+  for (const mora of orderedMora) {
+    const items = moraIndex.get(mora);
+    if (!items || !items.length) continue;
+    const folder = mora.replace(/[\\/:*?"<>|]/g, '_');
+    const sorted = items.slice().sort((a, b) => {
+      if (a.sourceName !== b.sourceName) return a.sourceName.localeCompare(b.sourceName, 'ja');
+      return a.start - b.start;
+    });
+    let n = 0;
+    for (const it of sorted) {
+      n++;
+      const srcBase = it.sourceName.replace(/\.[^.]+$/, '');
+      const fname = String(n).padStart(3, '0') + '_' + srcBase + '_' + it.start.toFixed(2) + '.wav';
+      out.file(folder + '/' + fname, it.blob);
+      indexLines.push([mora, it.sourcePath, it.start.toFixed(3), it.end.toFixed(3), folder + '/' + fname].join('\t'));
+      done++;
+      if (done % 20 === 0 || done === total) {
+        setStatus('<span class="spin"></span>追加中… ' + done + ' / ' + total);
+        await new Promise(r => setTimeout(r, 0));
+      }
+    }
+  }
+  out.file('mora_index.tsv', indexLines.join('\n'));
+  setStatus('<span class="spin"></span>ZIP圧縮中…');
+  const blob = await out.generateAsync(
+    { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
+    meta => setStatus('<span class="spin"></span>ZIP圧縮中… ' + meta.percent.toFixed(0) + '%')
+  );
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'mora_' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.zip';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  btn.disabled = false;
+  $('moraStatus').textContent = '完了 — ' + orderedMora.length + ' モーラ / ' + total + ' ファイル（' + formatSize(blob.size) + '）';
+};
+
+$('moraExportWebAudio').onclick = async () => {
+  if (!moraIndex.size) { alert('先に「モーラを抽出」してください'); return; }
+  const orderedMora = ALL_MORA.filter(m => moraIndex.has(m));
+  for (const m of moraIndex.keys()) if (!orderedMora.includes(m)) orderedMora.push(m);
+  const totalSamples = [...moraIndex.values()].reduce((n, a) => n + a.length, 0);
+  if (!confirm('モーラ ' + orderedMora.length + ' 種 / サンプル ' + totalSamples + ' 個をWeb Audio APIパッケージにします。')) return;
+  const btn = $('moraExportWebAudio');
+  btn.disabled = true;
+  const setStatus = html => { $('moraStatus').innerHTML = html; };
+  setStatus('<span class="spin"></span>構築中…');
+  await new Promise(r => setTimeout(r, 0));
+  const out = new JSZip();
+  const manifest = { version: 2, generatedAt: new Date().toISOString(), sampleRate: null, mora: {} };
+  let done = 0;
+  for (const mora of orderedMora) {
+    const items = moraIndex.get(mora);
+    if (!items || !items.length) continue;
+    const scored = items.map(it => ({ it, score: scoreMora(it) })).sort((a, b) => b.score - a.score);
+    const folder = 'audio/' + mora.replace(/[\\/:*?"<>|]/g, '_');
+    const list = [];
+    scored.forEach((s, i) => {
+      const idx = String(i + 1).padStart(3, '0');
+      const file = folder + '/' + idx + '.wav';
+      out.file(file, s.it.blob);
+      list.push({
+        file, source: s.it.sourcePath,
+        start: +s.it.start.toFixed(3), end: +s.it.end.toFixed(3),
+        duration: +(s.it.end - s.it.start).toFixed(3), score: +s.score.toFixed(3),
+      });
+      if (manifest.sampleRate == null) manifest.sampleRate = s.it.sampleRate;
+      done++;
+    });
+    manifest.mora[mora] = list;
+    if (done % 20 === 0) {
+      setStatus('<span class="spin"></span>構築中… ' + done + ' / ' + totalSamples);
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+  out.file('manifest.json', JSON.stringify(manifest, null, 2));
+  out.file('mora_engine.js', buildMoraEngineSource());
+  out.file('demo.html', buildDemoHtml());
+  setStatus('<span class="spin"></span>ZIP圧縮中…');
+  const blob = await out.generateAsync(
+    { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
+    meta => setStatus('<span class="spin"></span>ZIP圧縮中… ' + meta.percent.toFixed(0) + '%')
+  );
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'mora_web_audio_' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.zip';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  btn.disabled = false;
+  $('moraStatus').textContent = '完了 — ' + orderedMora.length + ' モーラ / ' + done + ' サンプル（' + formatSize(blob.size) + '）';
+};
+function scoreMora(it) {
+  const dur = it.end - it.start;
+  const lenScore = 1 - Math.min(1, Math.abs(dur - 0.15) / 0.3);
+  const sizeScore = Math.min(1, it.blob.size / 8000);
+  return lenScore * 0.6 + sizeScore * 0.4;
+}
+
+// ============================================================
+// F0分析
+// ============================================================
+function detectF0(samples, sampleRate, opts) {
+  opts = opts || {};
+  const minF0 = opts.minF0 || 60;
+  const maxF0 = opts.maxF0 || 800;
+  const frameMs = opts.frameMs || 30;
+  const hopMs = opts.hopMs || 10;
+  const rmsGate = opts.rmsGate || 0.01;
+  const frameSize = Math.floor(sampleRate * frameMs / 1000);
+  const hopSize = Math.floor(sampleRate * hopMs / 1000);
+  const minLag = Math.floor(sampleRate / maxF0);
+  const maxLag = Math.floor(sampleRate / minF0);
+  const corrLen = maxLag + 2;
+  if (frameSize <= maxLag) return [];
+  const f0List = [];
+  for (let start = 0; start + frameSize <= samples.length; start += hopSize) {
+    let rms = 0;
+    for (let i = 0; i < frameSize; i++) { const v = samples[start + i]; rms += v * v; }
+    rms = Math.sqrt(rms / frameSize);
+    if (rms < rmsGate) continue;
+    const corr = new Float32Array(corrLen);
+    for (let lag = minLag; lag <= maxLag; lag++) {
+      let sum = 0;
+      const n = frameSize - lag;
+      for (let i = 0; i < n; i++) sum += samples[start + i] * samples[start + i + lag];
+      corr[lag] = sum / n;
+    }
+    let norm = 0;
+    for (let lag = minLag; lag <= maxLag; lag++) if (corr[lag] > norm) norm = corr[lag];
+    if (norm <= 0) continue;
+    let bestLag = -1, bestVal = -Infinity;
+    for (let lag = minLag + 1; lag <= maxLag - 1; lag++) {
+      if (corr[lag] > corr[lag - 1] && corr[lag] >= corr[lag + 1]) {
+        if (corr[lag] > bestVal) { bestVal = corr[lag]; bestLag = lag; }
+      }
+    }
+    if (bestLag < 0) continue;
+    if (bestVal / norm < 0.3) continue;
+    let refined = bestLag;
+    const y0 = corr[bestLag - 1], y1 = corr[bestLag], y2 = corr[bestLag + 1];
+    const denom = 2 * (2 * y1 - y0 - y2);
+    if (Math.abs(denom) > 1e-9) refined = bestLag + (y2 - y0) / denom;
+    if (!isFinite(refined) || refined <= 0) continue;
+    const f0 = sampleRate / refined;
+    if (f0 >= minF0 && f0 <= maxF0) f0List.push(f0);
+  }
+  return f0List;
+}
+function computeStats(values, binWidth) {
+  binWidth = binWidth || 5;
+  if (!values.length) return null;
+  const sorted = values.slice().sort((a, b) => a - b);
+  const n = sorted.length;
+  const mean = sorted.reduce((s, v) => s + v, 0) / n;
+  const median = n % 2 === 1 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+  const min = sorted[0], max = sorted[n - 1];
+  const nbins = Math.max(1, Math.ceil((max - min) / binWidth) || 1);
+  const bins = new Array(nbins).fill(0);
+  for (const v of sorted) {
+    const bi = Math.min(nbins - 1, Math.floor((v - min) / binWidth));
+    bins[bi]++;
+  }
+  let modeBin = 0;
+  for (let i = 1; i < nbins; i++) if (bins[i] > bins[modeBin]) modeBin = i;
+  const mode = min + (modeBin + 0.5) * binWidth;
+  const modeCount = bins[modeBin];
+  let variance = 0;
+  for (const v of sorted) variance += (v - mean) ** 2;
+  variance /= n;
+  const std = Math.sqrt(variance);
+  const q = p => {
+    const pos = (n - 1) * p;
+    const lo = Math.floor(pos), hi = Math.ceil(pos);
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+  };
+  return { n, mean, median, mode, modeCount, min, max, range: max - min, std, q1: q(0.25), q3: q(0.75), values: sorted };
+}
+$('freqAnalyze').onclick = async () => {
+  if (!moraIndex.size) { alert('先に「モーラを抽出」してください'); return; }
+  const btn = $('freqAnalyze');
+  btn.disabled = true;
+  const setStatus = html => { $('freqStatus').innerHTML = html; };
+  const totalSamples = [...moraIndex.values()].reduce((n, a) => n + a.length, 0);
+  setStatus('<span class="spin"></span>分析中… 0 / ' + totalSamples);
+  $('freqPanel').style.display = 'block';
+  await new Promise(r => setTimeout(r, 0));
+  freqCache.clear();
+  const actx = new AudioContext();
+  let done = 0;
+  try {
+    for (const [mora, items] of moraIndex) {
+      const sampleStats = [];
+      const allF0 = [];
+      for (const it of items) {
+        try {
+          const arr = await it.blob.arrayBuffer();
+          const buf = await actx.decodeAudioData(arr);
+          const data = buf.getChannelData(0);
+          const f0 = detectF0(data, buf.sampleRate);
+          const stats = computeStats(f0);
+          sampleStats.push({ source: it.sourceName, start: it.start, end: it.end, f0, stats });
+          allF0.push(...f0);
+        } catch (e) {
+          console.error('F0 failed', mora, e);
+          sampleStats.push({ source: it.sourceName, start: it.start, end: it.end, f0: [], stats: null });
+        }
+        done++;
+        if (done % 5 === 0) {
+          setStatus('<span class="spin"></span>分析中… ' + done + ' / ' + totalSamples);
+          await new Promise(r => setTimeout(r, 0));
+        }
+      }
+      freqCache.set(mora, { samples: sampleStats, stats: computeStats(allF0) });
+    }
+  } finally {
+    try { await actx.close(); } catch (e) {}
+  }
+  renderFreqTable();
+  renderFreqMoraSelect();
+  renderFreqHist();
+  renderFreqBox();
+  renderFreqScatter();
+  btn.disabled = false;
+  setStatus('完了 — ' + freqCache.size + ' モーラを分析');
+};
+function orderedMoraList() {
+  const list = ALL_MORA.filter(m => freqCache.has(m));
+  for (const m of freqCache.keys()) if (!list.includes(m)) list.push(m);
+  return list;
+}
+function renderFreqTable() {
+  const tbody = $('freqTable').querySelector('tbody');
+  tbody.innerHTML = '';
+  for (const mora of orderedMoraList()) {
+    const st = freqCache.get(mora);
+    const stats = st.stats;
+    const tr = document.createElement('tr');
+    const td = (txt, cls) => { const d = document.createElement('td'); d.textContent = txt; if (cls) d.className = cls; return d; };
+    const fmt = v => v == null ? '-' : v.toFixed(1);
+    tr.appendChild(td(mora));
+    tr.appendChild(td(stats ? String(stats.n) : '0', 'num'));
+    tr.appendChild(td(fmt(stats && stats.mean), 'num'));
+    tr.appendChild(td(fmt(stats && stats.median), 'num'));
+    tr.appendChild(td(stats ? stats.mode.toFixed(1) + ' (' + stats.modeCount + ')' : '-', 'num'));
+    tr.appendChild(td(fmt(stats && stats.min), 'num'));
+    tr.appendChild(td(fmt(stats && stats.max), 'num'));
+    tr.appendChild(td(fmt(stats && stats.range), 'num'));
+    tr.appendChild(td(fmt(stats && stats.std), 'num'));
+    tbody.appendChild(tr);
+  }
+}
+function renderFreqMoraSelect() {
+  const sel = $('freqMoraSelect');
+  const prev = sel.value;
+  sel.innerHTML = '';
+  for (const m of orderedMoraList()) {
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = m;
+    sel.appendChild(opt);
+  }
+  if (prev && freqCache.has(prev)) sel.value = prev;
+  sel.onchange = () => renderFreqHist();
+}
+function renderFreqHist() {
+  const canvas = $('freqHist');
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0, 0, W, H);
+  const mora = $('freqMoraSelect').value;
+  if (!mora || !freqCache.has(mora)) return;
+  const stats = freqCache.get(mora).stats;
+  if (!stats) return;
+  const pad = { l: 50, r: 20, t: 20, b: 30 };
+  const plotW = W - pad.l - pad.r;
+  const plotH = H - pad.t - pad.b;
+  const binW = 5;
+  const binMin = Math.floor(stats.min / binW) * binW;
+  const binMax = Math.ceil(stats.max / binW) * binW;
+  const nbins = Math.max(1, Math.round((binMax - binMin) / binW));
+  const bins = new Array(nbins).fill(0);
+  for (const v of stats.values) {
+    const i = Math.min(nbins - 1, Math.floor((v - binMin) / binW));
+    bins[i]++;
+  }
+  const maxCount = Math.max(...bins, 1);
+  c.strokeStyle = '#3a3a3a';
+  c.beginPath();
+  c.moveTo(pad.l, pad.t); c.lineTo(pad.l, pad.t + plotH); c.lineTo(pad.l + plotW, pad.t + plotH);
+  c.stroke();
+  c.fillStyle = '#888'; c.font = '10px monospace';
+  for (let i = 0; i <= 6; i++) {
+    const hz = binMin + (binMax - binMin) * i / 6;
+    const x = pad.l + plotW * i / 6;
+    c.fillText(hz.toFixed(0), x - 10, pad.t + plotH + 14);
+    c.strokeStyle = '#222';
+    c.beginPath(); c.moveTo(x, pad.t); c.lineTo(x, pad.t + plotH); c.stroke();
+  }
+  for (let i = 0; i < nbins; i++) {
+    const x = pad.l + plotW * (i / nbins);
+    const w = plotW / nbins;
+    const h = plotH * (bins[i] / maxCount);
+    c.fillStyle = '#5b9bd5';
+    c.fillRect(x + 0.5, pad.t + plotH - h, Math.max(0.5, w - 1), h);
+  }
+  const vLine = (hz, color, label) => {
+    const x = pad.l + plotW * ((hz - binMin) / (binMax - binMin));
+    c.strokeStyle = color; c.setLineDash([4, 3]);
+    c.beginPath(); c.moveTo(x, pad.t); c.lineTo(x, pad.t + plotH); c.stroke();
+    c.setLineDash([]);
+    c.fillStyle = color; c.font = '10px sans-serif';
+    c.fillText(label, x + 3, pad.t + 12);
+  };
+  vLine(stats.mean, '#f0a030', '平均');
+  vLine(stats.median, '#7fd8a0', '中央値');
+  vLine(stats.mode, '#ff6060', '最頻値');
+  c.fillStyle = '#e8e8e8'; c.font = '12px sans-serif';
+  c.fillText('モーラ「' + mora + '」 — n=' + stats.n + ' / 平均 ' + stats.mean.toFixed(1) + 'Hz / 範囲 ' + stats.range.toFixed(1) + 'Hz', pad.l, 14);
+}
+function renderFreqBox() {
+  const canvas = $('freqBox');
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0, 0, W, H);
+  const moras = ALL_MORA.filter(m => freqCache.has(m) && freqCache.get(m).stats);
+  if (!moras.length) return;
+  let gMin = Infinity, gMax = -Infinity;
+  for (const m of moras) {
+    const s = freqCache.get(m).stats;
+    if (s.min < gMin) gMin = s.min;
+    if (s.max > gMax) gMax = s.max;
+  }
+  gMin = Math.floor(gMin / 20) * 20;
+  gMax = Math.ceil(gMax / 20) * 20;
+  const pad = { l: 50, r: 20, t: 20, b: 40 };
+  const plotW = W - pad.l - pad.r;
+  const plotH = H - pad.t - pad.b;
+  const yScale = hz => pad.t + plotH * (1 - (hz - gMin) / (gMax - gMin));
+  c.strokeStyle = '#3a3a3a';
+  c.beginPath();
+  c.moveTo(pad.l, pad.t); c.lineTo(pad.l, pad.t + plotH); c.lineTo(pad.l + plotW, pad.t + plotH);
+  c.stroke();
+  c.fillStyle = '#888'; c.font = '10px monospace';
+  for (let hz = gMin; hz <= gMax; hz += 50) {
+    const y = yScale(hz);
+    c.fillText(hz + 'Hz', 8, y + 3);
+    c.strokeStyle = '#222';
+    c.beginPath(); c.moveTo(pad.l, y); c.lineTo(pad.l + plotW, y); c.stroke();
+  }
+  const step = plotW / moras.length;
+  const boxW = Math.min(24, step * 0.6);
+  for (let i = 0; i < moras.length; i++) {
+    const m = moras[i];
+    const s = freqCache.get(m).stats;
+    const x = pad.l + step * (i + 0.5);
+    c.strokeStyle = '#5b9bd5';
+    c.beginPath();
+    c.moveTo(x, yScale(s.min)); c.lineTo(x, yScale(s.max));
+    c.moveTo(x - boxW / 3, yScale(s.min)); c.lineTo(x + boxW / 3, yScale(s.min));
+    c.moveTo(x - boxW / 3, yScale(s.max)); c.lineTo(x + boxW / 3, yScale(s.max));
+    c.stroke();
+    const q1y = yScale(s.q1), q3y = yScale(s.q3);
+    c.fillStyle = 'rgba(91,155,213,0.4)';
+    c.fillRect(x - boxW / 2, q3y, boxW, q1y - q3y);
+    c.strokeStyle = '#5b9bd5';
+    c.strokeRect(x - boxW / 2, q3y, boxW, q1y - q3y);
+    c.strokeStyle = '#f0a030';
+    c.lineWidth = 2;
+    const medY = yScale(s.median);
+    c.beginPath(); c.moveTo(x - boxW / 2, medY); c.lineTo(x + boxW / 2, medY); c.stroke();
+    c.lineWidth = 1;
+    c.fillStyle = '#ff6060';
+    c.beginPath();
+    c.arc(x, yScale(s.mean), 2.5, 0, Math.PI * 2);
+    c.fill();
+    if (step > 14) {
+      c.save();
+      c.translate(x, pad.t + plotH + 20);
+      c.rotate(-Math.PI / 4);
+      c.fillStyle = '#ccc'; c.font = '10px sans-serif'; c.textAlign = 'right';
+      c.fillText(m, 0, 0);
+      c.restore();
+    }
+  }
+}
+function renderFreqScatter() {
+  const canvas = $('freqScatter');
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0, 0, W, H);
+  if (!freqCache.size) return;
+  const moras = ALL_MORA.filter(m => freqCache.has(m));
+  let gMin = Infinity, gMax = -Infinity;
+  for (const m of moras) {
+    for (const s of freqCache.get(m).samples) {
+      if (!s.stats) continue;
+      if (s.stats.min < gMin) gMin = s.stats.min;
+      if (s.stats.max > gMax) gMax = s.stats.max;
+    }
+  }
+  if (!isFinite(gMin)) return;
+  gMin = Math.floor(gMin / 20) * 20;
+  gMax = Math.ceil(gMax / 20) * 20;
+  const pad = { l: 50, r: 20, t: 20, b: 40 };
+  const plotW = W - pad.l - pad.r;
+  const plotH = H - pad.t - pad.b;
+  const yScale = hz => pad.t + plotH * (1 - (hz - gMin) / (gMax - gMin));
+  c.strokeStyle = '#3a3a3a';
+  c.beginPath();
+  c.moveTo(pad.l, pad.t); c.lineTo(pad.l, pad.t + plotH); c.lineTo(pad.l + plotW, pad.t + plotH);
+  c.stroke();
+  c.fillStyle = '#888'; c.font = '10px monospace';
+  for (let hz = gMin; hz <= gMax; hz += 50) {
+    const y = yScale(hz);
+    c.fillText(hz + 'Hz', 8, y + 3);
+    c.strokeStyle = '#222';
+    c.beginPath(); c.moveTo(pad.l, y); c.lineTo(pad.l + plotW, y); c.stroke();
+  }
+  const step = plotW / moras.length;
+  for (let i = 0; i < moras.length; i++) {
+    const m = moras[i];
+    const samples = freqCache.get(m).samples;
+    const x = pad.l + step * (i + 0.5);
+    for (const s of samples) {
+      if (!s.stats) continue;
+      c.strokeStyle = 'rgba(127,216,160,0.3)';
+      c.beginPath();
+      c.moveTo(x, yScale(s.stats.min));
+      c.lineTo(x, yScale(s.stats.max));
+      c.stroke();
+      c.fillStyle = '#7fd8a0';
+      c.beginPath();
+      c.arc(x, yScale(s.stats.median), 3, 0, Math.PI * 2);
+      c.fill();
+    }
+    if (step > 14) {
+      c.save();
+      c.translate(x, pad.t + plotH + 20);
+      c.rotate(-Math.PI / 4);
+      c.fillStyle = '#ccc'; c.font = '10px sans-serif'; c.textAlign = 'right';
+      c.fillText(m, 0, 0);
+      c.restore();
+    }
+  }
+  c.fillStyle = '#e8e8e8'; c.font = '12px sans-serif';
+  c.fillText('各モーラ：●=サンプル中央値 / 縦線=範囲', pad.l, 14);
+}
+
+// ============================================================
+// コピー / CSV
+// ============================================================
+function flashCopied(btn) {
+  btn.classList.remove('copied');
+  void btn.offsetWidth;
+  btn.classList.add('copied');
+  setTimeout(() => btn.classList.remove('copied'), 1400);
+}
+async function copyText(text, btn) {
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+  }
+  if (btn) flashCopied(btn);
+}
+function buildTableText() {
+  const lines = [];
+  lines.push(['mora','n','mean','median','mode','mode_count','min','max','range','std','q1','q3'].join('\t'));
+  for (const m of orderedMoraList()) {
+    const s = freqCache.get(m).stats;
+    if (!s) { lines.push([m,0,'','','','','','','','','',''].join('\t')); continue; }
+    lines.push([m, s.n, s.mean.toFixed(2), s.median.toFixed(2), s.mode.toFixed(2), s.modeCount,
+      s.min.toFixed(2), s.max.toFixed(2), s.range.toFixed(2), s.std.toFixed(2), s.q1.toFixed(2), s.q3.toFixed(2)].join('\t'));
+  }
+  return lines.join('\n');
+}
+function buildAllText() {
+  const out = [];
+  out.push('=== F0 Statistics (by mora) ===');
+  out.push(buildTableText());
+  out.push('');
+  out.push('=== F0 per sample ===');
+  out.push(['mora','source','start','end','n','mean','median','min','max','range','std'].join('\t'));
+  for (const m of orderedMoraList()) {
+    const entry = freqCache.get(m);
+    for (const s of entry.samples) {
+      if (!s.stats) { out.push([m, s.source, s.start.toFixed(3), s.end.toFixed(3), 0, '', '', '', '', '', ''].join('\t')); continue; }
+      out.push([m, s.source, s.start.toFixed(3), s.end.toFixed(3),
+        s.stats.n, s.stats.mean.toFixed(2), s.stats.median.toFixed(2),
+        s.stats.min.toFixed(2), s.stats.max.toFixed(2),
+        s.stats.range.toFixed(2), s.stats.std.toFixed(2)].join('\t'));
+    }
+  }
+  return out.join('\n');
+}
+$('freqCopyTable').onclick = () => {
+  if (!freqCache.size) { alert('先に分析してください'); return; }
+  const text = buildTableText();
+  $('freqCopyArea').value = text;
+  copyText(text, $('freqCopyTable'));
+};
+$('freqCopyAll').onclick = () => {
+  if (!freqCache.size) { alert('先に分析してください'); return; }
+  const text = buildAllText();
+  $('freqCopyArea').value = text;
+  copyText(text, $('freqCopyAll'));
+};
+$('freqExportCsv').onclick = () => {
+  if (!freqCache.size) { alert('先に分析してください'); return; }
+  const lines = ['mora,n,mean_hz,median_hz,mode_hz,mode_count,min_hz,max_hz,range_hz,std_hz,q1_hz,q3_hz'];
+  for (const m of orderedMoraList()) {
+    const s = freqCache.get(m).stats;
+    if (!s) { lines.push(m + ',0,,,,,,,,,,'); continue; }
+    lines.push([m, s.n, s.mean.toFixed(3), s.median.toFixed(3), s.mode.toFixed(3), s.modeCount,
+      s.min.toFixed(3), s.max.toFixed(3), s.range.toFixed(3), s.std.toFixed(3), s.q1.toFixed(3), s.q3.toFixed(3)].join(','));
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'freq_stats_' + Date.now() + '.csv'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+$('downloadAll').onclick = async () => {
+  const all = results.flatMap(r => r.entries.map(e => ({
+    path: (r.zipName || 'zip').replace(/\.zip$/i, '') + '/' + e.path,
+    blob: new Blob([e.arrayBuffer], { type: e.mime }),
+  })));
+  if (!all.length) { alert('ファイルがありません'); return; }
+  $('status').innerHTML = '<span class="spin"></span>ZIP作成中… 0 / ' + all.length;
+  await new Promise(r => setTimeout(r, 0));
+  const out = new JSZip();
+  for (let i = 0; i < all.length; i++) {
+    out.file(all[i].path, all[i].blob);
+    if (i % 50 === 0) {
+      $('status').innerHTML = '<span class="spin"></span>ZIP作成中… ' + i + ' / ' + all.length;
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+  const lines = [];
+  results.forEach(r => r.entries.forEach(e => {
+    if (e.transcript) {
+      lines.push('--- ' + r.zipName + ' :: ' + e.path + ' ---');
+      lines.push(e.transcript);
+      if (e.hiragana) { lines.push(''); lines.push('[ひらがな]'); lines.push(e.hiragana); }
+      lines.push('');
+    }
+  }));
+  if (lines.length) out.file('transcripts.txt', lines.join('\n'));
+  const blob = await out.generateAsync({ type: 'blob' }, meta => {
+    $('status').innerHTML = '<span class="spin"></span>ZIP作成中… ' + meta.percent.toFixed(0) + '%';
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'extracted_' + Date.now() + '.zip'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  $('status').textContent = '完了 — ' + all.length + ' ファイル + transcripts.txt';
+};
+$('clearDb').onclick = async () => {
+  if (!confirm('IndexedDBを全削除しますか？')) return;
+  await idbClear(STORE_ZIPS);
+  await idbClear(STORE_ENTRIES);
+  $('status').textContent = 'IndexedDBを全削除しました';
+};
+
+function buildMoraEngineSource() {
+  return String.raw`class MoraEngine {
+  constructor(basePath = './', options = {}) {
+    this.basePath = basePath.endsWith('/') ? basePath : basePath + '/';
+    this.ctx = null; this.manifest = null;
+    this.buffers = new Map(); this.samples = new Map();
+    this.preferred = new Map(); this._rr = new Map(); this._active = [];
+    this.loaded = false;
+    this.gap = options.gap ?? 0.015;
+    this.rate = options.rate ?? 1.0;
+    this.pickMode = options.pickMode ?? 'random';
+  }
+  async load(onProgress) {
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const res = await fetch(this.basePath + 'manifest.json');
+    if (!res.ok) throw new Error('manifest.json が見つかりません');
+    this.manifest = await res.json();
+    const entries = Object.entries(this.manifest.mora);
+    let done = 0;
+    for (const [mora, samples] of entries) {
+      const bufs = [];
+      for (const s of samples) {
+        const r = await fetch(this.basePath + s.file);
+        const arr = await r.arrayBuffer();
+        bufs.push(await this.ctx.decodeAudioData(arr));
+      }
+      this.buffers.set(mora, bufs); this.samples.set(mora, samples);
+      done++;
+      if (onProgress) onProgress(done, entries.length, mora);
+    }
+    this.loaded = true;
+    return this;
+  }
+  listSamples(mora) { return (this.samples.get(mora) || []).slice(); }
+  setPreferred(mora, i) { if (this.samples.has(mora)) this.preferred.set(mora, i); }
+  clearPreferred(mora) { if (mora == null) this.preferred.clear(); else this.preferred.delete(mora); }
+  _pickIndex(mora) {
+    const pool = this.buffers.get(mora);
+    if (!pool || !pool.length) return -1;
+    if (pool.length === 1) return 0;
+    if (this.preferred.has(mora)) return Math.max(0, Math.min(pool.length - 1, this.preferred.get(mora)));
+    switch (this.pickMode) {
+      case 'first': return 0;
+      case 'best': { const list = this.samples.get(mora) || []; let b = 0, bs = -Infinity; list.forEach((s, i) => { if (s.score > bs) { bs = s.score; b = i; } }); return b; }
+      case 'roundrobin': { const i = (this._rr.get(mora) || 0) % pool.length; this._rr.set(mora, i + 1); return i; }
+      default: return Math.floor(Math.random() * pool.length);
+    }
+  }
+  _pick(mora) { const i = this._pickIndex(mora); if (i < 0) return null; return this.buffers.get(mora)[i]; }
+  static toHiragana(s) { return s.replace(/[\u30A1-\u30F6]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60)); }
+  splitText(text) {
+    const src = MoraEngine.toHiragana(String(text || ''));
+    const chars = [...src]; const tokens = [];
+    const SMALL_Y = new Set(['ゃ','ゅ','ょ']);
+    const SMALL_A = new Set(['ぁ','ぃ','ぅ','ぇ','ぉ','ゎ']);
+    const KANA = /[\u3041-\u309F]/;
+    let i = 0;
+    while (i < chars.length) {
+      const c = chars[i];
+      if (c === 'っ') { tokens.push({ type:'pause', dur: 0.09 }); i++; continue; }
+      if (c === 'ー') {
+        let last = null;
+        for (let k = tokens.length - 1; k >= 0; k--) if (tokens[k].type === 'mora') { last = tokens[k]; break; }
+        if (last) tokens.push({ type:'mora', text: last.text });
+        i++; continue;
+      }
+      if (SMALL_Y.has(c) && tokens.length) {
+        const prev = tokens[tokens.length - 1];
+        if (prev.type === 'mora') {
+          const comb = prev.text + c;
+          if (this.buffers.has(comb)) { prev.text = comb; i++; continue; }
+        }
+        const approx = { ゃ:'や', ゅ:'ゆ', ょ:'よ' }[c];
+        if (approx) tokens.push({ type:'mora', text: approx });
+        i++; continue;
+      }
+      if (SMALL_A.has(c)) {
+        const approx = { ぁ:'あ', ぃ:'い', ぅ:'う', ぇ:'え', ぉ:'お', ゎ:'わ' }[c];
+        tokens.push({ type:'mora', text: approx }); i++; continue;
+      }
+      if (KANA.test(c)) { tokens.push({ type:'mora', text: c }); i++; continue; }
+      if (c === '、' || c === ',' || c === ' ') tokens.push({ type:'pause', dur: 0.12 });
+      else if ('。.!?！？'.includes(c)) tokens.push({ type:'pause', dur: 0.25 });
+      i++;
+    }
+    return tokens;
+  }
+  async speak(text, opts = {}) {
+    if (!this.loaded) throw new Error('MoraEngine: load() を先に呼んでください');
+    if (this.ctx.state === 'suspended') await this.ctx.resume();
+    const rate = opts.rate ?? this.rate, gap = opts.gap ?? this.gap;
+    const tokens = this.splitText(text);
+    let t = this.ctx.currentTime + 0.05;
+    const sources = [];
+    for (const tk of tokens) {
+      if (tk.type === 'pause') { t += tk.dur / rate; continue; }
+      const buf = this._pick(tk.text);
+      if (!buf) { t += 0.1 / rate; continue; }
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf; src.playbackRate.value = rate;
+      const g = this.ctx.createGain(); g.gain.value = 1.0;
+      src.connect(g).connect(this.ctx.destination);
+      src.start(t); sources.push(src);
+      t += buf.duration / rate + gap;
+    }
+    this._active = sources;
+    return { totalDuration: t - this.ctx.currentTime, sources };
+  }
+  async previewSample(mora, index) {
+    if (!this.loaded) throw new Error('load() を先に');
+    if (this.ctx.state === 'suspended') await this.ctx.resume();
+    const pool = this.buffers.get(mora);
+    if (!pool || !pool[index]) return;
+    const src = this.ctx.createBufferSource();
+    src.buffer = pool[index]; src.connect(this.ctx.destination); src.start();
+    this._active.push(src);
+  }
+  stopAll() { for (const s of this._active) { try { s.stop(); } catch (e) {} } this._active = []; }
+  listMissing(text) {
+    const missing = new Set();
+    for (const tk of this.splitText(text)) if (tk.type === 'mora' && !this.buffers.has(tk.text)) missing.add(tk.text);
+    return [...missing];
+  }
+}
+if (typeof window !== 'undefined') window.MoraEngine = MoraEngine;`;
+}
+
+function buildDemoHtml() {
+  return '<!DOCTYPE html>\n<html lang="ja"><head><meta charset="UTF-8"><title>MoraEngine Demo</title>\n<style>body{font-family:system-ui,sans-serif;background:#1a1a1a;color:#e8e8e8;padding:24px;max-width:900px;margin:0 auto;font-size:14px}h1{font-size:18px}input[type=text]{width:100%;padding:10px;font-size:15px;background:#252525;color:#e8e8e8;border:1px solid #3a3a3a;border-radius:6px}button{background:#5b9bd5;color:#fff;border:none;padding:7px 14px;border-radius:5px;cursor:pointer;font-size:13px;margin-right:6px;margin-top:8px}</style></head><body>\n<h1>MoraEngine Demo</h1>\n<p style="color:#888;font-size:12px">python3 -m http.server 経由で開いてください</p>\n<input type="text" id="text" value="こんにちは。きょうは いい てんき ですね。">\n<div><button id="speak">▶ 読み上げ</button><button id="stop">■ 停止</button></div>\n<div id="log" style="margin-top:14px;color:#888;font-size:12px">読込中…</div>\n<script src="./mora_engine.js"><\/script>\n<script>\nconst engine = new MoraEngine("./");\nconst log = document.getElementById("log");\nengine.load().then(()=>{log.textContent="ロード完了";}).catch(e=>{log.textContent="エラー: "+e.message;});\ndocument.getElementById("speak").onclick=()=>engine.speak(document.getElementById("text").value);\ndocument.getElementById("stop").onclick=()=>engine.stopAll();\n<\/script></body></html>';
+}
+
+$('status').textContent = '準備完了';
+</script>
+</body>
+</html>
